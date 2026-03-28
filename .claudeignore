@@ -1,0 +1,55 @@
+# ============================================
+# Tax Copilot - .claudeignore
+# Claude Code がコンテキストに含めないファイル/フォルダ
+# ============================================
+
+# 依存関係（最大のノイズ源）
+node_modules/
+.pnp.*
+.yarn/
+
+# ビルド成果物
+dist/
+build/
+.vite/
+
+# 環境変数（機密情報）
+.env
+.env.local
+.env.production
+.env.*.local
+
+# ログ
+*.log
+npm-debug.log*
+
+# パッケージロック（巨大で不要）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# OS生成ファイル
+.DS_Store
+Thumbs.db
+
+# IDE設定
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+
+# テスト関連（未使用）
+coverage/
+__tests__/
+
+# 画像・バイナリ（コードレビューに不要）
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.ico
+*.svg
+public/

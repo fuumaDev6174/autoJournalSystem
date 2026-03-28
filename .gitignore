@@ -1,0 +1,42 @@
+# 依存関係
+node_modules
+dist
+dist-ssr
+*.local
+
+# ログ
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# エディタ
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# 環境変数（重要！）
+.env
+.env.local
+.env.*.local
+
+# ビルド
+.cache
+.parcel-cache
+.next
+out
+
+# アップロードファイル
+uploads/
+uploads/*
+!uploads/.gitkeep
+
+# TypeScript
+*.tsbuildinfo

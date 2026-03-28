@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Programing/Under_dev/tax-copilot -type f -name *.env* -o -name package.json -o -name tsconfig.json -o -name vite.config.* -o -name render.yaml)"
+    ]
+  }
+}

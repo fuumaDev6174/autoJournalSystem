@@ -1,0 +1,320 @@
+{
+  "industries": [
+    {
+      "id": "1",
+      "code": "driver",
+      "name": "ドライバー",
+      "description": "タクシー・トラック運送業など",
+      "client_count": 1,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "2",
+      "code": "liver",
+      "name": "ライバー",
+      "description": "配信者・YouTuberなど",
+      "client_count": 1,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "3",
+      "code": "freelance",
+      "name": "フリーランス",
+      "description": "IT・デザイナーなど",
+      "client_count": 1,
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "clients": [
+    {
+      "id": "1",
+      "organization_id": "org-1",
+      "name": "山田太郎",
+      "industry_id": "1",
+      "annual_sales": 5000000,
+      "tax_category": "原則課税",
+      "invoice_registered": true,
+      "use_custom_rules": true,
+      "status": "active",
+      "created_at": "2026-01-10T00:00:00Z",
+      "updated_at": "2026-01-10T00:00:00Z",
+      "industry": {
+        "id": "1",
+        "code": "driver",
+        "name": "ドライバー",
+        "description": "タクシー・トラック運送業など",
+        "client_count": 1,
+        "status": "active",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "2",
+      "organization_id": "org-1",
+      "name": "佐藤花子",
+      "industry_id": "2",
+      "annual_sales": 3000000,
+      "tax_category": "免税",
+      "invoice_registered": false,
+      "use_custom_rules": false,
+      "status": "active",
+      "created_at": "2026-01-15T00:00:00Z",
+      "updated_at": "2026-01-15T00:00:00Z",
+      "industry": {
+        "id": "2",
+        "code": "liver",
+        "name": "ライバー",
+        "description": "配信者・YouTuberなど",
+        "client_count": 1,
+        "status": "active",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "3",
+      "organization_id": "org-1",
+      "name": "鈴木一郎",
+      "industry_id": "3",
+      "annual_sales": 8000000,
+      "tax_category": "簡易課税",
+      "invoice_registered": true,
+      "use_custom_rules": true,
+      "status": "active",
+      "created_at": "2026-01-20T00:00:00Z",
+      "updated_at": "2026-01-20T00:00:00Z",
+      "industry": {
+        "id": "3",
+        "code": "freelance",
+        "name": "フリーランス",
+        "description": "IT・デザイナーなど",
+        "client_count": 1,
+        "status": "active",
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-01T00:00:00Z"
+      }
+    }
+  ],
+  "accountItems": [
+    {
+      "id": "1",
+      "code": "111",
+      "name": "現金",
+      "category": "資産",
+      "tax_category": "対象外",
+      "is_default": true,
+      "industry_id": null,
+      "short_name": "GENKIN_111",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "2",
+      "code": "501",
+      "name": "燃料費",
+      "category": "支出",
+      "tax_category": "課税",
+      "is_default": false,
+      "industry_id": "1",
+      "short_name": "NENRYO_501",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "3",
+      "code": "401",
+      "name": "サービス収入",
+      "category": "収入",
+      "tax_category": "課税",
+      "is_default": false,
+      "industry_id": "2",
+      "short_name": "SERVICE_401",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "taxCategories": [
+    {
+      "id": "1",
+      "name": "課税売上 10%",
+      "description": "標準税率による売上",
+      "is_default": true,
+      "applicable_to_income": true,
+      "applicable_to_expense": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "2",
+      "name": "課税仕入 10%",
+      "description": "標準税率による仕入",
+      "is_default": true,
+      "applicable_to_income": true,
+      "applicable_to_expense": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "3",
+      "name": "対象外",
+      "description": "消費税の課税対象外の取引",
+      "is_default": true,
+      "applicable_to_income": true,
+      "applicable_to_expense": true,
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "tags": [
+    {
+      "id": "1",
+      "type": "supplier",
+      "name": "Amazon",
+      "color": "orange",
+      "description": "オンラインショップ",
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "2",
+      "type": "supplier",
+      "name": "YouTube",
+      "color": "red",
+      "description": "動画配信プラットフォーム",
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "3",
+      "type": "supplier",
+      "name": "エネオス",
+      "color": "orange",
+      "description": "ガソリンスタンド",
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "rules": [
+    {
+      "id": "1",
+      "priority": 1,
+      "rule_type": "支出",
+      "industry_id": null,
+      "client_id": "1",
+      "supplier_pattern": "コスモ石油",
+      "transaction_pattern": null,
+      "amount_min": null,
+      "amount_max": null,
+      "account_item_id": "2",
+      "tax_category_id": "2",
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    },
+    {
+      "id": "2",
+      "priority": 3,
+      "rule_type": "支出",
+      "industry_id": "1",
+      "client_id": null,
+      "supplier_pattern": "エネオス",
+      "transaction_pattern": null,
+      "amount_min": null,
+      "amount_max": null,
+      "account_item_id": "2",
+      "tax_category_id": "2",
+      "status": "active",
+      "created_at": "2026-01-01T00:00:00Z",
+      "updated_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "documents": [
+    {
+      "id": "1",
+      "client_id": "1",
+      "uploaded_by": "user-1",
+      "file_path": "/uploads/receipt1.jpg",
+      "file_name": "領収書_エネオス_20260213.jpg",
+      "file_type": "image/jpeg",
+      "file_size": 2048576,
+      "upload_date": "2026-02-18",
+      "ocr_status": "completed",
+      "ocr_completed_at": "2026-02-18T01:30:00Z",
+      "is_excluded": false,
+      "exclusion_reason": null,
+      "created_at": "2026-02-18T01:28:00Z",
+      "updated_at": "2026-02-18T01:30:00Z"
+    }
+  ],
+  "journalEntries": [
+    {
+      "id": "1",
+      "document_id": "1",
+      "client_id": "1",
+      "entry_date": "2026-02-13",
+      "category": "事業用",
+      "supplier": "エネオス",
+      "account_item_id": "2",
+      "tax_category_id": "2",
+      "amount": 5500,
+      "tax_amount": 500,
+      "notes": null,
+      "status": "approved",
+      "reviewed_by": "user-1",
+      "reviewed_at": "2026-02-18T02:00:00Z",
+      "exported_to_freee": false,
+      "freee_transaction_id": null,
+      "exported_at": null,
+      "created_at": "2026-02-18T01:30:00Z",
+      "updated_at": "2026-02-18T02:00:00Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-1",
+      "organization_id": "org-1",
+      "name": "田中税理士",
+      "email": "tanaka@example.com",
+      "password_hash": "hashed",
+      "role": "admin",
+      "status": "active",
+      "last_login_at": "2026-01-31T18:00:00Z",
+      "created_at": "2025-12-01T00:00:00Z",
+      "updated_at": "2026-01-31T18:00:00Z"
+    },
+    {
+      "id": "user-2",
+      "organization_id": "org-1",
+      "name": "鈴木会計士",
+      "email": "suzuki@example.com",
+      "password_hash": "hashed",
+      "role": "accountant",
+      "status": "active",
+      "last_login_at": "2026-01-30T23:30:00Z",
+      "created_at": "2025-12-01T00:00:00Z",
+      "updated_at": "2026-01-30T23:30:00Z"
+    },
+    {
+      "id": "user-3",
+      "organization_id": "org-1",
+      "name": "佐藤スタッフ",
+      "email": "sato@example.com",
+      "password_hash": "hashed",
+      "role": "staff",
+      "status": "active",
+      "last_login_at": "2026-01-31T17:45:00Z",
+      "created_at": "2025-12-15T00:00:00Z",
+      "updated_at": "2026-01-31T17:45:00Z"
+    }
+  ]
+}
