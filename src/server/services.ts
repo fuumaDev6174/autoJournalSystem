@@ -1518,7 +1518,7 @@ export async function exportToFreee(
       if (response.ok) {
         exportedCount++;
       } else {
-        const errData = await response.json().catch(() => ({ message: response.statusText }));
+        const errData = await response.json().catch(() => ({ message: response.statusText })) as Record<string, any>;
         const errMsg = errData.errors?.[0]?.messages?.[0] || errData.message || `HTTP ${response.status}`;
         errors.push({ index: i, error: errMsg });
         console.warn(`[freee] 取引${i + 1}件目エラー: ${errMsg}`);

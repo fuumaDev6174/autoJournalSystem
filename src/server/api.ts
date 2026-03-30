@@ -973,7 +973,7 @@ router.post('/freee/callback', async (req: Request, res: Response) => {
         client_secret: FREEE_CLIENT_SECRET,
       }),
     });
-    const tokenData = await tokenRes.json();
+    const tokenData = await tokenRes.json() as Record<string, any>;
     if (!tokenRes.ok) {
       return res.status(400).json({ error: 'トークン取得失敗', details: tokenData });
     }
@@ -982,7 +982,7 @@ router.post('/freee/callback', async (req: Request, res: Response) => {
     const meRes = await fetch(`${FREEE_API_BASE}/api/1/users/me`, {
       headers: { Authorization: `Bearer ${tokenData.access_token}` },
     });
-    const meData = await meRes.json();
+    const meData = await meRes.json() as Record<string, any>;
     const companyId = meData.user?.companies?.[0]?.id?.toString() || '';
 
     // DB保存
@@ -1039,7 +1039,7 @@ router.post('/freee/refresh-token', async (_req: Request, res: Response) => {
         client_secret: FREEE_CLIENT_SECRET,
       }),
     });
-    const tokenData = await tokenRes.json();
+    const tokenData = await tokenRes.json() as Record<string, any>;
     if (!tokenRes.ok) return res.status(400).json({ error: 'リフレッシュ失敗', details: tokenData });
 
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 86400) * 1000).toISOString();
@@ -1076,7 +1076,7 @@ router.get('/freee/account-items', async (_req: Request, res: Response) => {
     const apiRes = await fetch(`${FREEE_API_BASE}/api/1/account_items?company_id=${conn.freee_company_id}`, {
       headers: { Authorization: `Bearer ${conn.access_token}` },
     });
-    const data = await apiRes.json();
+    const data = await apiRes.json() as Record<string, any>;
     res.json({ success: true, account_items: data.account_items || [] });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
