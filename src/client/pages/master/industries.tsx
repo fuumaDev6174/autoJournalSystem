@@ -22,6 +22,24 @@ export default function IndustriesPage() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [userRole, setUserRole] = useState<string>('viewer');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [industryRules, setIndustryRules] = useState<Array<{
+    id: string;
+    rule_name: string;
+    priority: number;
+    scope: string;
+    conditions: any;
+    actions: any;
+    is_active: boolean;
+  }>>([]);
+  const [sharedRules, setSharedRules] = useState<Array<{
+    id: string;
+    rule_name: string;
+    priority: number;
+    conditions: any;
+    actions: any;
+    is_active: boolean;
+  }>>([]);
+  const [accountItems, setAccountItems] = useState<Array<{ id: string; name: string; code: string }>>([]);
 
   const canEdit = ['admin','manager','operator'].includes(userRole);
 
@@ -38,9 +56,11 @@ export default function IndustriesPage() {
       const { data: userRow } = await supabase.from('users').select('role').eq('id', authData.user.id).single();
       if (userRow) setUserRole(userRow.role);
     }
-    const [indRes, clientRes] = await Promise.all([
+    const [indRes, clientRes, rulesRes, accountsRes] = await Promise.all([
       supabase.from('industries').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       supabase.from('clients').select('id, industry_id'),
+      supabase.from('processing_rules').select('id, rule_name, priority, scope, industry_id, conditions, actions, is_active').eq('is_active', true).order('priority'),
+      supabase.from('account_items').select('id, name, code').eq('is_active', true).order('code'),
     ]);
     if (indRes.data) {
       setIndustries(indRes.data as Industry[]);
@@ -48,6 +68,10 @@ export default function IndustriesPage() {
       setExpanded(level1Ids);
     }
     if (clientRes.data) setClients(clientRes.data as Client[]);
+    if (rulesRes.data) {
+      setSharedRules(rulesRes.data.filter((r: any) => r.scope === 'shared'));
+    }
+    if (accountsRes.data) setAccountItems(accountsRes.data);
     setLoading(false);
   };
 
@@ -162,6 +186,29 @@ export default function IndustriesPage() {
 
   const maxLevel = Math.max(0, ...Object.keys(levelCounts).map(Number));
 
+  useEffect(() => {
+    if (!selectedId) { setIndustryRules([]); return; }
+    const loadRules = async () => {
+      const { data: closureData } = await supabase
+        .from('industry_closure')
+        .select('ancestor_id, depth')
+        .eq('descendant_id', selectedId);
+
+      const ancestorIds = [selectedId, ...(closureData?.map(c => c.ancestor_id) || [])];
+
+      const { data: rules } = await supabase
+        .from('processing_rules')
+        .select('id, rule_name, priority, scope, industry_id, conditions, actions, is_active')
+        .eq('scope', 'industry')
+        .in('industry_id', ancestorIds)
+        .eq('is_active', true)
+        .order('priority');
+
+      setIndustryRules(rules || []);
+    };
+    loadRules();
+  }, [selectedId]);
+
   // ★ selectedNode は early return の【前】に配置（Reactフックルール）
   const selectedNode = useMemo(() => {
     const findNode = (nodes: IndustryNode[]): IndustryNode | null => {
@@ -214,9 +261,9 @@ export default function IndustriesPage() {
       <div className="flex items-center gap-4 mb-4">
         <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft size={20} className="text-gray-700" /></button>
         <div className="flex-1">
-          <h1 className="text-2xl font-bold text-gray-900">業種管理</h1>
+          <h1 className="text-2xl font-bold text-gray-900">顧客業種管理</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {maxLevel + 1}階層構成（{Object.entries(levelCounts).map(([lv, cnt]) => `L${Number(lv) + 1}: ${cnt}件`).join(' / ')}）
+            業種ごとの仕訳ルール・按分率を管理します（{maxLevel + 1}階層）
           </p>
         </div>
         {canEdit && (
@@ -310,11 +357,140 @@ export default function IndustriesPage() {
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3 mb-5">
+              <div className="grid grid-cols-4 gap-3 mb-5">
                 <div className="bg-gray-50 rounded-lg p-3"><div className="text-xl font-bold text-gray-900">{selectedNode.children.length}</div><div className="text-xs text-gray-500">子項目</div></div>
                 <div className="bg-blue-50 rounded-lg p-3"><div className="text-xl font-bold text-blue-600">{selectedNode.clientCount}</div><div className="text-xs text-gray-500">紐づき顧客</div></div>
                 <div className="bg-gray-50 rounded-lg p-3"><div className="text-xl font-bold text-gray-600">{selectedNode.level}</div><div className="text-xs text-gray-500">レベル</div></div>
+                <div className="bg-cyan-50 rounded-lg p-3"><div className="text-xl font-bold text-cyan-600">{industryRules.length}</div><div className="text-xs text-gray-500">業種ルール</div></div>
               </div>
+
+              {/* 適用される仕訳ルール */}
+              <div className="mb-5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  仕訳ルール
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500">
+                    業種別 {industryRules.length}件 + 汎用 {sharedRules.length}件
+                  </span>
+                </h3>
+                <p className="text-[10px] text-gray-400 mb-2">
+                  適用優先順位: 顧客専用（最優先）→ 業種別 → 汎用（最低優先）
+                </p>
+
+                {/* 業種別ルール */}
+                {industryRules.length > 0 && (
+                  <div className="mb-3">
+                    <p className="text-xs text-cyan-700 font-medium mb-1.5">この業種のルール</p>
+                    <div className="space-y-1.5">
+                      {industryRules.map(rule => {
+                        const acctName = accountItems.find(a => a.id === rule.actions?.account_item_id)?.name || '-';
+                        const ratio = rule.actions?.business_ratio ? Math.round(Number(rule.actions.business_ratio) * 100) : null;
+                        return (
+                          <div key={rule.id} className="flex items-center justify-between bg-cyan-50 rounded-lg p-2.5 border border-cyan-100">
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-gray-900 truncate">{rule.rule_name}</div>
+                              <div className="flex flex-wrap gap-1 mt-0.5">
+                                {rule.conditions?.supplier_pattern && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700">取引先: {rule.conditions.supplier_pattern}</span>
+                                )}
+                                {rule.conditions?.item_pattern && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-50 text-purple-700">品目: {rule.conditions.item_pattern}</span>
+                                )}
+                                {rule.conditions?.transaction_pattern && (
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600">摘要: {rule.conditions.transaction_pattern}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 ml-3 flex-shrink-0">
+                              <span className="text-xs font-medium text-gray-700">→ {acctName}</span>
+                              {ratio != null && (
+                                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${ratio === 100 ? 'bg-blue-50 text-blue-700' : 'bg-orange-50 text-orange-700'}`}>
+                                  按分{ratio}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 汎用ルール（折りたたみ） */}
+                <details className="group">
+                  <summary className="text-xs text-green-700 font-medium cursor-pointer hover:underline">
+                    汎用ルール（{sharedRules.length}件）を表示
+                  </summary>
+                  <div className="mt-1.5 space-y-1">
+                    {sharedRules.map(rule => {
+                      const acctName = accountItems.find(a => a.id === rule.actions?.account_item_id)?.name || '-';
+                      return (
+                        <div key={rule.id} className="flex items-center justify-between bg-green-50/50 rounded p-2 text-xs">
+                          <span className="text-gray-700 truncate">{rule.rule_name}</span>
+                          <span className="text-gray-500 flex-shrink-0 ml-2">→ {acctName}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </details>
+
+                {/* ルールが0件の場合 */}
+                {industryRules.length === 0 && sharedRules.length === 0 && (
+                  <div className="text-center py-4 text-gray-400">
+                    <p className="text-sm mb-1">この業種にルールが設定されていません</p>
+                    <button onClick={() => window.location.href = '/master/rules'}
+                      className="text-sm text-blue-600 hover:underline">+ ルールを追加</button>
+                  </div>
+                )}
+              </div>
+
+              {/* 按分率テンプレート */}
+              {(() => {
+                const ratioRules = industryRules.filter(r => r.actions?.business_ratio != null);
+                if (ratioRules.length === 0) return null;
+                return (
+                  <div className="mb-5">
+                    <h3 className="text-sm font-semibold text-gray-700 mb-3">按分率テンプレート</h3>
+                    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <table className="w-full">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">勘定科目</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">条件</th>
+                            <th className="px-3 py-2 text-center text-[10px] font-semibold text-gray-500 uppercase">事業用%</th>
+                            <th className="px-3 py-2 text-left text-[10px] font-semibold text-gray-500 uppercase">根拠</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {ratioRules.map(rule => {
+                            const acctName = accountItems.find(a => a.id === rule.actions?.account_item_id)?.name || '-';
+                            const ratio = Math.round(Number(rule.actions.business_ratio) * 100);
+                            return (
+                              <tr key={rule.id} className="hover:bg-gray-50">
+                                <td className="px-3 py-2 text-sm font-medium text-gray-900">{acctName}</td>
+                                <td className="px-3 py-2 text-xs text-gray-500">
+                                  {rule.conditions?.supplier_pattern || rule.conditions?.item_pattern || rule.conditions?.transaction_pattern || '全取引'}
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                                    ratio === 100 ? 'bg-blue-100 text-blue-700' :
+                                    ratio >= 70 ? 'bg-green-100 text-green-700' :
+                                    ratio >= 40 ? 'bg-yellow-100 text-yellow-700' :
+                                    'bg-orange-100 text-orange-700'
+                                  }`}>{ratio}%</span>
+                                </td>
+                                <td className="px-3 py-2 text-xs text-gray-500">{rule.actions?.business_ratio_note || '-'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1.5">
+                      按分率はルール管理画面で変更できます。ここでは閲覧のみ。
+                    </p>
+                  </div>
+                );
+              })()}
 
               {selectedNode.children.length > 0 && (
                 <div>

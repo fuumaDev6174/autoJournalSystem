@@ -187,9 +187,8 @@ function Sidebar() {
   const [expandedSections, setExpandedSections] = useState<{ [key: string]: boolean }>({
     '業務': true,
     'マスタ管理': true,
-    'master_基礎項目': true,
-    'master_タグ管理': true,
-    'master_その他': false,
+    'master_仕訳ルール': true,
+    'master_設定': false,
   });
 
   const toggleSection = (label: string) => {
@@ -216,27 +215,22 @@ function Sidebar() {
   // マスタ管理: サブグループ構成
   const masterSubGroups = [
     {
-      key: 'master_基礎項目',
-      label: '基礎項目',
+      key: 'master_仕訳ルール',
+      label: '仕訳ルール',
+      items: [
+        { label: 'ルール管理',     icon: <List size={16} />,       path: '/master/rules' },
+        { label: '顧客業種管理',   icon: <Briefcase size={16} />,  path: '/master/industries' },
+        { label: '取引先マスタ',   icon: <Store size={16} />,      path: '/master/suppliers' },
+      ],
+    },
+    {
+      key: 'master_設定',
+      label: '設定',
       items: [
         { label: '勘定科目',       icon: <List size={16} />,       path: '/master/accounts' },
         { label: '税区分・適用税率', icon: <Receipt size={16} />,   path: '/master/tax-categories' },
-        { label: '業種管理',        icon: <Briefcase size={16} />, path: '/master/industries' },
-      ],
-    },
-    {
-      key: 'master_タグ管理',
-      label: 'タグ管理',
-      items: [
-        { label: '取引先',   icon: <Store size={16} />,   path: '/master/suppliers' },
-        { label: '品目',     icon: <Package size={16} />, path: '/master/items' },
-      ],
-    },
-    {
-      key: 'master_その他',
-      label: 'その他',
-      items: [
-        { label: 'ユーザー権限', icon: <User size={16} />, path: '/settings' },
+        { label: '品目マスタ',     icon: <Package size={16} />,    path: '/master/items' },
+        { label: 'ユーザー権限',   icon: <User size={16} />,       path: '/settings' },
       ],
     },
   ];
@@ -478,22 +472,7 @@ function Sidebar() {
 
           {expandedSections['マスタ管理'] && (
             <div className="mt-1 space-y-0.5">
-              {/* ★ 仕訳ルール管理（トップレベル） */}
-              <Link
-                to="/master/rules"
-                className={`flex items-center gap-2 px-3 py-2 ml-2 text-sm rounded-md transition-colors ${
-                  isActive('/master/rules')
-                    ? 'bg-blue-50 text-blue-700 font-medium'
-                    : 'text-gray-700 hover:bg-gray-100'
-                }`}
-              >
-                <span className={isActive('/master/rules') ? 'text-blue-600' : 'text-gray-500'}>
-                  <Settings size={18} />
-                </span>
-                <span>仕訳ルール管理</span>
-              </Link>
-
-              {/* ★ サブグループ（基礎項目 / タグ管理 / その他） */}
+              {/* ★ サブグループ（仕訳ルール / 設定） */}
               {masterSubGroups.map((group) => (
                 <div key={group.key} className="ml-2">
                   {/* サブグループヘッダー */}
