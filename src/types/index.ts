@@ -143,7 +143,7 @@ export interface Rule {
   scope: 'shared' | 'industry' | 'client';
   rule_type: '支出' | '収入';
 
-  // 条件（11キー）
+  // 条件（16キー）
   conditions: {
     supplier_pattern?: string | null;       // 取引先名パターン（部分一致）
     transaction_pattern?: string | null;    // 摘要パターン（部分一致）
@@ -156,9 +156,15 @@ export interface Rule {
     tax_rate_hint?: number | null;          // OCR読取税率（0.10 / 0.08）
     is_internal_tax?: boolean | null;       // 内税(true) / 外税(false)
     frequency_hint?: string | null;         // 取引頻度（'recurring' / 'one_time'）
+    // 新規追加5キー
+    tategaki_pattern?: string | null;       // 但書きパターン（部分一致）「〇〇代として」
+    invoice_qualification?: string | null;  // 適格/非適格（'qualified' / 'kubun_kisai'）
+    addressee_pattern?: string | null;      // 宛名パターン（部分一致）
+    transaction_type?: string | null;       // 取引種類（'purchase'/'expense'/'asset'/'sales'/'fee'）
+    transfer_fee_bearer?: string | null;    // 振込手数料負担（'sender'/'receiver'）
   };
 
-  // アクション（8キー）
+  // アクション（9キー）
   actions: {
     account_item_id?: string | null;        // 勘定科目UUID
     tax_category_id?: string | null;        // 税区分UUID
@@ -168,6 +174,8 @@ export interface Rule {
     entry_type_hint?: string | null;        // 特殊仕訳フラグ（'normal'/'fixed_asset'/'prepaid'/'reversal'）
     requires_manual_review?: boolean | null; // 強制レビューフラグ
     auto_tags?: string[] | null;            // 自動付与メモID（将来のnotes連携用）
+    // 新規追加1キー
+    withholding_tax_handling?: string | null; // 源泉徴収処理（'deduct'=差引 / 'separate'=別仕訳 / null=なし）
   };
 
   is_active: boolean;
@@ -256,6 +264,7 @@ export interface JournalEntry {
   excluded_reason: string | null;
   excluded_by: string | null;
   excluded_at: string | null;
+  notes: string | null;
   exported_at: string | null;
   export_id: string | null;
   created_at: string;
@@ -463,4 +472,64 @@ export interface UploadedFile {
   preview: string;
   status: 'uploading' | 'success' | 'error';
   progress: number;
+}
+
+// 通知型 (Task 5-1)
+export type NotificationType = 'upload' | 'approval_needed' | 'approved' | 'rejected' | 'exported' | 'ocr_completed' | 'ocr_error' | 'system';
+
+export interface Notification {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  type: NotificationType;
+  title: string;
+  message: string | null;
+  entity_type: string | null;
+  entity_id: string | null;
+  link_url: string | null;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+// freee連携型 (Task 5-3)
+export interface FreeeConnection {
+  id: string;
+  organization_id: string;
+  client_id: string | null;
+  freee_company_id: string;
+  access_token: string;
+  refresh_token: string;
+  token_expires_at: string;
+  scope: string | null;
+  connected_at: string;
+  connected_by: string | null;
+  last_sync_at: string | null;
+  sync_status: 'active' | 'expired' | 'revoked' | 'error';
+  created_at: string;
+  updated_at: string;
+}
+
+// バリデーション結果型 (Task 5-4)
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  duplicateDocId: string | null;
+  duplicateFileName: string | null;
+}
+
+export interface BalanceCheckResult {
+  isBalanced: boolean;
+  debitTotal: number;
+  creditTotal: number;
+  difference: number;
+}
+
+export interface ReceiptDuplicateResult {
+  possibleDuplicates: Array<{ id: string; fileName: string; date: string; amount: number; supplierName: string | null }>;
+}
+
+export interface SupplierMatchResult {
+  matchedSupplierId: string | null;
+  matchedSupplierName: string | null;
+  matchType: 'exact' | 'partial' | 'alias' | 'none';
 }

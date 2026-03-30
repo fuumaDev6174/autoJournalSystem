@@ -14,6 +14,7 @@ import type {
   ClientAccountRatio,
   ClientTaxCategorySetting,
   Workflow,
+  Notification,
   ApiResponse,
 } from '@/types';
 
@@ -554,4 +555,33 @@ export const usersApi = {
   delete: (id: string) => handleResponse<void>(
     supabase.from('users').delete().eq('id', id)
   ),
+};
+
+// ============================================
+// 通知 API (Task 5-1)
+// ============================================
+export const notificationsApi = {
+  getRecent: (limit = 20) => handleResponse<Notification[]>(
+    supabase.from('notifications').select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit)
+  ),
+
+  markAsRead: (id: string) => handleResponse<Notification>(
+    supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('id', id).select().single()
+  ),
+
+  markAllRead: () => handleResponse<void>(
+    supabase.from('notifications').update({ is_read: true, read_at: new Date().toISOString() }).eq('is_read', false)
+  ),
+
+  getUnreadCount: async (): Promise<ApiResponse<number>> => {
+    try {
+      const { count, error } = await supabase.from('notifications').select('id', { count: 'exact', head: true }).eq('is_read', false);
+      if (error) return { data: null, error: error.message, status: 400 };
+      return { data: count || 0, error: null, status: 200 };
+    } catch (e: any) {
+      return { data: null, error: e.message, status: 500 };
+    }
+  },
 };

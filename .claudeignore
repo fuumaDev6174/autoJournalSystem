@@ -53,3 +53,5 @@ __tests__/
 *.ico
 *.svg
 public/
+
+memo.txt

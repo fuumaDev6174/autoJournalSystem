@@ -70,7 +70,12 @@ export default function AccountsPage() {
       supabase.from('account_categories').select('*').order('sort_order'),
       supabase.from('tax_categories').select('*').order('sort_order'),
     ]);
-    if (catRes.data) setAccountCategories(catRes.data as AccountCategory[]);
+    if (catRes.data && catRes.data.length > 0) {
+      setAccountCategories(catRes.data as AccountCategory[]);
+    } else {
+      // カテゴリが空の場合、loadAccountItemsが呼ばれないのでloadingを解除
+      setLoading(false);
+    }
     if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
   };
 

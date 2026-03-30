@@ -61,11 +61,15 @@ export default function SuppliersPage() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
-  const [activeModalTab, setActiveModalTab] = useState<'info' | 'aliases'>('info');
+  const [activeModalTab, setActiveModalTab] = useState<'info' | 'aliases' | 'rules'>('info');
   const [aliases, setAliases] = useState<SupplierAlias[]>([]);
   const [newAliasName, setNewAliasName] = useState('');
   const [orgId, setOrgId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>('viewer');
+  const [supplierRules, setSupplierRules] = useState<Array<{
+    id: string; rule_name: string; priority: number; scope: string;
+    conditions: any; actions: any;
+  }>>([]);
 
   const canEdit = ['admin','manager','operator'].includes(userRole);
 
@@ -107,6 +111,22 @@ export default function SuppliersPage() {
     if (data) setAliases(data as SupplierAlias[]);
   };
 
+  const loadSupplierRules = async (supplierName: string) => {
+    const { data: rules } = await supabase
+      .from('processing_rules')
+      .select('id, rule_name, priority, scope, conditions, actions')
+      .eq('is_active', true)
+      .order('priority');
+    if (rules) {
+      const matched = rules.filter(r => {
+        const pattern = r.conditions?.supplier_pattern?.toLowerCase();
+        if (!pattern) return false;
+        return supplierName.toLowerCase().includes(pattern) || pattern.includes(supplierName.toLowerCase());
+      });
+      setSupplierRules(matched);
+    }
+  };
+
   const handleOpenNewModal = () => {
     setEditingSupplier(null);
     setActiveModalTab('info');
@@ -121,6 +141,7 @@ export default function SuppliersPage() {
     setActiveModalTab('info');
     setAliases([]);
     setNewAliasName('');
+    setSupplierRules([]);
     setFormData({
       name: supplier.name,
       name_kana: supplier.name_kana || '',
@@ -130,6 +151,7 @@ export default function SuppliersPage() {
       category: supplier.category || 'other',
     });
     loadAliases(supplier.id);
+    loadSupplierRules(supplier.name);
     setShowModal(true);
   };
 
@@ -339,14 +361,14 @@ export default function SuppliersPage() {
         {/* タブ（編集時のみ別名タブを表示） */}
         {editingSupplier && (
           <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6">
-            {(['info', 'aliases'] as const).map(tab => (
+            {(['info', 'aliases', 'rules'] as const).map(tab => (
               <button
                 key={tab}
                 type="button"
                 onClick={() => setActiveModalTab(tab)}
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${activeModalTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}
               >
-                {tab === 'info' ? '基本情報' : `別名 (${aliases.length})`}
+                {tab === 'info' ? '基本情報' : tab === 'aliases' ? `別名 (${aliases.length})` : `ルール (${supplierRules.length})`}
               </button>
             ))}
           </div>
@@ -438,6 +460,41 @@ export default function SuppliersPage() {
               </button>
             </div>
 
+            <div className="flex justify-end pt-4 border-t">
+              <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">閉じる</button>
+            </div>
+          </div>
+        )}
+
+        {/* ルールタブ */}
+        {activeModalTab === 'rules' && editingSupplier && (
+          <div className="space-y-4">
+            <p className="text-sm text-gray-500">この取引先にマッチする仕訳ルールの一覧です。</p>
+            {supplierRules.length === 0 ? (
+              <p className="text-sm text-gray-400 text-center py-4">マッチするルールがありません</p>
+            ) : (
+              <div className="space-y-2">
+                {supplierRules.map(rule => (
+                  <div key={rule.id} className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm font-medium text-gray-900">{rule.rule_name}</span>
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                        rule.scope === 'client' ? 'bg-blue-100 text-blue-700' :
+                        rule.scope === 'industry' ? 'bg-purple-100 text-purple-700' :
+                        'bg-gray-100 text-gray-600'
+                      }`}>
+                        {rule.scope === 'client' ? '顧客別' : rule.scope === 'industry' ? '業種別' : '共通'}
+                      </span>
+                      <span className="text-[10px] text-gray-400">優先度: {rule.priority}</span>
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {rule.conditions?.supplier_pattern && <span>取引先: {rule.conditions.supplier_pattern}</span>}
+                      {rule.actions?.account_item_id && <span className="ml-2">→ 勘定科目ID: {rule.actions.account_item_id.slice(0, 8)}...</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex justify-end pt-4 border-t">
               <button type="button" onClick={() => setShowModal(false)} className="btn-secondary">閉じる</button>
             </div>

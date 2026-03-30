@@ -48,6 +48,14 @@ export default function RulesPage() {
     business_ratio_note: '',
     entry_type_hint: 'normal',
     requires_manual_review: false,
+    // OCR拡張条件
+    tategaki_pattern: '',
+    invoice_qualification_condition: '',
+    addressee_pattern: '',
+    transaction_type_condition: '',
+    transfer_fee_bearer_condition: '',
+    // OCR拡張アクション
+    withholding_tax_handling: '',
   });
 
   useEffect(() => { loadData(); }, []);
@@ -80,6 +88,8 @@ export default function RulesPage() {
       description_template: '', business_ratio: '', auto_apply: true, require_confirmation: false,
       item_pattern: '', payment_method_condition: '', document_type_condition: '',
       business_ratio_note: '', entry_type_hint: 'normal', requires_manual_review: false,
+      tategaki_pattern: '', invoice_qualification_condition: '', addressee_pattern: '',
+      transaction_type_condition: '', transfer_fee_bearer_condition: '', withholding_tax_handling: '',
     });
     setDuplicateWarning('');
   };
@@ -112,6 +122,12 @@ export default function RulesPage() {
       business_ratio_note: rule.actions?.business_ratio_note || '',
       entry_type_hint: rule.actions?.entry_type_hint || 'normal',
       requires_manual_review: rule.actions?.requires_manual_review || false,
+      tategaki_pattern: rule.conditions?.tategaki_pattern || '',
+      invoice_qualification_condition: rule.conditions?.invoice_qualification || '',
+      addressee_pattern: rule.conditions?.addressee_pattern || '',
+      transaction_type_condition: rule.conditions?.transaction_type || '',
+      transfer_fee_bearer_condition: rule.conditions?.transfer_fee_bearer || '',
+      withholding_tax_handling: rule.actions?.withholding_tax_handling || '',
     });
     setShowModal(true);
   };
@@ -159,6 +175,11 @@ export default function RulesPage() {
         item_pattern: formData.item_pattern || null,
         payment_method: formData.payment_method_condition || null,
         document_type: formData.document_type_condition || null,
+        tategaki_pattern: formData.tategaki_pattern || null,
+        invoice_qualification: formData.invoice_qualification_condition || null,
+        addressee_pattern: formData.addressee_pattern || null,
+        transaction_type: formData.transaction_type_condition || null,
+        transfer_fee_bearer: formData.transfer_fee_bearer_condition || null,
       },
       actions: {
         account_item_id: formData.account_item_id || null,
@@ -168,6 +189,7 @@ export default function RulesPage() {
         business_ratio_note: formData.business_ratio_note || null,
         entry_type_hint: formData.entry_type_hint !== 'normal' ? formData.entry_type_hint : null,
         requires_manual_review: formData.requires_manual_review || null,
+        withholding_tax_handling: formData.withholding_tax_handling || null,
       },
       auto_apply: formData.auto_apply,
       require_confirmation: formData.require_confirmation,
@@ -208,11 +230,14 @@ export default function RulesPage() {
         const supplierPattern = (rule.conditions?.supplier_pattern || '').toLowerCase();
         const transactionPattern = (rule.conditions?.transaction_pattern || '').toLowerCase();
         const itemPattern = (rule.conditions?.item_pattern || '').toLowerCase();
+        const tategakiPattern = (rule.conditions?.tategaki_pattern || '').toLowerCase();
+        const addresseePattern = (rule.conditions?.addressee_pattern || '').toLowerCase();
         const accountName = getAccountName(rule).toLowerCase();
         const taxName = getTaxCategoryName(rule).toLowerCase();
         const scopeName = getScopeName(rule).toLowerCase();
         return ruleName.includes(q) || supplierPattern.includes(q) || transactionPattern.includes(q) ||
-          itemPattern.includes(q) || accountName.includes(q) || taxName.includes(q) || scopeName.includes(q);
+          itemPattern.includes(q) || tategakiPattern.includes(q) || addresseePattern.includes(q) ||
+          accountName.includes(q) || taxName.includes(q) || scopeName.includes(q);
       }
       return true;
     });
@@ -470,6 +495,27 @@ export default function RulesPage() {
                         {rule.conditions?.document_type && (
                           <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-orange-50 text-orange-700">種別: {rule.conditions.document_type}</span>
                         )}
+                        {rule.conditions?.tategaki_pattern && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-teal-50 text-teal-700">但書: {rule.conditions.tategaki_pattern}</span>
+                        )}
+                        {rule.conditions?.invoice_qualification && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-pink-50 text-pink-700">
+                            {rule.conditions.invoice_qualification === 'qualified' ? '適格' : '非適格'}
+                          </span>
+                        )}
+                        {rule.conditions?.addressee_pattern && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 text-indigo-700">宛名: {rule.conditions.addressee_pattern}</span>
+                        )}
+                        {rule.conditions?.transaction_type && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-amber-50 text-amber-700">
+                            種類: {({purchase:'仕入',expense:'経費',asset:'資産',sales:'売上',fee:'報酬'} as Record<string,string>)[rule.conditions.transaction_type] || rule.conditions.transaction_type}
+                          </span>
+                        )}
+                        {rule.conditions?.transfer_fee_bearer && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] bg-lime-50 text-lime-700">
+                            手数料: {rule.conditions.transfer_fee_bearer === 'sender' ? '先方負担' : '当方負担'}
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-xs text-gray-500">{getAmountRange(rule)}</td>
@@ -652,6 +698,52 @@ export default function RulesPage() {
                 </select>
               </div>
             </div>
+
+            {/* 但書き・宛名パターン */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">但書きパターン</label>
+                <input type="text" value={formData.tategaki_pattern} onChange={e => setFormData({ ...formData, tategaki_pattern: e.target.value })}
+                  className="input" placeholder="例: 飲食代（部分一致）" />
+                <p className="text-xs text-gray-500 mt-1">領収書の「但し、〇〇として」に対応</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">宛名パターン</label>
+                <input type="text" value={formData.addressee_pattern} onChange={e => setFormData({ ...formData, addressee_pattern: e.target.value })}
+                  className="input" placeholder="例: 山田太郎（部分一致）" />
+              </div>
+            </div>
+
+            {/* 適格/非適格・取引種類・振込手数料 */}
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">適格/非適格</label>
+                <select value={formData.invoice_qualification_condition} onChange={e => setFormData({ ...formData, invoice_qualification_condition: e.target.value })} className="input">
+                  <option value="">指定なし</option>
+                  <option value="qualified">適格請求書</option>
+                  <option value="kubun_kisai">区分記載請求書</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">取引種類</label>
+                <select value={formData.transaction_type_condition} onChange={e => setFormData({ ...formData, transaction_type_condition: e.target.value })} className="input">
+                  <option value="">指定なし</option>
+                  <option value="purchase">仕入</option>
+                  <option value="expense">経費</option>
+                  <option value="asset">資産取得</option>
+                  <option value="sales">売上</option>
+                  <option value="fee">報酬・委託料</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">振込手数料</label>
+                <select value={formData.transfer_fee_bearer_condition} onChange={e => setFormData({ ...formData, transfer_fee_bearer_condition: e.target.value })} className="input">
+                  <option value="">指定なし</option>
+                  <option value="sender">先方負担</option>
+                  <option value="receiver">当方負担</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* 重複警告（R2） */}
@@ -726,6 +818,17 @@ export default function RulesPage() {
                   </label>
                 </div>
               </div>
+            </div>
+
+            {/* 源泉徴収処理 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">源泉徴収処理</label>
+              <select value={formData.withholding_tax_handling} onChange={e => setFormData({ ...formData, withholding_tax_handling: e.target.value })} className="input">
+                <option value="">なし（通常の仕訳）</option>
+                <option value="deduct">差引処理（支払額から源泉税を差し引き）</option>
+                <option value="separate">別仕訳（源泉税を預り金として別計上）</option>
+              </select>
+              <p className="text-xs text-gray-500 mt-1">報酬支払い時の源泉徴収の処理方法</p>
             </div>
           </div>
 

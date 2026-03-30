@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /c/Programing/Under_dev/tax-copilot -type f -name *.env* -o -name package.json -o -name tsconfig.json -o -name vite.config.* -o -name render.yaml)"
+      "Bash(find /c/Programing/Under_dev/tax-copilot -type f -name *.env* -o -name package.json -o -name tsconfig.json -o -name vite.config.* -o -name render.yaml)",
+      "Bash(find /f/3.programing/beso -type f -name .env* -o -name render.yaml -o -name vite.config.ts -o -name package.json)",
+      "Bash(find /f/3.programing/beso -maxdepth 2 -type f \\\\\\(-name *.json -o -name *.yaml -o -name *.yml -o -name .env* \\\\\\))",
+      "Bash(npx -p typescript tsc --noEmit)",
+      "Bash(wc:*)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

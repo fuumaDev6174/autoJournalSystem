@@ -212,6 +212,43 @@ export default function ExportPage() {
   const [loading, setLoading] = useState(true);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [draftCount, setDraftCount] = useState(0);
+  const [freeeExporting, setFreeeExporting] = useState(false);
+
+  // freee API連携エクスポート (Task 5-3)
+  const handleFreeeApiExport = async () => {
+    if (filteredEntries.length === 0) return;
+    // 接続状態チェック
+    try {
+      const statusRes = await fetch('/api/freee/connection-status');
+      const statusData = await statusRes.json();
+      if (!statusData.connected) {
+        alert('freeeが未接続です。設定画面から連携してください。');
+        return;
+      }
+    } catch {
+      alert('freee接続状態の確認に失敗しました');
+      return;
+    }
+
+    if (!confirm(`${filteredEntries.length}件の仕訳をfreeeに送信しますか？`)) return;
+    setFreeeExporting(true);
+    try {
+      const res = await fetch('/api/freee/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ journal_entries: filteredEntries }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(`freeeへのエクスポートが完了しました（${data.exported_count}件）`);
+      } else {
+        alert('freeeエクスポートエラー: ' + (data.error || data.message));
+      }
+    } catch (e: any) {
+      alert('freeeエクスポートに失敗しました: ' + e.message);
+    }
+    setFreeeExporting(false);
+  };
 
   // ============================================
   // データ取得
@@ -504,11 +541,9 @@ export default function ExportPage() {
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">
                       <Download size={16} />freee取込CSV
                     </button>
-                    <button disabled
-                      className="flex items-center gap-2 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm font-medium cursor-not-allowed border border-gray-200"
-                      title="freee API連携は準備中です">
-                      <FileText size={16} />freee API連携
-                      <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">準備中</span>
+                    <button onClick={handleFreeeApiExport} disabled={filteredEntries.length === 0 || freeeExporting}
+                      className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                      <FileText size={16} />{freeeExporting ? 'エクスポート中...' : 'freee API連携'}
                     </button>
                   </div>
                 </div>

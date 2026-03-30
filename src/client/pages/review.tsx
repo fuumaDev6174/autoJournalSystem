@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
   ZoomOut, ZoomIn, RotateCcw, ChevronLeft, ChevronRight,
-  ChevronDown, Ban, AlertCircle, Loader, CheckCircle, Eye, Search, Undo2, Clock
+  ChevronDown, Ban, AlertCircle, Loader, CheckCircle, Eye, Search, Undo2, Clock, StickyNote
 } from 'lucide-react';
 import { useWorkflow } from '@/client/context/WorkflowContext';
 import { useSearchParams } from 'react-router-dom';
@@ -9,6 +9,33 @@ import { supabase } from '@/client/lib/supabase';
 import { accountItemsApi, taxCategoriesApi } from '@/client/lib/api';
 import WorkflowHeader from '@/client/components/workflow/WorkflowHeader';
 import type { AccountItem, TaxCategory, Supplier } from '@/types';
+
+// ============================================
+// 取引先名の正規化（改善5）
+// ============================================
+function normalizeJapanese(text: string): string {
+  let result = text;
+  result = result.replace(/[\uFF66-\uFF9F]/g, (s) => {
+    const kanaMap: Record<string, string> = {
+      'ｦ':'ヲ','ｧ':'ァ','ｨ':'ィ','ｩ':'ゥ','ｪ':'ェ','ｫ':'ォ','ｬ':'ャ','ｭ':'ュ','ｮ':'ョ','ｯ':'ッ',
+      'ｰ':'ー','ｱ':'ア','ｲ':'イ','ｳ':'ウ','ｴ':'エ','ｵ':'オ','ｶ':'カ','ｷ':'キ','ｸ':'ク','ｹ':'ケ','ｺ':'コ',
+      'ｻ':'サ','ｼ':'シ','ｽ':'ス','ｾ':'セ','ｿ':'ソ','ﾀ':'タ','ﾁ':'チ','ﾂ':'ツ','ﾃ':'テ','ﾄ':'ト',
+      'ﾅ':'ナ','ﾆ':'ニ','ﾇ':'ヌ','ﾈ':'ネ','ﾉ':'ノ','ﾊ':'ハ','ﾋ':'ヒ','ﾌ':'フ','ﾍ':'ヘ','ﾎ':'ホ',
+      'ﾏ':'マ','ﾐ':'ミ','ﾑ':'ム','ﾒ':'メ','ﾓ':'モ','ﾔ':'ヤ','ﾕ':'ユ','ﾖ':'ヨ',
+      'ﾗ':'ラ','ﾘ':'リ','ﾙ':'ル','ﾚ':'レ','ﾛ':'ロ','ﾜ':'ワ','ﾝ':'ン','ﾞ':'゛','ﾟ':'゜',
+    };
+    return kanaMap[s] || s;
+  });
+  result = result.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) =>
+    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+  );
+  result = result
+    .replace(/株式会社|㈱|\(株\)|（株）/g, '')
+    .replace(/有限会社|㈲|\(有\)|（有）/g, '')
+    .replace(/合同会社|合名会社|合資会社/g, '');
+  result = result.replace(/　/g, ' ').replace(/\s+/g, ' ').trim();
+  return result;
+}
 
 // ============================================
 // ComboBox（テキスト入力+キーワード検索+プルダウン選択+新規追加）
@@ -185,6 +212,17 @@ interface DocumentWithEntry {
   taxRate: number | null;
   supplierId: string | null;
   itemId: string | null;
+  notes: string | null;
+  docClassification: {
+    tategaki?: string | null;
+    withholding_tax_amount?: number | null;
+    invoice_qualification?: string | null;
+    transaction_type?: string | null;
+  } | null;
+  unmatchedSupplierName: string | null;
+  unmatchedItemName: string | null;
+  matchedRuleBusinessRatio: number | null;
+  ruleCandidates: Array<{ rule_id: string; rule_name: string; scope: string; priority: number; account_item_id: string }>;
 }
 interface TaxRateOption { id: string; rate: number; name: string; is_current: boolean; }
 
@@ -218,7 +256,7 @@ export default function ReviewPage() {
   const [taxRates, setTaxRates] = useState<TaxRateOption[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [industries, setIndustries] = useState<Array<{ id: string; name: string }>>([]);
-  const [itemsMaster, setItemsMaster] = useState<Array<{ id: string; name: string; code: string | null }>>([]);
+  const [itemsMaster, setItemsMaster] = useState<Array<{ id: string; name: string; code: string | null; default_account_item_id: string | null; default_tax_category_id: string | null }>>([]);
   const [businessRatio, setBusinessRatio] = useState(100); // W2: デフォルト100%（家事按分なし）
   const [userRole, setUserRole] = useState<string>('viewer');
   const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
@@ -264,7 +302,7 @@ export default function ReviewPage() {
 
     const { data: docs } = await supabase
       .from('documents')
-      .select('id, file_name, original_file_name, storage_path, file_path, supplier_name, document_date, amount, tax_amount')
+      .select('id, file_name, original_file_name, storage_path, file_path, supplier_name, document_date, amount, tax_amount, doc_classification')
       .eq('workflow_id', currentWorkflow.id).eq('client_id', clientId).order('created_at');
 
     if (!docs || docs.length === 0) { setEntries([]); setItems([]); setLoading(false); return; }
@@ -322,7 +360,7 @@ export default function ReviewPage() {
     // 個別用
     const { data: entriesForDetail } = await supabase
       .from('journal_entries')
-      .select(`id, entry_date, description, status, is_excluded, ai_confidence, document_id,
+      .select(`id, entry_date, description, status, is_excluded, ai_confidence, document_id, notes,
         journal_entry_lines ( id, debit_credit, account_item_id, tax_category_id, amount, tax_rate, description, supplier_id, item_id )`)
       .eq('client_id', clientId).in('document_id', docIds).in('status', ['draft', 'approved', 'posted']);
 
@@ -342,6 +380,12 @@ export default function ReviewPage() {
         accountItemId: dl?.account_item_id || '', taxCategoryId: dl?.tax_category_id || '',
         lineAmount: dl?.amount || doc.amount || 0, taxRate: dl?.tax_rate || null,
         supplierId: dl?.supplier_id || null, itemId: dl?.item_id || null,
+        notes: entry?.notes || null,
+        docClassification: doc.doc_classification || null,
+        unmatchedSupplierName: null,
+        unmatchedItemName: null,
+        matchedRuleBusinessRatio: null,
+        ruleCandidates: [],
       } as DocumentWithEntry;
     }));
     // R1: 自動マッチはマスタ取得後に実行（下記参照）
@@ -359,7 +403,7 @@ export default function ReviewPage() {
     if (inds) setIndustries(inds);
 
     // C6: 品目マスタ取得
-    const { data: itemsData } = await supabase.from('items').select('id, name, code').eq('is_active', true).order('name');
+    const { data: itemsData } = await supabase.from('items').select('id, name, code, default_account_item_id, default_tax_category_id').eq('is_active', true).order('name');
     if (itemsData) setItemsMaster(itemsData);
 
     // C1: 家事按分率取得（現在の顧客の按分設定）
@@ -372,27 +416,132 @@ export default function ReviewPage() {
       if (ratios) setClientRatios(ratios);
     }
 
+    // タスク8: 業種デフォルト科目の取得
+    const { data: clientIndustryData } = await supabase
+      .from('client_industries')
+      .select('industry_id')
+      .eq('client_id', clientId);
+    const { data: clientRow } = await supabase
+      .from('clients')
+      .select('industry_id')
+      .eq('id', clientId)
+      .single();
+    const clientIndustryIds = [
+      ...(clientIndustryData?.map((ci: any) => ci.industry_id) || []),
+      ...(clientRow?.industry_id ? [clientRow.industry_id] : []),
+    ].filter((id, idx, arr) => arr.indexOf(id) === idx);
+
+    let industryAccountItems: any[] = [];
+    if (clientIndustryIds.length > 0) {
+      const { data: indAccounts } = await supabase
+        .from('account_items')
+        .select('id, name, industry_id, tax_category_id')
+        .in('industry_id', clientIndustryIds)
+        .eq('is_active', true);
+      if (indAccounts) industryAccountItems = indAccounts;
+    }
+
     // R1: AI読み取り結果から取引先・品目を自動セット
     // supplier_aliases も検索して取引先を解決
     const { data: aliasData } = await supabase.from('supplier_aliases').select('supplier_id, alias');
     const aliases = aliasData || [];
 
+    const allAccountItems = aRes.data || [];
+    const allItemsData = itemsData || [];
+
     const autoMatched = merged_temp.map(item => {
       const updated = { ...item };
 
-      // 取引先の自動マッチ（supplierIdが未設定の場合のみ）
+      // ============================================
+      // 取引先の自動マッチ
+      // ============================================
       if (!updated.supplierId && updated.supplierName && sData) {
-        const sName = updated.supplierName.toLowerCase();
-        // 1. suppliers.name で完全一致
-        const exactMatch = sData.find((s: any) => s.name.toLowerCase() === sName);
-        // 2. suppliers.name で部分一致
-        const partialMatch = !exactMatch ? sData.find((s: any) => sName.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(sName)) : null;
-        // 3. supplier_aliases で一致
-        const aliasMatch = !exactMatch && !partialMatch ? aliases.find(a => sName.includes(a.alias.toLowerCase()) || a.alias.toLowerCase().includes(sName)) : null;
+        const sName = normalizeJapanese(updated.supplierName).toLowerCase();
+        const exactMatch = sData.find((s: any) => normalizeJapanese(s.name).toLowerCase() === sName);
+        const partialMatch = !exactMatch ? sData.find((s: any) => {
+          const norm = normalizeJapanese(s.name).toLowerCase();
+          return sName.includes(norm) || norm.includes(sName);
+        }) : null;
+        const aliasMatch = !exactMatch && !partialMatch ? aliases.find(a => {
+          const normAlias = normalizeJapanese(a.alias).toLowerCase();
+          return sName.includes(normAlias) || normAlias.includes(sName);
+        }) : null;
 
-        if (exactMatch) updated.supplierId = exactMatch.id;
-        else if (partialMatch) updated.supplierId = partialMatch.id;
-        else if (aliasMatch) updated.supplierId = aliasMatch.supplier_id;
+        let matchedSupplier: any = null;
+        if (exactMatch) {
+          updated.supplierId = exactMatch.id;
+          matchedSupplier = exactMatch;
+        } else if (partialMatch) {
+          updated.supplierId = partialMatch.id;
+          matchedSupplier = partialMatch;
+        } else if (aliasMatch) {
+          updated.supplierId = aliasMatch.supplier_id;
+          matchedSupplier = sData.find((s: any) => s.id === aliasMatch.supplier_id);
+        }
+
+        // 取引先のデフォルト勘定科目・税区分を自動セット（AI未設定の場合のみ）
+        if (matchedSupplier) {
+          if (!updated.accountItemId && matchedSupplier.default_account_item_id) {
+            updated.accountItemId = matchedSupplier.default_account_item_id;
+            const acct = allAccountItems.find((a: any) => a.id === matchedSupplier.default_account_item_id);
+            if (acct?.tax_category_id && !updated.taxCategoryId) {
+              updated.taxCategoryId = acct.tax_category_id;
+            }
+          }
+          if (!updated.taxCategoryId && matchedSupplier.default_tax_category_id) {
+            updated.taxCategoryId = matchedSupplier.default_tax_category_id;
+          }
+        }
+
+        // 取引先が未マッチの場合、OCR名を保持
+        if (!matchedSupplier && updated.supplierName) {
+          updated.unmatchedSupplierName = updated.supplierName;
+        } else {
+          updated.unmatchedSupplierName = null;
+        }
+      }
+
+      // ============================================
+      // 品目の自動マッチ（タスク2）
+      // ============================================
+      if (!updated.itemId && allItemsData) {
+        const desc = (updated.description || '').toLowerCase();
+        const itemMatch = allItemsData.find((it: any) =>
+          it.name && (desc.includes(it.name.toLowerCase()) || it.name.toLowerCase().includes(desc))
+        );
+        if (itemMatch) {
+          updated.itemId = itemMatch.id;
+          if (!updated.accountItemId && itemMatch.default_account_item_id) {
+            updated.accountItemId = itemMatch.default_account_item_id;
+            const acct = allAccountItems.find((a: any) => a.id === itemMatch.default_account_item_id);
+            if (acct?.tax_category_id && !updated.taxCategoryId) {
+              updated.taxCategoryId = acct.tax_category_id;
+            }
+          }
+          if (!updated.taxCategoryId && itemMatch.default_tax_category_id) {
+            updated.taxCategoryId = itemMatch.default_tax_category_id;
+          }
+        }
+
+        // 品目が未マッチの場合、摘要を保持
+        if (!itemMatch && updated.description) {
+          updated.unmatchedItemName = updated.description;
+        } else {
+          updated.unmatchedItemName = null;
+        }
+      }
+
+      // ============================================
+      // 業種デフォルト科目のフォールバック（タスク8）
+      // ============================================
+      if (!updated.accountItemId && industryAccountItems.length > 0) {
+        const industryDefault = industryAccountItems[0];
+        if (industryDefault) {
+          updated.accountItemId = industryDefault.id;
+          if (industryDefault.tax_category_id && !updated.taxCategoryId) {
+            updated.taxCategoryId = industryDefault.tax_category_id;
+          }
+        }
       }
 
       return updated;
@@ -442,14 +591,70 @@ export default function ReviewPage() {
   };
 
   // ============================================
-  // 取引先→デフォルト勘定科目/税区分
+  // 取引先→デフォルト勘定科目/税区分（タスク4）
   // ============================================
   const handleSupplierChange = (supplierId: string) => {
     const s = suppliers.find(x => x.id === supplierId);
     const updates: Partial<DocumentWithEntry> = { supplierId: supplierId || null };
-    if (s?.default_account_item_id && !form.accountItemId) updates.accountItemId = s.default_account_item_id;
-    if (s?.default_tax_category_id && !form.taxCategoryId) updates.taxCategoryId = s.default_tax_category_id;
+
+    if (s) {
+      if (s.default_account_item_id) {
+        updates.accountItemId = s.default_account_item_id;
+        const acct = accountItems.find(a => a.id === s.default_account_item_id);
+        if (acct?.tax_category_id) {
+          updates.taxCategoryId = acct.tax_category_id;
+          const tc = taxCategories.find(t => t.id === acct.tax_category_id);
+          if (tc?.current_tax_rate_id) {
+            const rate = taxRates.find(r => r.id === tc.current_tax_rate_id);
+            if (rate) updates.taxRate = rate.rate;
+          }
+        }
+      }
+      if (!updates.taxCategoryId && s.default_tax_category_id) {
+        updates.taxCategoryId = s.default_tax_category_id;
+        const tc = taxCategories.find(t => t.id === s.default_tax_category_id);
+        if (tc?.current_tax_rate_id) {
+          const rate = taxRates.find(r => r.id === tc.current_tax_rate_id);
+          if (rate) updates.taxRate = rate.rate;
+        }
+      }
+    }
+
     setForm(p => ({ ...p, ...updates }));
+  };
+
+  // ============================================
+  // 品目→デフォルト勘定科目/税区分（タスク3）
+  // ============================================
+  const handleItemChange = (itemId: string) => {
+    const item = itemsMaster.find(x => x.id === itemId);
+    const updates: Partial<DocumentWithEntry> = { itemId: itemId || null };
+
+    if (item) {
+      if (item.default_account_item_id) {
+        updates.accountItemId = item.default_account_item_id;
+        const acct = accountItems.find(a => a.id === item.default_account_item_id);
+        if (acct?.tax_category_id) {
+          updates.taxCategoryId = acct.tax_category_id;
+          const tc = taxCategories.find(t => t.id === acct.tax_category_id);
+          if (tc?.current_tax_rate_id) {
+            const rate = taxRates.find(r => r.id === tc.current_tax_rate_id);
+            if (rate) updates.taxRate = rate.rate;
+          }
+        }
+      }
+      if (!updates.taxCategoryId && item.default_tax_category_id) {
+        updates.taxCategoryId = item.default_tax_category_id;
+        const tc = taxCategories.find(t => t.id === item.default_tax_category_id);
+        if (tc?.current_tax_rate_id) {
+          const rate = taxRates.find(r => r.id === tc.current_tax_rate_id);
+          if (rate) updates.taxRate = rate.rate;
+        }
+      }
+    }
+
+    setForm(p => ({ ...p, ...updates }));
+    setItemText('');
   };
 
   // ============================================
@@ -458,7 +663,13 @@ export default function ReviewPage() {
   const openDetail = (entryId: string) => {
     const entry = entries.find(e => e.id === entryId);
     const docItem = items.find(i => i.docId === entry?.document_id || i.entryId === entryId);
-    if (docItem) { setCurrentIndex(items.indexOf(docItem)); setForm({ ...docItem }); }
+    if (docItem) {
+      setCurrentIndex(items.indexOf(docItem));
+      setForm({ ...docItem });
+      setAiOriginalForm({ ...docItem });
+      setSupplierText(docItem.unmatchedSupplierName || '');
+      setItemText(docItem.unmatchedItemName || '');
+    }
     setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
     setViewMode('detail');
   };
@@ -466,6 +677,9 @@ export default function ReviewPage() {
   const openDetailFromTop = () => {
     if (items.length === 0) return;
     setCurrentIndex(0); setForm({ ...items[0] });
+    setAiOriginalForm({ ...items[0] });
+    setSupplierText(items[0].unmatchedSupplierName || '');
+    setItemText(items[0].unmatchedItemName || '');
     setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
     setViewMode('detail');
   };
@@ -499,7 +713,7 @@ export default function ReviewPage() {
       const { data: ne, error } = await supabase.from('journal_entries').insert({
         organization_id: cd.organization_id, client_id: currentWorkflow!.clientId, document_id: item.docId,
         entry_date: form.entryDate || new Date().toISOString().split('T')[0], entry_type: 'normal',
-        description: form.description || '', status: targetStatus, is_excluded: form.isExcluded || false, ai_generated: false,
+        description: form.description || '', notes: form.notes || null, status: targetStatus, is_excluded: form.isExcluded || false, ai_generated: false,
       }).select().single();
       if (error || !ne) { console.error('仕訳作成エラー:', error); setSaving(false); return; }
       entryId = ne.id;
@@ -512,7 +726,7 @@ export default function ReviewPage() {
       setForm(p => ({ ...p, entryId, lineId: nl?.id || null }));
     } else {
       await supabase.from('journal_entries').update({
-        entry_date: form.entryDate, description: form.description,
+        entry_date: form.entryDate, description: form.description, notes: form.notes || null,
         is_excluded: form.isExcluded, status: targetStatus,
       }).eq('id', entryId);
       if (form.lineId) {
@@ -561,6 +775,27 @@ export default function ReviewPage() {
       }]);
     }
 
+    // 改善5-D: alias自動追加（取引先マッチ済みでOCR名と異なる場合）
+    if (form.supplierId && item.supplierName) {
+      const matchedSupplier = suppliers.find(s => s.id === form.supplierId);
+      if (matchedSupplier && normalizeJapanese(matchedSupplier.name) !== normalizeJapanese(item.supplierName)) {
+        // 既存aliasと重複チェック
+        const { data: existingAlias } = await supabase
+          .from('supplier_aliases')
+          .select('id')
+          .eq('supplier_id', form.supplierId)
+          .eq('alias_name', item.supplierName)
+          .limit(1);
+        if (!existingAlias || existingAlias.length === 0) {
+          await supabase.from('supplier_aliases').insert({
+            supplier_id: form.supplierId,
+            alias_name: item.supplierName,
+            source: 'ai_suggested',
+          });
+        }
+      }
+    }
+
     // C1: 家事按分率の保存（按分率が100%未満の場合）
     if (!form.isExcluded && form.accountItemId && businessRatio < 100 && currentWorkflow?.clientId) {
       const { data: clientData } = await supabase.from('clients').select('organization_id').eq('id', currentWorkflow.clientId).single();
@@ -574,6 +809,73 @@ export default function ReviewPage() {
           valid_from: new Date().toISOString().split('T')[0],
           notes: `仕訳確認画面から設定（${form.description || ''})`,
         }, { onConflict: 'client_id,account_item_id,valid_from' });
+      }
+    }
+
+    // 改善3: 修正履歴の記録（AI初期値と比較して変更があった場合）
+    if (entryId && !form.isExcluded && currentWorkflow?.clientId) {
+      const corrections: Array<{ field_name: string; original_value: string | null; corrected_value: string | null; original_name: string | null; corrected_name: string | null }> = [];
+      if (aiOriginalForm.accountItemId && form.accountItemId && aiOriginalForm.accountItemId !== form.accountItemId) {
+        corrections.push({
+          field_name: 'account_item_id',
+          original_value: aiOriginalForm.accountItemId,
+          corrected_value: form.accountItemId,
+          original_name: accountItems.find(a => a.id === aiOriginalForm.accountItemId)?.name || null,
+          corrected_name: accountItems.find(a => a.id === form.accountItemId)?.name || null,
+        });
+      }
+      if (aiOriginalForm.taxCategoryId && form.taxCategoryId && aiOriginalForm.taxCategoryId !== form.taxCategoryId) {
+        corrections.push({
+          field_name: 'tax_category_id',
+          original_value: aiOriginalForm.taxCategoryId,
+          corrected_value: form.taxCategoryId,
+          original_name: taxCategories.find(t => t.id === aiOriginalForm.taxCategoryId)?.name || null,
+          corrected_name: taxCategories.find(t => t.id === form.taxCategoryId)?.name || null,
+        });
+      }
+      if (corrections.length > 0) {
+        const { data: cd } = await supabase.from('clients').select('organization_id').eq('id', currentWorkflow.clientId).single();
+        const { data: { user: authUser } } = await supabase.auth.getUser();
+        if (cd?.organization_id && authUser) {
+          for (const c of corrections) {
+            await supabase.from('journal_entry_corrections').insert({
+              organization_id: cd.organization_id,
+              journal_entry_id: entryId,
+              client_id: currentWorkflow.clientId,
+              field_name: c.field_name,
+              original_value: c.original_value,
+              corrected_value: c.corrected_value,
+              original_name: c.original_name,
+              corrected_name: c.corrected_name,
+              supplier_name: item.supplierName || null,
+              corrected_by: authUser.id,
+            });
+          }
+          // 改善3-C: 同一パターン3回以上でルール提案
+          if (corrections.find(c => c.field_name === 'account_item_id')) {
+            const { data: samePattern, count } = await supabase
+              .from('journal_entry_corrections')
+              .select('id', { count: 'exact' })
+              .eq('client_id', currentWorkflow.clientId)
+              .eq('field_name', 'account_item_id')
+              .eq('corrected_value', form.accountItemId!)
+              .eq('supplier_name', item.supplierName || '')
+              .eq('rule_suggested', false);
+            if ((count || 0) >= 3) {
+              setAddRule(true);
+              setRuleSuggestion(`同じ修正が${count}回検出されました。ルール追加を推奨します。`);
+              // rule_suggestedフラグを更新
+              if (samePattern) {
+                await supabase.from('journal_entry_corrections')
+                  .update({ rule_suggested: true })
+                  .eq('client_id', currentWorkflow.clientId)
+                  .eq('field_name', 'account_item_id')
+                  .eq('corrected_value', form.accountItemId!)
+                  .eq('supplier_name', item.supplierName || '');
+              }
+            }
+          }
+        }
       }
     }
 
@@ -604,7 +906,10 @@ export default function ReviewPage() {
     if (currentIndex < items.length - 1) {
       const next = currentIndex + 1;
       setCurrentIndex(next); setForm({ ...items[next] }); setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
-      setBusinessRatio(100); setAiOriginalForm({}); setSupplierText(""); setItemText(""); setRuleSuggestion(""); // リセット
+      setBusinessRatio(100); setAiOriginalForm({ ...items[next] });
+      setSupplierText(items[next].unmatchedSupplierName || '');
+      setItemText(items[next].unmatchedItemName || '');
+      setRuleSuggestion('');
     }
   };
   const goPrev = async () => {
@@ -612,7 +917,10 @@ export default function ReviewPage() {
     if (currentIndex > 0) {
       const prev = currentIndex - 1;
       setCurrentIndex(prev); setForm({ ...items[prev] }); setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
-      setBusinessRatio(100); setAiOriginalForm({}); setSupplierText(""); setItemText(""); setRuleSuggestion(""); // リセット
+      setBusinessRatio(100); setAiOriginalForm({ ...items[prev] });
+      setSupplierText(items[prev].unmatchedSupplierName || '');
+      setItemText(items[prev].unmatchedItemName || '');
+      setRuleSuggestion('');
     }
   };
 
@@ -1006,7 +1314,10 @@ export default function ReviewPage() {
                                   className={`cursor-pointer transition-colors hover:bg-gray-50 bg-white border-l-4 border-indigo-200 ${needsReview ? 'bg-yellow-50' : ''}`}>
                                   <td className="px-3 py-2 text-xs text-gray-300 pl-6">-</td>
                                   <td className="px-4 py-2 text-sm text-gray-600">{new Date(childEntry.entry_date).toLocaleDateString('ja-JP')}</td>
-                                  <td className="px-4 py-2 text-sm max-w-[200px] truncate">{childEntry.description || '-'}</td>
+                                  <td className="px-4 py-2 text-sm max-w-[200px] truncate">
+                                    {childEntry.description || '-'}
+                                    {childEntry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" title={childEntry.notes} />}
+                                  </td>
                                   <td className="px-4 py-2 text-sm">{childEntry.accountItemName || '-'}</td>
                                   <td className="px-4 py-2 text-sm">{childEntry.taxCategoryName || '-'}</td>
                                   <td className="px-4 py-2 text-sm text-right tabular-nums">{fmt(childEntry.amount)}</td>
@@ -1041,7 +1352,10 @@ export default function ReviewPage() {
                             className={`cursor-pointer transition-colors hover:bg-gray-50 ${needsReview ? 'bg-yellow-50' : ''} ${isSelected ? 'bg-blue-50' : ''} ${entry.status === 'approved' ? 'bg-green-50/30' : ''}`}>
                             <td className="px-3 py-3 text-xs text-gray-400">{rowNum}</td>
                             <td className="px-4 py-3 text-sm">{new Date(entry.entry_date).toLocaleDateString('ja-JP')}</td>
-                            <td className="px-4 py-3 text-sm max-w-[200px] truncate">{entry.description || '-'}</td>
+                            <td className="px-4 py-3 text-sm max-w-[200px] truncate">
+                              {entry.description || '-'}
+                              {entry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" title={entry.notes} />}
+                            </td>
                             <td className="px-4 py-3 text-sm">{entry.accountItemName || '-'}</td>
                             <td className="px-4 py-3 text-sm">{entry.taxCategoryName || '-'}</td>
                             <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{fmt(entry.amount)}</td>
@@ -1090,6 +1404,12 @@ export default function ReviewPage() {
           {/* ===== 個別チェック詳細 ===== */}
           {viewMode === 'detail' && items.length > 0 && (() => {
             const ci = items[currentIndex];
+            // 改善6: multi_entry検出（同一ドキュメントに複数仕訳がある場合）
+            const multiGroup = multiEntryGroups.find(g => g.documentId === ci.docId);
+            const isMultiEntry = multiGroup && multiGroup.entries.length > 1;
+            const siblingItems = isMultiEntry
+              ? items.filter(it => it.docId === ci.docId)
+              : [];
             return (
               <div className="grid grid-cols-2 gap-4" style={{ animation: 'fadeSlideUp .3s ease' }}>
                 {/* 左: 証憑画像 */}
@@ -1133,15 +1453,68 @@ export default function ReviewPage() {
 
                 {/* 右: 仕訳データ（HTMLモック準拠）*/}
                 <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+                  {/* 改善6: multi_entryの場合、グループ内仕訳切替タブ */}
+                  {isMultiEntry && siblingItems.length > 1 && (
+                    <div className="px-3 py-2 bg-indigo-50 border-b border-indigo-200 flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] text-indigo-600 font-medium">同一証憑の仕訳:</span>
+                      {siblingItems.map((sib, idx) => {
+                        const isCurrent = sib.entryId === ci.entryId;
+                        return (
+                          <button key={sib.entryId || idx} type="button"
+                            onClick={() => { if (!isCurrent) { const i = items.indexOf(sib); setCurrentIndex(i); setForm({ ...sib }); setAiOriginalForm({ ...sib }); setSupplierText(sib.unmatchedSupplierName || ''); setItemText(sib.unmatchedItemName || ''); } }}
+                            className={`text-[10px] px-2.5 py-1 rounded-full font-medium transition-colors ${
+                              isCurrent ? 'bg-indigo-600 text-white' : 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                            }`}>
+                            {idx + 1}. {sib.description?.slice(0, 15) || '明細'} {fmt(sib.lineAmount)}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   <div className="p-3 border-b border-gray-100 flex items-center gap-2 flex-wrap flex-shrink-0">
                     <span className="font-bold text-sm">仕訳データ</span>
                     {ci.supplierName && <span className="text-xs px-2.5 py-0.5 rounded bg-blue-50 text-blue-600">OCR: {ci.supplierName}</span>}
+                    {/* OCR拡張データバッジ */}
+                    {ci.docClassification?.tategaki && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-teal-50 text-teal-700">但: {ci.docClassification.tategaki}</span>
+                    )}
+                    {ci.docClassification?.withholding_tax_amount != null && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700">源泉: ¥{ci.docClassification.withholding_tax_amount.toLocaleString()}</span>
+                    )}
+                    {ci.docClassification?.invoice_qualification && (
+                      <span className={`text-xs px-2 py-0.5 rounded ${ci.docClassification.invoice_qualification === 'qualified' ? 'bg-green-50 text-green-700' : 'bg-orange-50 text-orange-700'}`}>
+                        {ci.docClassification.invoice_qualification === 'qualified' ? '適格' : '非適格'}
+                      </span>
+                    )}
+                    {ci.docClassification?.transaction_type && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">
+                        {({purchase:'仕入',expense:'経費',asset:'資産',sales:'売上',fee:'報酬'} as Record<string,string>)[ci.docClassification.transaction_type] || ci.docClassification.transaction_type}
+                      </span>
+                    )}
                     {ci.aiConfidence != null && (
                       <span className={`text-xs px-2.5 py-0.5 rounded font-semibold ml-auto ${ci.aiConfidence >= 0.8 ? 'bg-green-50 text-green-700' : ci.aiConfidence >= 0.5 ? 'bg-yellow-50 text-yellow-700' : 'bg-red-50 text-red-700'}`}>
                         AI信頼度 {Math.round(ci.aiConfidence * 100)}%
                       </span>
                     )}
                   </div>
+                  {/* 候補ルールバッジ（改善1） */}
+                  {ci.ruleCandidates && ci.ruleCandidates.length > 0 && (
+                    <div className="px-3 py-1.5 bg-purple-50 border-b border-purple-100 flex items-center gap-2 flex-wrap">
+                      <span className="text-[10px] text-purple-600 font-medium">他にマッチしたルール:</span>
+                      {ci.ruleCandidates.map((rc) => (
+                        <button key={rc.rule_id} type="button"
+                          onClick={() => {
+                            setForm(p => ({ ...p, accountItemId: rc.account_item_id }));
+                            handleAccountItemChange(rc.account_item_id);
+                          }}
+                          className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors cursor-pointer"
+                          title={`スコープ: ${rc.scope} / 優先度: ${rc.priority}`}>
+                          {rc.rule_name}
+                          <span className="ml-1 text-purple-400">({rc.scope === 'client' ? '顧客' : rc.scope === 'industry' ? '業種' : '共通'})</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
 
                   <div className="flex-1 p-4 flex flex-col gap-3.5 overflow-y-auto">
                     {/* OCR読取 */}
@@ -1178,7 +1551,26 @@ export default function ReviewPage() {
                           if (newSupplier) { setSuppliers(prev => [...prev, newSupplier]); handleSupplierChange(newSupplier.id); setSupplierText(''); }
                         }} />
                       {supplierText && !form.supplierId && (
-                        <p className="text-[10px] text-orange-600 mt-1">未登録の取引先です。保存時にルール追加がONになります。</p>
+                        <div className="mt-1.5 bg-orange-50 border border-orange-200 rounded-lg p-2">
+                          <p className="text-[10px] text-orange-700 mb-1.5">
+                            「{supplierText}」は取引先マスタに未登録です。
+                          </p>
+                          <button type="button" onClick={async () => {
+                            const { data: cd } = await supabase.from('clients').select('organization_id').eq('id', currentWorkflow!.clientId).single();
+                            if (!cd?.organization_id) return;
+                            const { data: newSupplier } = await supabase.from('suppliers')
+                              .insert({ organization_id: cd.organization_id, name: supplierText, is_active: true })
+                              .select().single();
+                            if (newSupplier) {
+                              setSuppliers(prev => [...prev, newSupplier]);
+                              handleSupplierChange(newSupplier.id);
+                              setSupplierText('');
+                            }
+                          }}
+                            className="w-full text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 rounded py-1.5 transition-colors">
+                            「{supplierText}」をマスタに追加して選択
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1250,7 +1642,7 @@ export default function ReviewPage() {
                             className="text-[10px] text-red-500 hover:underline">品目をクリア</button>
                         )}
                       </div>
-                      <ComboBox value={form.itemId || ''} onChange={id => { setForm(p => ({ ...p, itemId: id || null })); setItemText(''); }}
+                      <ComboBox value={form.itemId || ''} onChange={handleItemChange}
                         options={itemsMaster.map(it => ({ id: it.id, name: it.name, code: it.code || undefined, short_name: null }))}
                         placeholder="品目を検索"
                         textValue={itemText}
@@ -1261,7 +1653,24 @@ export default function ReviewPage() {
                           if (newItem) { setItemsMaster(prev => [...prev, newItem]); setForm(p => ({ ...p, itemId: newItem.id })); setItemText(''); }
                         }} />
                       {itemText && !form.itemId && (
-                        <p className="text-[10px] text-orange-600 mt-1">未登録の品目です。「マスタに追加」で登録できます。</p>
+                        <div className="mt-1.5 bg-orange-50 border border-orange-200 rounded-lg p-2">
+                          <p className="text-[10px] text-orange-700 mb-1.5">
+                            「{itemText}」は品目マスタに未登録です。
+                          </p>
+                          <button type="button" onClick={async () => {
+                            const { data: newItem } = await supabase.from('items')
+                              .insert({ name: itemText, code: null, is_active: true })
+                              .select('id, name, code, default_account_item_id, default_tax_category_id').single();
+                            if (newItem) {
+                              setItemsMaster(prev => [...prev, newItem]);
+                              handleItemChange(newItem.id);
+                              setItemText('');
+                            }
+                          }}
+                            className="w-full text-xs font-medium text-orange-700 bg-orange-100 hover:bg-orange-200 rounded py-1.5 transition-colors">
+                            「{itemText}」をマスタに追加して選択
+                          </button>
+                        </div>
                       )}
                     </div>
 
@@ -1272,11 +1681,30 @@ export default function ReviewPage() {
                         placeholder="摘要を入力" className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
 
+                    {/* メモ */}
+                    <div>
+                      <label className="text-xs font-semibold mb-1.5 block flex items-center gap-1">
+                        <StickyNote size={12} className="text-amber-500" />メモ
+                      </label>
+                      <textarea value={form.notes || ''} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))}
+                        placeholder="内部メモ（任意）" rows={2}
+                        className="w-full border border-gray-300 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+                    </div>
+
                     {/* C1: 家事按分 */}
                     {!form.isExcluded && (
                       <div className={`border rounded-lg p-3 space-y-2 ${businessRatio === 100 ? 'bg-blue-50 border-blue-200' : 'bg-orange-50 border-orange-200'}`}>
                         <div className="flex items-center justify-between">
-                          <label className={`text-xs font-semibold ${businessRatio === 100 ? 'text-blue-800' : 'text-orange-800'}`}>家事按分（事業用割合）</label>
+                          <label className={`text-xs font-semibold ${businessRatio === 100 ? 'text-blue-800' : 'text-orange-800'}`}>
+                            家事按分（事業用割合）
+                            {ci.matchedRuleBusinessRatio != null ? (
+                              <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-purple-100 text-purple-700 font-medium">ルール按分</span>
+                            ) : clientRatios.find(r => r.account_item_id === form.accountItemId) ? (
+                              <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 font-medium">顧客設定</span>
+                            ) : businessRatio < 100 ? (
+                              <span className="ml-1.5 text-[9px] px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600 font-medium">手動設定</span>
+                            ) : null}
+                          </label>
                           <div className="flex items-center gap-1.5">
                             <button type="button" onClick={() => setBusinessRatio(Math.max(0, businessRatio - 1))}
                               className="w-5 h-5 flex items-center justify-center rounded bg-white border border-gray-300 text-gray-500 text-xs hover:bg-gray-50">−</button>

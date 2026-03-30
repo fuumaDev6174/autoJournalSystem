@@ -1,5 +1,42 @@
 import { GoogleGenAI } from '@google/genai';
 
+/**
+ * 日本語の取引先名を正規化する。
+ * 半角カナ→全角、全角英数→半角、法人格除去、スペース統一。
+ */
+export function normalizeJapanese(text: string): string {
+  let result = text;
+
+  // 半角カナ→全角カナ
+  result = result.replace(/[\uFF66-\uFF9F]/g, (s) => {
+    const kanaMap: Record<string, string> = {
+      'ｦ':'ヲ','ｧ':'ァ','ｨ':'ィ','ｩ':'ゥ','ｪ':'ェ','ｫ':'ォ','ｬ':'ャ','ｭ':'ュ','ｮ':'ョ','ｯ':'ッ',
+      'ｰ':'ー','ｱ':'ア','ｲ':'イ','ｳ':'ウ','ｴ':'エ','ｵ':'オ','ｶ':'カ','ｷ':'キ','ｸ':'ク','ｹ':'ケ','ｺ':'コ',
+      'ｻ':'サ','ｼ':'シ','ｽ':'ス','ｾ':'セ','ｿ':'ソ','ﾀ':'タ','ﾁ':'チ','ﾂ':'ツ','ﾃ':'テ','ﾄ':'ト',
+      'ﾅ':'ナ','ﾆ':'ニ','ﾇ':'ヌ','ﾈ':'ネ','ﾉ':'ノ','ﾊ':'ハ','ﾋ':'ヒ','ﾌ':'フ','ﾍ':'ヘ','ﾎ':'ホ',
+      'ﾏ':'マ','ﾐ':'ミ','ﾑ':'ム','ﾒ':'メ','ﾓ':'モ','ﾔ':'ヤ','ﾕ':'ユ','ﾖ':'ヨ',
+      'ﾗ':'ラ','ﾘ':'リ','ﾙ':'ル','ﾚ':'レ','ﾛ':'ロ','ﾜ':'ワ','ﾝ':'ン','ﾞ':'゛','ﾟ':'゜',
+    };
+    return kanaMap[s] || s;
+  });
+
+  // 全角英数→半角
+  result = result.replace(/[Ａ-Ｚａ-ｚ０-９]/g, (s) =>
+    String.fromCharCode(s.charCodeAt(0) - 0xFEE0)
+  );
+
+  // 法人格の除去
+  result = result
+    .replace(/株式会社|㈱|\(株\)|（株）/g, '')
+    .replace(/有限会社|㈲|\(有\)|（有）/g, '')
+    .replace(/合同会社|合名会社|合資会社/g, '');
+
+  // スペースの統一
+  result = result.replace(/　/g, ' ').replace(/\s+/g, ' ').trim();
+
+  return result;
+}
+
 // Gemini APIクライアントの初期化（新SDK: @google/genai）
 if (!process.env.GEMINI_API_KEY) {
   console.error('FATAL: GEMINI_API_KEY が設定されていません。OCR・仕訳生成が動作しません。');
@@ -106,6 +143,13 @@ export interface OCRTransaction {
     amount: number;
     tax_rate: number | null;
   }>;
+  // 追加フィールド（6項目）
+  tategaki: string | null;                                        // 但書き「但し、〇〇代として」
+  withholding_tax_amount: number | null;                          // 源泉徴収税額
+  invoice_qualification: 'qualified' | 'kubun_kisai' | null;     // 適格請求書 / 区分記載請求書
+  addressee: string | null;                                       // 宛名（〇〇様、〇〇御中）
+  transaction_type: 'purchase' | 'expense' | 'asset' | 'sales' | 'fee' | null;  // 取引種類
+  transfer_fee_bearer: 'sender' | 'receiver' | null;             // 振込手数料負担
 }
 
 export interface OCRResult {
@@ -126,6 +170,13 @@ export interface OCRResult {
   }> | null;
   extracted_payment_method: string | null;
   extracted_invoice_number: string | null;
+  // 追加の代表値（6項目）
+  extracted_tategaki: string | null;
+  extracted_withholding_tax: number | null;
+  extracted_invoice_qualification: string | null;
+  extracted_addressee: string | null;
+  extracted_transaction_type: string | null;
+  extracted_transfer_fee_bearer: string | null;
   confidence_score: number;
 }
 
@@ -276,6 +327,12 @@ export async function processOCR(imageUrl: string): Promise<OCRResult> {
       "payment_method": "cash" | "credit_card" | "bank_transfer" | "e_money" | "other" | null,
       "invoice_number": "インボイス登録番号（Tから始まる番号、なければnull）",
       "reference_number": "伝票番号・取引番号（なければnull）",
+      "tategaki": "但書き（領収書の「但し、〇〇代として」の部分。なければnull）",
+      "withholding_tax_amount": 源泉徴収税額（報酬請求書に「源泉徴収税額」「源泉所得税」として記載されている金額。数値のみ。なければnull）,
+      "invoice_qualification": "qualified"（「適格請求書」と明記 or T+13桁番号あり）| "kubun_kisai"（「区分記載請求書」と明記）| null,
+      "addressee": "宛名（「〇〇様」「〇〇御中」の部分。なければnull）",
+      "transaction_type": "purchase"（仕入）| "expense"（経費）| "asset"（10万円以上の備品・機器等の資産取得）| "sales"（売上）| "fee"（報酬・委託料）| null,
+      "transfer_fee_bearer": "sender"（「振込手数料は差し引いてお支払い」等→先方負担）| "receiver"（「振込手数料はご負担ください」等→当方負担）| null,
       "items": [
         {
           "name": "商品名・摘要",
@@ -294,7 +351,18 @@ export async function processOCR(imageUrl: string): Promise<OCRResult> {
 - 「T」で始まる13桁の番号はインボイス登録番号
 - 「内税」「税込」表記があれば tax_included: true
 - 「外税」「税抜」表記があれば tax_included: false
-- 支払方法は「現金」「カード」「振込」「電子マネー」等の記載から判定`;
+- 支払方法は「現金」「カード」「振込」「電子マネー」等の記載から判定
+- 「但し」「但」に続く文言は但書き（tategaki）として抽出
+- 報酬の請求書に「源泉徴収税額」「源泉所得税」の記載がある場合はその金額を withholding_tax_amount に設定
+- 「適格請求書」と明記されているか、T+13桁の番号がある場合は invoice_qualification: "qualified"
+- 「区分記載請求書」と明記されている場合は invoice_qualification: "kubun_kisai"
+- 「振込手数料はご負担ください」「手数料貴社負担」→ transfer_fee_bearer: "receiver"
+- 「振込手数料を差し引いてお振込みください」「手数料弊社負担」→ transfer_fee_bearer: "sender"
+- 10万円以上の備品・機器・ソフトウェア等は transaction_type: "asset"
+- 外注費・業務委託料は transaction_type: "fee"
+- 仕入（商品購入・材料費）は transaction_type: "purchase"
+- 上記以外の経費は transaction_type: "expense"
+- 売上・請求（自社が発行した請求書）は transaction_type: "sales"`;
 
     // 【編集】リトライ+スロットリング付きでGemini呼び出し
     const result = await callGeminiWithRetry(() => ai.models.generateContent({
@@ -341,6 +409,12 @@ export async function processOCR(imageUrl: string): Promise<OCRResult> {
         amount: Number(item.amount) || 0,
         tax_rate: item.tax_rate ?? null,
       })),
+      tategaki: tx.tategaki || null,
+      withholding_tax_amount: tx.withholding_tax_amount != null ? Number(tx.withholding_tax_amount) : null,
+      invoice_qualification: tx.invoice_qualification || null,
+      addressee: tx.addressee || null,
+      transaction_type: tx.transaction_type || null,
+      transfer_fee_bearer: tx.transfer_fee_bearer || null,
     }));
 
     // 先頭取引を代表値として使用
@@ -365,6 +439,12 @@ export async function processOCR(imageUrl: string): Promise<OCRResult> {
         : null,
       extracted_payment_method: firstTx.payment_method || null,
       extracted_invoice_number: firstTx.invoice_number || null,
+      extracted_tategaki: firstTx.tategaki || null,
+      extracted_withholding_tax: firstTx.withholding_tax_amount ?? null,
+      extracted_invoice_qualification: firstTx.invoice_qualification || null,
+      extracted_addressee: firstTx.addressee || null,
+      extracted_transaction_type: firstTx.transaction_type || null,
+      extracted_transfer_fee_bearer: firstTx.transfer_fee_bearer || null,
       confidence_score: extracted.confidence ?? 0.85,
     };
   } catch (error) {
@@ -487,6 +567,13 @@ export interface JournalEntryInput {
   industry?: string;
   account_items: AccountItemRef[];
   tax_categories: TaxCategoryRef[];
+  // 追加フィールド（5項目 — addresseeは仕訳生成に不要なので除外）
+  tategaki?: string | null;
+  withholding_tax_amount?: number | null;
+  invoice_qualification?: string | null;
+  transaction_type?: string | null;
+  transfer_fee_bearer?: string | null;
+  correction_hints?: Array<{ supplier: string; original: string; corrected: string; count: number }>;
 }
 
 /** AI が生成する仕訳明細行（DB構造に近い形） */
@@ -545,7 +632,15 @@ ${input.tax_details ? `- 税率内訳: 10%対象=${input.tax_details.rate_10_amo
 - 支払方法: ${input.payment_method || '不明'}
 ${input.invoice_number ? `- インボイス登録番号: ${input.invoice_number}` : '- インボイス番号: なし'}
 ${input.industry ? `- 業種: ${input.industry}` : ''}
-
+${input.tategaki ? `- 但書き: ${input.tategaki}` : ''}
+${input.withholding_tax_amount != null ? `- 源泉徴収税額: ${input.withholding_tax_amount}円` : ''}
+${input.invoice_qualification ? `- 請求書区分: ${input.invoice_qualification === 'qualified' ? '適格請求書（仕入税額控除100%）' : '区分記載請求書（経過措置: 仕入税額控除80%）'}` : ''}
+${input.transaction_type ? `- 取引種類: ${{purchase:'仕入',expense:'経費',asset:'資産取得',sales:'売上',fee:'報酬・委託料'}[input.transaction_type] || input.transaction_type}` : ''}
+${input.transfer_fee_bearer ? `- 振込手数料: ${input.transfer_fee_bearer === 'sender' ? '先方負担（支払金額から差し引く）' : '当方負担（支払手数料を別途計上）'}` : ''}
+${input.correction_hints && input.correction_hints.length > 0 ? `
+【過去の修正履歴（参考にしてください）】
+${input.correction_hints.map(h => `- 「${h.supplier}」: ${h.original} → ${h.corrected}（${h.count}回修正）`).join('\n')}
+` : ''}
 【使用可能な勘定科目（この中から選んでください）】
 ${accountList}
 
@@ -585,6 +680,13 @@ ${taxCategoryList}
 6. 摘要は「取引先名 品目」の形式で、事務所の税理士が見て一目でわかるように書くこと。
 7. 事業用かプライベートかは、取引先名・品目・業種から総合的に判断すること。
 8. プライベートと判断した場合は、借方を「事業主貸」にすること。
+9. 源泉徴収税額がある場合、以下の複合仕訳を生成すること:
+   借方: 外注費（税込本体額）
+   貸方: 普通預金（源泉徴収税額を差し引いた振込額）+ 預り金（源泉徴収税額）
+   ※ 源泉徴収税額 = withholding_tax_amount の値をそのまま使用。逆算しないこと。
+10. 区分記載請求書（invoice_qualification が kubun_kisai）の場合は、仕入税額控除の経過措置を考慮し、適切な税区分（非適格80%控除等）を選ぶこと。適格請求書なら通常の課税仕入の税区分を選ぶこと。
+11. 振込手数料が当方負担（transfer_fee_bearer が receiver）の場合は、支払手数料の仕訳行を追加すること（通常440円〜660円程度）。先方負担の場合は請求額から手数料を差し引いた金額を貸方に計上すること。
+12. transaction_type が asset（資産取得）の場合は、借方の勘定科目を「工具器具備品」「ソフトウェア」等の資産科目にすること。entry_type_hint を fixed_asset と判断すること。
 
 【複合仕訳パターン】
 複合仕訳が必要な場合は、以下のパターンを参考にlines配列に3行以上を含めてください:
@@ -731,6 +833,13 @@ export interface RuleMatchInput {
   tax_rate_hint?: number | null;    // OCR読取税率
   is_internal_tax?: boolean | null;
   frequency_hint?: string | null;   // 'recurring' / 'one_time'
+  // 追加フィールド（6項目）
+  tategaki?: string | null;                 // 但書き
+  withholding_tax_amount?: number | null;   // 源泉徴収税額
+  invoice_qualification?: string | null;    // 適格/非適格区分
+  addressee?: string | null;                // 宛名
+  transaction_type?: string | null;         // 取引種類
+  transfer_fee_bearer?: string | null;      // 振込手数料負担
 }
 
 export interface MatchedRule {
@@ -743,6 +852,7 @@ export interface MatchedRule {
   business_ratio_note: string | null;
   entry_type_hint: string | null;
   requires_manual_review: boolean;
+  withholding_tax_handling: string | null;
   confidence: number;
 }
 
@@ -858,6 +968,11 @@ export function matchProcessingRules(
       tax_rate_hint?: number | null;
       is_internal_tax?: boolean | null;
       frequency_hint?: string | null;
+      tategaki_pattern?: string | null;
+      invoice_qualification?: string | null;
+      addressee_pattern?: string | null;
+      transaction_type?: string | null;
+      transfer_fee_bearer?: string | null;
     };
     actions: {
       account_item_id?: string | null;
@@ -868,6 +983,7 @@ export function matchProcessingRules(
       entry_type_hint?: string | null;
       requires_manual_review?: boolean | null;
       auto_tags?: string[] | null;
+      withholding_tax_handling?: string | null;
     };
     is_active: boolean;
   }>,
@@ -916,6 +1032,7 @@ export function matchProcessingRules(
         business_ratio_note: rule.actions.business_ratio_note || null,
         entry_type_hint: rule.actions.entry_type_hint || null,
         requires_manual_review: rule.actions.requires_manual_review === true,
+        withholding_tax_handling: rule.actions.withholding_tax_handling || null,
         confidence: 0.95,
       };
     }
@@ -923,6 +1040,63 @@ export function matchProcessingRules(
 
   console.log(`[ルールマッチ] ルールマッチなし → Gemini AI にフォールバック`);
   return null;
+}
+
+/**
+ * ルールマッチング（候補付きバージョン）
+ * 最優先のマッチルールに加えて、他にマッチしたルール候補も返す。
+ */
+export function matchProcessingRulesWithCandidates(
+  rules: Parameters<typeof matchProcessingRules>[0],
+  input: RuleMatchInput
+): {
+  matched: MatchedRule | null;
+  candidates: Array<MatchedRule & { scope: string; priority: number }>;
+} {
+  const activeRules = rules.filter(r => r.is_active);
+  const allMatched: Array<MatchedRule & { scope: string; priority: number }> = [];
+
+  const clientRules = activeRules
+    .filter(r => r.scope === 'client' && r.client_id === input.client_id)
+    .sort((a, b) => a.priority - b.priority);
+  const industryRules = activeRules
+    .filter(r => r.scope === 'industry' && r.industry_id && input.industry_ids_with_ancestors.includes(r.industry_id))
+    .sort((a, b) => {
+      const depthA = input.industry_depths.get(a.industry_id!) ?? 999;
+      const depthB = input.industry_depths.get(b.industry_id!) ?? 999;
+      if (depthA !== depthB) return depthA - depthB;
+      return a.priority - b.priority;
+    });
+  const sharedRules = activeRules
+    .filter(r => r.scope === 'shared')
+    .sort((a, b) => a.priority - b.priority);
+
+  const orderedRules = [...clientRules, ...industryRules, ...sharedRules];
+
+  for (const rule of orderedRules) {
+    if (matchesConditions(rule.conditions, input) && rule.actions.account_item_id) {
+      allMatched.push({
+        rule_id: rule.id,
+        rule_name: rule.rule_name,
+        account_item_id: rule.actions.account_item_id,
+        tax_category_id: rule.actions.tax_category_id || null,
+        description_template: rule.actions.description_template || null,
+        business_ratio: rule.actions.business_ratio || null,
+        business_ratio_note: rule.actions.business_ratio_note || null,
+        entry_type_hint: rule.actions.entry_type_hint || null,
+        requires_manual_review: rule.actions.requires_manual_review === true,
+        withholding_tax_handling: rule.actions.withholding_tax_handling || null,
+        confidence: 0.95,
+        scope: rule.scope,
+        priority: rule.priority,
+      });
+    }
+  }
+
+  return {
+    matched: allMatched.length > 0 ? allMatched[0] : null,
+    candidates: allMatched.slice(1),
+  };
 }
 
 /**
@@ -946,6 +1120,11 @@ function matchesConditions(
     tax_rate_hint?: number | null;
     is_internal_tax?: boolean | null;
     frequency_hint?: string | null;
+    tategaki_pattern?: string | null;
+    invoice_qualification?: string | null;
+    addressee_pattern?: string | null;
+    transaction_type?: string | null;
+    transfer_fee_bearer?: string | null;
   },
   input: RuleMatchInput
 ): boolean {
@@ -1021,6 +1200,40 @@ function matchesConditions(
   if (conditions.frequency_hint) {
     hasAnyCondition = true;
     if (input.frequency_hint !== conditions.frequency_hint) return false;
+  }
+
+  // 但書きパターン（部分一致、大文字小文字無視）
+  if (conditions.tategaki_pattern) {
+    hasAnyCondition = true;
+    const pattern = conditions.tategaki_pattern.toLowerCase();
+    const tategaki = (input.tategaki || '').toLowerCase();
+    if (!tategaki.includes(pattern)) return false;
+  }
+
+  // 適格/非適格区分（完全一致）
+  if (conditions.invoice_qualification) {
+    hasAnyCondition = true;
+    if (input.invoice_qualification !== conditions.invoice_qualification) return false;
+  }
+
+  // 宛名パターン（部分一致、大文字小文字無視）
+  if (conditions.addressee_pattern) {
+    hasAnyCondition = true;
+    const pattern = conditions.addressee_pattern.toLowerCase();
+    const addressee = (input.addressee || '').toLowerCase();
+    if (!addressee.includes(pattern)) return false;
+  }
+
+  // 取引種類（完全一致）
+  if (conditions.transaction_type) {
+    hasAnyCondition = true;
+    if (input.transaction_type !== conditions.transaction_type) return false;
+  }
+
+  // 振込手数料負担（完全一致）
+  if (conditions.transfer_fee_bearer) {
+    hasAnyCondition = true;
+    if (input.transfer_fee_bearer !== conditions.transfer_fee_bearer) return false;
   }
 
   // 条件が一つもない場合はマッチしない（全一致防止）
@@ -1185,17 +1398,24 @@ export function mapLinesToDBFormat(
         )
       : null;
 
-    // 取引先マッチング（名前→完全一致→部分一致→エイリアス）
+    // 取引先マッチング（正規化→完全一致→部分一致→エイリアス）
     let supplierId: string | null = null;
     const sName = line.supplier_name;
     if (sName && suppliers) {
-      const exact = suppliers.find(s => s.name === sName);
+      const normName = normalizeJapanese(sName).toLowerCase();
+      const exact = suppliers.find(s => normalizeJapanese(s.name).toLowerCase() === normName);
       if (exact) { supplierId = exact.id; }
       else {
-        const partial = suppliers.find(s => sName.includes(s.name) || s.name.includes(sName));
+        const partial = suppliers.find(s => {
+          const norm = normalizeJapanese(s.name).toLowerCase();
+          return normName.includes(norm) || norm.includes(normName);
+        });
         if (partial) { supplierId = partial.id; }
         else if (supplierAliases) {
-          const alias = supplierAliases.find(a => sName.includes(a.alias_name) || a.alias_name.includes(sName));
+          const alias = supplierAliases.find(a => {
+            const normAlias = normalizeJapanese(a.alias_name).toLowerCase();
+            return normName.includes(normAlias) || normAlias.includes(normName);
+          });
           if (alias) supplierId = alias.supplier_id;
         }
       }
@@ -1235,7 +1455,7 @@ export function mapLinesToDBFormat(
 };
 
 // ============================================
-// freee連携サービス（スタブ）
+// freee連携サービス
 // ============================================
 
 export interface FreeeTransaction {
@@ -1247,17 +1467,245 @@ export interface FreeeTransaction {
   tax_code: number;
 }
 
-export async function exportToFreee(transactions: FreeeTransaction[]): Promise<{
+const FREEE_API_BASE = 'https://api.freee.co.jp';
+
+export async function exportToFreee(
+  transactions: FreeeTransaction[],
+  accessToken: string,
+  companyId: string,
+): Promise<{
   success: boolean;
   message: string;
   exported_count: number;
+  errors: Array<{ index: number; error: string }>;
 }> {
-  // TODO: 実際のfreee API連携を実装
-  console.log('freeeエクスポート（スタブ）:', transactions.length, '件');
+  if (!accessToken || !companyId) {
+    return { success: false, message: 'freee接続情報が不足しています', exported_count: 0, errors: [] };
+  }
+
+  console.log(`[freee] エクスポート開始: ${transactions.length}件, company_id=${companyId}`);
+
+  let exportedCount = 0;
+  const errors: Array<{ index: number; error: string }> = [];
+
+  for (let i = 0; i < transactions.length; i++) {
+    const tx = transactions[i];
+    try {
+      // freee API: POST /api/1/deals で取引を作成
+      const dealBody = {
+        company_id: Number(companyId),
+        issue_date: tx.issue_date,
+        type: tx.type,
+        details: [
+          {
+            account_item_id: tx.account_item_id,
+            tax_code: tx.tax_code,
+            amount: tx.amount,
+            description: tx.description || '',
+          },
+        ],
+      };
+
+      const response = await fetch(`${FREEE_API_BASE}/api/1/deals`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dealBody),
+      });
+
+      if (response.ok) {
+        exportedCount++;
+      } else {
+        const errData = await response.json().catch(() => ({ message: response.statusText }));
+        const errMsg = errData.errors?.[0]?.messages?.[0] || errData.message || `HTTP ${response.status}`;
+        errors.push({ index: i, error: errMsg });
+        console.warn(`[freee] 取引${i + 1}件目エラー: ${errMsg}`);
+      }
+    } catch (e: any) {
+      errors.push({ index: i, error: e.message });
+      console.error(`[freee] 取引${i + 1}件目例外: ${e.message}`);
+    }
+  }
+
+  console.log(`[freee] エクスポート完了: 成功=${exportedCount}, エラー=${errors.length}`);
 
   return {
-    success: true,
-    message: 'freee連携は実装予定です',
-    exported_count: transactions.length,
+    success: errors.length === 0,
+    message: errors.length === 0
+      ? `${exportedCount}件の取引をfreeeに登録しました`
+      : `${exportedCount}件成功、${errors.length}件エラー`,
+    exported_count: exportedCount,
+    errors,
   };
+}
+
+// ============================================
+// 自動処理: バリデーション関数群 (Task 5-4)
+// ============================================
+
+/**
+ * (a) 証憑重複チェック（hash_value による完全一致）
+ */
+export interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  duplicateDocId: string | null;
+  duplicateFileName: string | null;
+}
+
+export async function checkDocumentDuplicate(
+  supabaseAdmin: any,
+  hashValue: string | null,
+  clientId: string,
+  excludeDocId?: string,
+): Promise<DuplicateCheckResult> {
+  if (!hashValue) return { isDuplicate: false, duplicateDocId: null, duplicateFileName: null };
+  let query = supabaseAdmin.from('documents')
+    .select('id, file_name')
+    .eq('hash_value', hashValue)
+    .eq('client_id', clientId)
+    .limit(1);
+  if (excludeDocId) query = query.neq('id', excludeDocId);
+  const { data } = await query;
+  if (data && data.length > 0) {
+    return { isDuplicate: true, duplicateDocId: data[0].id, duplicateFileName: data[0].file_name };
+  }
+  return { isDuplicate: false, duplicateDocId: null, duplicateFileName: null };
+}
+
+/**
+ * (e) 取引先名寄せ（suppliers + supplier_aliases で段階的マッチ）
+ */
+export interface SupplierMatchResult {
+  matchedSupplierId: string | null;
+  matchedSupplierName: string | null;
+  matchType: 'exact' | 'partial' | 'alias' | 'none';
+}
+
+export async function findSupplierAliasMatch(
+  supabaseAdmin: any,
+  supplierName: string | null,
+  organizationId: string,
+): Promise<SupplierMatchResult> {
+  if (!supplierName) return { matchedSupplierId: null, matchedSupplierName: null, matchType: 'none' };
+  const sName = supplierName.toLowerCase();
+
+  // 1. suppliers.name で完全一致
+  const { data: suppliers } = await supabaseAdmin.from('suppliers')
+    .select('id, name').eq('organization_id', organizationId).eq('is_active', true);
+  if (suppliers) {
+    const exact = suppliers.find((s: any) => s.name.toLowerCase() === sName);
+    if (exact) return { matchedSupplierId: exact.id, matchedSupplierName: exact.name, matchType: 'exact' };
+    // 2. 部分一致
+    const partial = suppliers.find((s: any) => sName.includes(s.name.toLowerCase()) || s.name.toLowerCase().includes(sName));
+    if (partial) return { matchedSupplierId: partial.id, matchedSupplierName: partial.name, matchType: 'partial' };
+  }
+
+  // 3. supplier_aliases で一致
+  const { data: aliases } = await supabaseAdmin.from('supplier_aliases')
+    .select('supplier_id, alias_name, suppliers!inner(id, name)')
+    .order('created_at', { ascending: false });
+  if (aliases) {
+    const aliasMatch = aliases.find((a: any) => {
+      const aName = a.alias_name.toLowerCase();
+      return aName === sName || sName.includes(aName) || aName.includes(sName);
+    });
+    if (aliasMatch) {
+      const sup = Array.isArray(aliasMatch.suppliers) ? aliasMatch.suppliers[0] : aliasMatch.suppliers;
+      return { matchedSupplierId: aliasMatch.supplier_id, matchedSupplierName: sup?.name || null, matchType: 'alias' };
+    }
+  }
+
+  return { matchedSupplierId: null, matchedSupplierName: null, matchType: 'none' };
+}
+
+/**
+ * (g) 貸借バランスチェック（純粋関数）
+ */
+export interface BalanceCheckResult {
+  isBalanced: boolean;
+  debitTotal: number;
+  creditTotal: number;
+  difference: number;
+}
+
+export function validateDebitCreditBalance(
+  lines: Array<{ debit_credit: string; amount: number }>,
+): BalanceCheckResult {
+  let debitTotal = 0;
+  let creditTotal = 0;
+  for (const line of lines) {
+    if (line.debit_credit === 'debit') debitTotal += line.amount;
+    else if (line.debit_credit === 'credit') creditTotal += line.amount;
+  }
+  // 小数点丸め誤差を考慮（1円以内の差は許容）
+  const difference = Math.abs(debitTotal - creditTotal);
+  return { isBalanced: difference < 1, debitTotal, creditTotal, difference };
+}
+
+/**
+ * (l) 証憑重複チェック（金額+日付+取引先の類似検索）
+ */
+export interface ReceiptDuplicateResult {
+  possibleDuplicates: Array<{ id: string; fileName: string; date: string; amount: number; supplierName: string | null }>;
+}
+
+export async function checkReceiptDuplicate(
+  supabaseAdmin: any,
+  clientId: string,
+  amount: number | null,
+  date: string | null,
+  supplierName: string | null,
+  excludeDocId?: string,
+): Promise<ReceiptDuplicateResult> {
+  if (!amount || !date) return { possibleDuplicates: [] };
+
+  // 日付 ±1日 かつ 金額完全一致
+  const dateObj = new Date(date);
+  const dayBefore = new Date(dateObj); dayBefore.setDate(dayBefore.getDate() - 1);
+  const dayAfter = new Date(dateObj); dayAfter.setDate(dayAfter.getDate() + 1);
+
+  let query = supabaseAdmin.from('documents')
+    .select('id, file_name, document_date, amount, supplier_name')
+    .eq('client_id', clientId)
+    .eq('amount', amount)
+    .gte('document_date', dayBefore.toISOString().split('T')[0])
+    .lte('document_date', dayAfter.toISOString().split('T')[0]);
+  if (excludeDocId) query = query.neq('id', excludeDocId);
+
+  const { data } = await query;
+  if (!data || data.length === 0) return { possibleDuplicates: [] };
+
+  // 取引先名がある場合、取引先名も部分一致でフィルタ
+  let filtered = data;
+  if (supplierName) {
+    const sLower = supplierName.toLowerCase();
+    filtered = data.filter((d: any) => {
+      if (!d.supplier_name) return true; // 取引先未設定はヒット扱い
+      const dLower = d.supplier_name.toLowerCase();
+      return dLower.includes(sLower) || sLower.includes(dLower);
+    });
+  }
+
+  return {
+    possibleDuplicates: filtered.map((d: any) => ({
+      id: d.id, fileName: d.file_name, date: d.document_date,
+      amount: d.amount, supplierName: d.supplier_name,
+    })),
+  };
+}
+
+/**
+ * (m) 仕訳エントリの貸借バランスチェック（DB参照あり）
+ */
+export async function validateJournalBalance(
+  supabaseAdmin: any,
+  journalEntryId: string,
+): Promise<BalanceCheckResult> {
+  const { data: lines } = await supabaseAdmin.from('journal_entry_lines')
+    .select('debit_credit, amount')
+    .eq('journal_entry_id', journalEntryId);
+  if (!lines || lines.length === 0) return { isBalanced: true, debitTotal: 0, creditTotal: 0, difference: 0 };
+  return validateDebitCreditBalance(lines);
 }

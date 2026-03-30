@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Search, User as UserIcon, Shield, UserCog } from 'lucide-react';
+import { Plus, Edit, Trash2, Search, User as UserIcon, Shield, UserCog, Link2, Unlink } from 'lucide-react';
 import { usersApi } from '@/client/lib/api';
 import type { User } from '@/types';
 import Modal from '@/client/components/ui/Modal';
+import { supabase } from '@/client/lib/supabase';
 
 
 // ============================================
@@ -77,12 +78,20 @@ export default function SettingsPage() {
     role: 'operator' as 'admin' | 'manager' | 'operator' | 'viewer',
   });
 
+  // freee連携 state (Task 5-3)
+  const [freeeStatus, setFreeeStatus] = useState<'loading' | 'disconnected' | 'connected' | 'error'>('loading');
+  const [freeeCompanyId, setFreeeCompanyId] = useState<string | null>(null);
+  const [freeeConnectedAt, setFreeeConnectedAt] = useState<string | null>(null);
+  const [freeeLoading, setFreeeLoading] = useState(false);
+
   // ============================================
   // データ読み込み
   // ============================================
 
   useEffect(() => {
     loadUsers();
+    checkFreeeConnection();
+    handleFreeeCallback();
   }, []);
 
   const loadUsers = async () => {
@@ -92,6 +101,77 @@ export default function SettingsPage() {
       setUsers(response.data);
     }
     setLoading(false);
+  };
+
+  // freee連携チェック (Task 5-3)
+  const checkFreeeConnection = async () => {
+    try {
+      const res = await fetch('/api/freee/connection-status');
+      const data = await res.json();
+      if (data.connected) {
+        setFreeeStatus('connected');
+        setFreeeCompanyId(data.companyId);
+        setFreeeConnectedAt(data.connectedAt);
+      } else {
+        setFreeeStatus('disconnected');
+      }
+    } catch {
+      setFreeeStatus('disconnected');
+    }
+  };
+
+  const handleFreeeConnect = async () => {
+    setFreeeLoading(true);
+    try {
+      const res = await fetch('/api/freee/auth-url');
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+      else alert('認証URL の生成に失敗しました');
+    } catch (e: any) {
+      alert('freee連携エラー: ' + e.message);
+    }
+    setFreeeLoading(false);
+  };
+
+  const handleFreeeDisconnect = async () => {
+    if (!confirm('freee連携を解除しますか？')) return;
+    setFreeeLoading(true);
+    try {
+      await fetch('/api/freee/disconnect', { method: 'POST' });
+      setFreeeStatus('disconnected');
+      setFreeeCompanyId(null);
+      setFreeeConnectedAt(null);
+    } catch (e: any) {
+      alert('切断エラー: ' + e.message);
+    }
+    setFreeeLoading(false);
+  };
+
+  const handleFreeeCallback = async () => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get('code');
+    const state = params.get('state');
+    if (!code) return;
+    // URLからcodeパラメータを除去
+    window.history.replaceState({}, '', window.location.pathname);
+    try {
+      const res = await fetch('/api/freee/callback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, state }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setFreeeStatus('connected');
+        setFreeeCompanyId(data.companyId || null);
+        setFreeeConnectedAt(new Date().toISOString());
+        alert('freee連携が完了しました');
+      } else {
+        alert('freee連携に失敗しました: ' + (data.error || '不明なエラー'));
+      }
+    } catch (e: any) {
+      alert('freeeコールバックエラー: ' + e.message);
+    }
   };
 
   // ============================================
@@ -469,6 +549,56 @@ export default function SettingsPage() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* freee API連携 (Task 5-3) */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">外部API連携</h2>
+            <p className="text-sm text-gray-500 mt-0.5">会計ソフトとの連携設定</p>
+          </div>
+        </div>
+        <div className="border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                <span className="text-green-700 font-bold text-sm">f</span>
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-gray-900">freee会計</h3>
+                {freeeStatus === 'connected' ? (
+                  <div className="text-xs text-gray-500">
+                    事業所ID: {freeeCompanyId || '-'}
+                    {freeeConnectedAt && <span className="ml-2">（{new Date(freeeConnectedAt).toLocaleDateString('ja-JP')}接続）</span>}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">未接続</p>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {freeeStatus === 'connected' ? (
+                <>
+                  <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    <Link2 size={12} />接続済み
+                  </span>
+                  <button onClick={handleFreeeDisconnect} disabled={freeeLoading}
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs text-red-600 border border-red-200 rounded-lg hover:bg-red-50 disabled:opacity-50">
+                    <Unlink size={12} />切断
+                  </button>
+                </>
+              ) : freeeStatus === 'loading' ? (
+                <span className="text-xs text-gray-400">確認中...</span>
+              ) : (
+                <button onClick={handleFreeeConnect} disabled={freeeLoading}
+                  className="flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50">
+                  <Link2 size={14} />{freeeLoading ? '処理中...' : 'freee連携開始'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* 新規登録・編集モーダル */}
