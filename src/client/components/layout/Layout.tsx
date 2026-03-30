@@ -195,7 +195,7 @@ function Sidebar() {
     setExpandedSections((prev) => ({ ...prev, [label]: !prev[label] }));
   };
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
   // ワークフロー系の動的パスを生成するヘルパー
   const workflowPath = (slug: string) =>

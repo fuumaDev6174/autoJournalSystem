@@ -107,12 +107,7 @@ export default function ClientsPage() {
 
       let industryRules: any[] = [];
       if (client.industry_id) {
-        const { data: closure } = await supabase
-          .from('industry_closure')
-          .select('ancestor_id')
-          .eq('descendant_id', client.industry_id);
-        const ancestorIds = [client.industry_id, ...(closure?.map(c => c.ancestor_id) || [])];
-        industryRules = allRules.filter(r => r.scope === 'industry' && ancestorIds.includes(r.industry_id));
+        industryRules = allRules.filter(r => r.scope === 'industry' && r.industry_id === client.industry_id);
       }
 
       const sharedRules = allRules.filter(r => r.scope === 'shared');

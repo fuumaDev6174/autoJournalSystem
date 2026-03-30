@@ -605,30 +605,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       ...(clientData?.industry_id ? [clientData.industry_id] : []),
     ].filter((id, idx, arr) => arr.indexOf(id) === idx); // 重複除去
 
-    // industry_closure で全祖先IDを取得（階層遡り）
-    let industryIdsWithAncestors: string[] = [...industryIds];
-    const industryDepths = new Map<string, number>();
-    
-    if (industryIds.length > 0) {
-      const { data: closureData } = await supabaseAdmin
-        .from('industry_closure')
-        .select('ancestor_id, descendant_id, depth')
-        .in('descendant_id', industryIds);
-      
-      if (closureData) {
-        for (const row of closureData) {
-          if (!industryIdsWithAncestors.includes(row.ancestor_id)) {
-            industryIdsWithAncestors.push(row.ancestor_id);
-          }
-          // depthマップ: 同一ancestor_idに複数descendantがある場合は最小depthを採用
-          const existing = industryDepths.get(row.ancestor_id);
-          if (existing == null || row.depth < existing) {
-            industryDepths.set(row.ancestor_id, row.depth);
-          }
-        }
-      }
-    }
-
     let journalEntry!: GeneratedJournalEntry;
     let ruleMatched = false;
     let ruleCandidates: Array<{ rule_id: string; rule_name: string; scope: string; priority: number; account_item_id: string }> = [];
@@ -640,8 +616,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
         description: ocr_result.extracted_items?.[0]?.name || ocr_result.extracted_supplier || '',
         client_id: client_id,
         industry_ids: industryIds,
-        industry_ids_with_ancestors: industryIdsWithAncestors,
-        industry_depths: industryDepths,
         payment_method: ocr_result.extracted_payment_method || null,
         item_name: ocr_result.extracted_items?.[0]?.name || null,
         document_type: ocr_result.document_type || null,

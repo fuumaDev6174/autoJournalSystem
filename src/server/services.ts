@@ -823,9 +823,7 @@ export interface RuleMatchInput {
   amount: number;
   description?: string;
   client_id: string;
-  industry_ids: string[];           // クライアントに紐づく業種ID一覧
-  industry_ids_with_ancestors: string[];  // 業種ID + 全祖先ID（industry_closureから取得）
-  industry_depths: Map<string, number>;   // industry_id → depth（0=自身, 1=親, 2=祖父...）
+  industry_ids: string[];           // フラット業種IDのみ（N階層廃止）
   payment_method?: string | null;
   item_name?: string | null;        // 品目名
   document_type?: string | null;    // 証憑種別コード
@@ -943,9 +941,7 @@ export function generateRuleName(
  * @param input - マッチング入力（取引先名、金額等）
  * @returns マッチしたルール情報、またはマッチしなければ null
  *
- * industry scopeの階層遡り:
- *   industry_closureで取得した全祖先IDリストを使い、
- *   depthの昇順（最も具体的な階層が先）でルールを検索。
+ * industry scopeはフラット業種IDで直接マッチ（N階層廃止）。
  */
 export function matchProcessingRules(
   rules: Array<{
@@ -996,17 +992,10 @@ export function matchProcessingRules(
     .filter(r => r.scope === 'client' && r.client_id === input.client_id)
     .sort((a, b) => a.priority - b.priority);
 
-  // 2. industry scope: 業種別ルール（depth昇順 = 具体的な階層が先）
+  // 2. industry scope: 業種別ルール
   const industryRules = activeRules
-    .filter(r => r.scope === 'industry' && r.industry_id && input.industry_ids_with_ancestors.includes(r.industry_id))
-    .sort((a, b) => {
-      // depthが小さい（=より具体的）方を優先
-      const depthA = input.industry_depths.get(a.industry_id!) ?? 999;
-      const depthB = input.industry_depths.get(b.industry_id!) ?? 999;
-      if (depthA !== depthB) return depthA - depthB;
-      // 同一depth内ではpriorityで比較
-      return a.priority - b.priority;
-    });
+    .filter(r => r.scope === 'industry' && r.industry_id && input.industry_ids.includes(r.industry_id))
+    .sort((a, b) => a.priority - b.priority);
 
   // 3. shared scope: 汎用ルール
   const sharedRules = activeRules
@@ -1020,7 +1009,7 @@ export function matchProcessingRules(
     if (matchesConditions(rule.conditions, input)) {
       if (!rule.actions.account_item_id) continue;
 
-      console.log(`[ルールマッチ] ✅ マッチ: "${rule.rule_name}" (priority=${rule.priority}, scope=${rule.scope}, industry_depth=${rule.industry_id ? input.industry_depths.get(rule.industry_id) : 'N/A'})`);
+      console.log(`[ルールマッチ] ✅ マッチ: "${rule.rule_name}" (priority=${rule.priority}, scope=${rule.scope})`);
 
       return {
         rule_id: rule.id,
@@ -1060,13 +1049,8 @@ export function matchProcessingRulesWithCandidates(
     .filter(r => r.scope === 'client' && r.client_id === input.client_id)
     .sort((a, b) => a.priority - b.priority);
   const industryRules = activeRules
-    .filter(r => r.scope === 'industry' && r.industry_id && input.industry_ids_with_ancestors.includes(r.industry_id))
-    .sort((a, b) => {
-      const depthA = input.industry_depths.get(a.industry_id!) ?? 999;
-      const depthB = input.industry_depths.get(b.industry_id!) ?? 999;
-      if (depthA !== depthB) return depthA - depthB;
-      return a.priority - b.priority;
-    });
+    .filter(r => r.scope === 'industry' && r.industry_id && input.industry_ids.includes(r.industry_id))
+    .sort((a, b) => a.priority - b.priority);
   const sharedRules = activeRules
     .filter(r => r.scope === 'shared')
     .sort((a, b) => a.priority - b.priority);

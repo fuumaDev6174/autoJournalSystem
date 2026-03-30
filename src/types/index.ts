@@ -29,7 +29,6 @@ export interface Industry {
   code: string;
   name: string;
   description: string | null;
-  parent_id: string | null;
   sort_order: number;
   is_active: boolean;
   created_at: string;
@@ -188,9 +187,12 @@ export interface Rule {
   created_at: string;
   updated_at: string;
 
+  derived_from_rule_id: string | null;
+
   // JOINリレーション（SELECT時）
   industry?: Industry;
   client?: Client;
+  derived_from?: Rule;
 }
 
 // documents テーブルの完全対応型（既存の詳細定義を維持）

@@ -443,7 +443,7 @@ export default function ReviewPage() {
 
     // R1: AI読み取り結果から取引先・品目を自動セット
     // supplier_aliases も検索して取引先を解決
-    const { data: aliasData } = await supabase.from('supplier_aliases').select('supplier_id, alias');
+    const { data: aliasData } = await supabase.from('supplier_aliases').select('supplier_id, alias_name');
     const aliases = aliasData || [];
 
     const allAccountItems = aRes.data || [];
@@ -463,7 +463,7 @@ export default function ReviewPage() {
           return sName.includes(norm) || norm.includes(sName);
         }) : null;
         const aliasMatch = !exactMatch && !partialMatch ? aliases.find(a => {
-          const normAlias = normalizeJapanese(a.alias).toLowerCase();
+          const normAlias = normalizeJapanese(a.alias_name).toLowerCase();
           return sName.includes(normAlias) || normAlias.includes(sName);
         }) : null;
 
@@ -1510,7 +1510,7 @@ export default function ReviewPage() {
                           className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 transition-colors cursor-pointer"
                           title={`スコープ: ${rc.scope} / 優先度: ${rc.priority}`}>
                           {rc.rule_name}
-                          <span className="ml-1 text-purple-400">({rc.scope === 'client' ? '顧客' : rc.scope === 'industry' ? '業種' : '共通'})</span>
+                          <span className="ml-1 text-purple-400">({rc.scope === 'client' ? '顧客別' : rc.scope === 'industry' ? '業種別' : '汎用'})</span>
                         </button>
                       ))}
                     </div>
@@ -1755,9 +1755,9 @@ export default function ReviewPage() {
                           <div className="flex items-center gap-1.5">
                             <select value={ruleScope} onChange={e => setRuleScope(e.target.value as any)}
                               className="border border-gray-300 rounded-md p-1.5 text-xs bg-white">
-                              <option value="shared">共通</option>
-                              <option value="industry">業種</option>
-                              <option value="client">この顧客</option>
+                              <option value="shared">汎用</option>
+                              <option value="industry">業種別</option>
+                              <option value="client">顧客別</option>
                             </select>
                             {ruleScope === 'industry' && (
                               <ComboBox value={ruleIndustryId} onChange={setRuleIndustryId}

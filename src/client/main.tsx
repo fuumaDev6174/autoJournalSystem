@@ -19,7 +19,10 @@ import ExcludedHistoryPage from './pages/excludedHistory';
 import LoginPage from './pages/login';
 
 // マスタ登録コンポーネント
-import RulesPage from './pages/master/rules';
+import RulesIndexPage from './pages/master/rules/index';
+import IndustryDetailPage from './pages/master/rules/IndustryDetail';
+import ClientListPage from './pages/master/rules/ClientList';
+import ClientDetailPage from './pages/master/rules/ClientDetail';
 import AccountsPage from './pages/master/accounts';
 import TaxCategoriesPage from './pages/master/taxCategories';
 import IndustriesPage from './pages/master/industries';
@@ -147,7 +150,10 @@ function App() {
                       <Route path="/clients/:id/aicheck" element={<AiCheckRedirect />} />
 
                       {/* マスタ管理 */}
-                      <Route path="/master/rules" element={<RulesPage />} />
+                      <Route path="/master/rules" element={<RulesIndexPage />} />
+                      <Route path="/master/rules/industry/:industryId" element={<IndustryDetailPage />} />
+                      <Route path="/master/rules/industry/:industryId/clients" element={<ClientListPage />} />
+                      <Route path="/master/rules/industry/:industryId/client/:clientId" element={<ClientDetailPage />} />
                       <Route path="/master/accounts" element={<AccountsPage />} />
                       <Route path="/master/tax-categories" element={<TaxCategoriesPage />} />
                       <Route path="/master/industries" element={<IndustriesPage />} />
