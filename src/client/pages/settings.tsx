@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2, Search, User as UserIcon, Shield, UserCog, Link2, U
 import { usersApi } from '@/client/lib/api';
 import type { User } from '@/types';
 import Modal from '@/client/components/ui/Modal';
-import { supabase } from '@/client/lib/supabase';
+
 
 
 // ============================================

@@ -1316,7 +1316,7 @@ export default function ReviewPage() {
                                   <td className="px-4 py-2 text-sm text-gray-600">{new Date(childEntry.entry_date).toLocaleDateString('ja-JP')}</td>
                                   <td className="px-4 py-2 text-sm max-w-[200px] truncate">
                                     {childEntry.description || '-'}
-                                    {childEntry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" title={childEntry.notes} />}
+                                    {childEntry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" />}
                                   </td>
                                   <td className="px-4 py-2 text-sm">{childEntry.accountItemName || '-'}</td>
                                   <td className="px-4 py-2 text-sm">{childEntry.taxCategoryName || '-'}</td>
@@ -1354,7 +1354,7 @@ export default function ReviewPage() {
                             <td className="px-4 py-3 text-sm">{new Date(entry.entry_date).toLocaleDateString('ja-JP')}</td>
                             <td className="px-4 py-3 text-sm max-w-[200px] truncate">
                               {entry.description || '-'}
-                              {entry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" title={entry.notes} />}
+                              {entry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" />}
                             </td>
                             <td className="px-4 py-3 text-sm">{entry.accountItemName || '-'}</td>
                             <td className="px-4 py-3 text-sm">{entry.taxCategoryName || '-'}</td>
