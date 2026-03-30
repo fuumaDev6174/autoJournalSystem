@@ -1,8 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, Search, ChevronDown, ChevronRight, ArrowLeft, Trash2, Copy, ExternalLink, ToggleLeft, ToggleRight } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plus, Search, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/client/lib/supabase';
-import type { Rule, Industry, AccountItem, TaxCategory } from '@/types';
+import type { AccountItem, TaxCategory } from '@/types';
 
 // ============================================
 // スコープ別スタイル定義
@@ -172,7 +172,6 @@ export function FormField({ label, value, onChange, ph, type = 'text' }: { label
 // メインページ: 汎用ルール / 業種一覧 タブ切替
 // ============================================
 export default function RulesIndexPage() {
-  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') === 'industry' ? 'industry' : 'shared';
 
@@ -230,8 +229,8 @@ function SharedRulesTab() {
       supabase.from('tax_categories').select('id, code, name').eq('is_active', true).order('sort_order'),
     ]);
     if (rulesRes.data) setRules(rulesRes.data);
-    if (acctRes.data) setAccountItems(acctRes.data);
-    if (taxRes.data) setTaxCategories(taxRes.data);
+    if (acctRes.data) setAccountItems(acctRes.data as AccountItem[]);
+    if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
     setLoading(false);
   };
 

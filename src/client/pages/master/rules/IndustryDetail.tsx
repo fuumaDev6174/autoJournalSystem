@@ -37,8 +37,8 @@ export default function IndustryDetailPage() {
     if (indRes.data) setIndustry(indRes.data);
     if (indRulesRes.data) setIndustryRules(indRulesRes.data);
     if (sharedRes.data) setSharedRules(sharedRes.data);
-    if (acctRes.data) setAccountItems(acctRes.data);
-    if (taxRes.data) setTaxCategories(taxRes.data);
+    if (acctRes.data) setAccountItems(acctRes.data as AccountItem[]);
+    if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
     setClientCount(clientRes.count || 0);
     setLoading(false);
   };
