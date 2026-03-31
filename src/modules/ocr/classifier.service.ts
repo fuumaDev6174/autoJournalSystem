@@ -1,4 +1,4 @@
-import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '@/adapters/gemini/gemini.client';
+import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
 import { CLASSIFY_DOCUMENT_PROMPT } from './classifier.prompt';
 
 export async function classifyDocument(

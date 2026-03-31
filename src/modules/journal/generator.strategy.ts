@@ -1,8 +1,8 @@
-import { matchProcessingRules } from '@/modules/rule-engine/matcher.service';
+import { matchProcessingRules } from '../rule-engine/matcher.service.js';
 import { buildEntryFromRule } from './rule-generator.service';
 import { generateJournalEntry } from './ai-generator.service';
 import type { JournalEntryInput, AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types';
-import type { RuleMatchInput } from '@/modules/rule-engine/rule-engine.types';
+import type { RuleMatchInput } from '../rule-engine/rule-engine.types.js';
 
 /**
  * 仕訳生成の統合戦略:

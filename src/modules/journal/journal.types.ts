@@ -1,4 +1,4 @@
-import type { OCRTransaction } from '@/modules/ocr/ocr.types';
+import type { OCRTransaction } from '../ocr/ocr.types.js';
 
 export interface AccountItemRef {
   id: string;

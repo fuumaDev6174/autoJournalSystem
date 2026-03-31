@@ -1,4 +1,4 @@
-import { evaluateConditions } from '@/core/matching/condition-evaluator';
+import { evaluateConditions } from '../../core/matching/condition-evaluator.js';
 import type { RuleMatchInput, MatchedRule } from './rule-engine.types';
 
 export function matchProcessingRules(

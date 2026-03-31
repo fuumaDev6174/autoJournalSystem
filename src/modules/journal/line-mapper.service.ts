@@ -1,4 +1,4 @@
-import { normalizeJapanese } from '@/shared/utils/normalize-japanese';
+import { normalizeJapanese } from '../../shared/utils/normalize-japanese.js';
 import type { GeneratedJournalLine, AccountItemRef, TaxCategoryRef } from './journal.types';
 
 export function mapLinesToDBFormat(
