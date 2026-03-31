@@ -25,12 +25,29 @@ if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// ミドルウェア設定
+// ログミドルウェア
+app.use((req, res, next) => {
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+  next();
+});
+
+// ヘルスチェックエンドポイント（UptimeRobot用）
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+// 静的ファイル配信（本番環境） — CORSやAPI middlewareより前に配置
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  app.use(express.static(distPath));
+}
+
+// CORS（APIルートのみに適用）
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.VITE_APP_URL || 'http://localhost:5173')
   .split(',')
   .map(o => o.trim());
 
-app.use(cors({
+const apiCors = cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
@@ -39,15 +56,11 @@ app.use(cors({
     }
   },
   credentials: true,
-}));
+});
+
+app.use('/api', apiCors);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// ログミドルウェア
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
 
 // レート制限（API全体: 15分間に100リクエスト、ユーザー別）
 const extractUserId = (req: any): string => {
@@ -87,18 +100,7 @@ app.use('/api/journal-entries/generate', expensiveLimiter);
 app.use('/api/process/batch', expensiveLimiter);
 app.use('/api', apiRouter);
 
-// 静的ファイル配信（本番環境）
-if (process.env.NODE_ENV === 'production') {
-  const distPath = path.join(process.cwd(), 'dist');
-  app.use(express.static(distPath));
-  
-  // React Routerのため、全てのルートでindex.htmlを返す
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(distPath, 'index.html'));
-  });
-}
-
-// ルートエンドポイント
+// ルートエンドポイント（開発環境用）
 app.get('/', (req, res) => {
   res.json({
     message: '経理自動化システム API Server',
@@ -115,10 +117,13 @@ app.get('/', (req, res) => {
   });
 });
 
-// ヘルスチェックエンドポイント（UptimeRobot用）
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
-});
+// React Router SPA フォールバック（本番環境）
+if (process.env.NODE_ENV === 'production') {
+  const distPath = path.join(process.cwd(), 'dist');
+  app.get('*', (req, res) => {
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
 
 // エラーハンドリングミドルウェア
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
