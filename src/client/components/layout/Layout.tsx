@@ -26,8 +26,8 @@ import {
   AlertTriangle,
   Info
 } from 'lucide-react';
-import { useAuth } from '../../main';
-import { auth, supabase } from '../../lib/supabase';
+import { useAuth } from '@/web/app/providers/AuthProvider';
+import { auth } from '../../lib/supabase';
 import { useWorkflow } from '../../context/WorkflowContext';
 import { notificationsApi } from '../../lib/api';
 import type { Notification } from '@/types';
@@ -560,18 +560,13 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
 
+  const { userProfile } = useAuth();
+
   useEffect(() => {
-    const checkRole = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data } = await supabase.from('users').select('role').eq('id', user.id).single();
-        if (data?.role === 'viewer') {
-          navigate('/upload-only');
-        }
-      }
-    };
-    checkRole();
-  }, [navigate]);
+    if (userProfile?.role === 'viewer') {
+      navigate('/upload-only');
+    }
+  }, [userProfile, navigate]);
 
   return (
     <div className="h-screen bg-gray-100">

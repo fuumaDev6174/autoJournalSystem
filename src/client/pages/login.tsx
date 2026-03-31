@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from 'lucide-react';
 import { auth } from '../lib/supabase';
-import { useAuth } from '../main';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 // ============================================================
 // Google アイコン（SVG インライン）

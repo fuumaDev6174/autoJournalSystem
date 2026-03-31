@@ -45,8 +45,26 @@ const MAIN_ICONS: Record<MainCategory, React.ReactNode> = {
   'その他書類': <FileText size={18} />,
 };
 
-// ファイル名・理由からサブカテゴリを推定
-function guessSubCategory(reason: string | null, fileName: string): SubCategory {
+// document_type_code ベースのカテゴリ推定（フォールバック: テキストマッチ）
+const DOC_TYPE_TO_SUBCATEGORY: Record<string, SubCategory> = {
+  'medical': '医療費',
+  'deduction_cert': '控除証明書',
+  'housing_loan': '住宅ローン',
+  'mynumber': 'マイナンバー',
+  'id_card': '免許証・保険証',
+  'other_deduction': 'その他控除',
+  'contract': '契約書',
+  'estimate': '見積書',
+  'purchase_order': '発注書',
+  'delivery_note': '納品書',
+};
+
+function guessSubCategory(reason: string | null, fileName: string, docTypeCode?: string | null): SubCategory {
+  // document_type_code が存在すれば優先
+  if (docTypeCode && DOC_TYPE_TO_SUBCATEGORY[docTypeCode]) {
+    return DOC_TYPE_TO_SUBCATEGORY[docTypeCode];
+  }
+  // フォールバック: テキストマッチング
   const text = `${reason || ''} ${fileName}`.toLowerCase();
   if (text.includes('医療') || text.includes('病院') || text.includes('薬局') || text.includes('診療')) return '医療費';
   if (text.includes('控除') || text.includes('証明書') || text.includes('生命保険') || text.includes('地震保険') || text.includes('寄附') || text.includes('ふるさと')) return '控除証明書';
@@ -93,14 +111,14 @@ export default function ExcludedPage() {
     const { data: entries, error } = await supabase
       .from('journal_entries')
       .select(`id, document_id, is_excluded, excluded_reason, excluded_at, description,
-        documents!journal_entries_document_id_fkey(id, file_name, original_file_name, amount, supplier_name)`)
+        documents!journal_entries_document_id_fkey(id, file_name, original_file_name, amount, supplier_name, doc_classification)`)
       .eq('client_id', clientId).eq('is_excluded', true)
       .order('excluded_at', { ascending: false });
 
     if (error) console.error('対象外証憑取得エラー:', error);
 
     const { data: excludedDocsDirect } = await supabase
-      .from('documents').select('id, file_name, original_file_name, amount, supplier_name, status')
+      .from('documents').select('id, file_name, original_file_name, amount, supplier_name, status, doc_classification')
       .eq('client_id', clientId).eq('workflow_id', currentWorkflow.id).eq('status', 'excluded');
 
     const docs: ExcludedDoc[] = [];
@@ -112,7 +130,7 @@ export default function ExcludedPage() {
         const docId = entry.document_id || '';
         if (docId) seenDocIds.add(docId);
         const fileName = doc?.original_file_name || doc?.file_name || '不明';
-        const sub = guessSubCategory(entry.excluded_reason, fileName);
+        const sub = guessSubCategory(entry.excluded_reason, fileName, doc?.doc_classification);
         docs.push({
           id: entry.id, docId, fileName,
           excludedReason: entry.excluded_reason || entry.description || null,
@@ -127,7 +145,7 @@ export default function ExcludedPage() {
       excludedDocsDirect.forEach((doc: any) => {
         if (seenDocIds.has(doc.id)) return;
         const fileName = doc.original_file_name || doc.file_name || '不明';
-        const sub = guessSubCategory(null, fileName);
+        const sub = guessSubCategory(null, fileName, doc.doc_classification);
         docs.push({
           id: `doc-${doc.id}`, docId: doc.id, fileName,
           excludedReason: null, excludedAt: null,

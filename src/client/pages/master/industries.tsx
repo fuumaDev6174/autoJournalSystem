@@ -4,17 +4,19 @@ import type { Industry, Client } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@/client/components/ui/Modal';
 import { supabase } from '@/client/lib/supabase';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 export default function IndustriesPage() {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingIndustry, setEditingIndustry] = useState<Industry | null>(null);
-  const [userRole, setUserRole] = useState<string>('viewer');
 
+  const userRole = userProfile?.role || 'viewer';
   const canEdit = ['admin','manager','operator'].includes(userRole);
 
   const [formData, setFormData] = useState({
@@ -25,11 +27,6 @@ export default function IndustriesPage() {
 
   const loadData = async () => {
     setLoading(true);
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) {
-      const { data: userRow } = await supabase.from('users').select('role').eq('id', authData.user.id).single();
-      if (userRow) setUserRole(userRow.role);
-    }
     const [indRes, clientRes] = await Promise.all([
       supabase.from('industries').select('*').eq('is_active', true).order('sort_order', { ascending: true }),
       supabase.from('clients').select('id, industry_id'),

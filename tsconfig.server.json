@@ -5,7 +5,18 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "outDir": "./dist/server",
-    "rootDir": "./src/server",
+    "rootDir": "./src",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@/core/*": ["./src/core/*"],
+      "@/modules/*": ["./src/modules/*"],
+      "@/adapters/*": ["./src/adapters/*"],
+      "@/api/*": ["./src/api/*"],
+      "@/web/*": ["./src/web/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/types": ["./src/shared/types/index.ts"]
+    },
     "skipLibCheck": true,
     "strict": false,
     "noUnusedLocals": false,
@@ -14,5 +25,6 @@
     "resolveJsonModule": true,
     "types": ["node"]
   },
-  "include": ["src/server/**/*"]
+  "include": ["src/server/**/*", "src/shared/**/*", "src/core/**/*", "src/modules/**/*", "src/adapters/gemini/**/*", "src/adapters/freee/**/*", "src/adapters/supabase/supabase-admin.client.ts", "src/api/**/*"],
+  "exclude": ["src/adapters/supabase/supabase.client.ts", "src/adapters/supabase/supabase.debug.ts"]
 }

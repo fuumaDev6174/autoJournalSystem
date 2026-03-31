@@ -40,9 +40,11 @@ async function handleResponse<T>(promise: any): Promise<ApiResponse<T>> {
 // ============================================
 
 export const clientsApi = {
-  getAll: () => handleResponse<Client[]>(
-    supabase.from('clients').select('*, industry:industries(*)').order('name', { ascending: true })
-  ),
+  getAll: (orgId?: string) => {
+    let query = supabase.from('clients').select('*, industry:industries(*)').order('name', { ascending: true });
+    if (orgId) query = query.eq('organization_id', orgId);
+    return handleResponse<Client[]>(query);
+  },
 
   getById: (id: string) => handleResponse<Client>(
     supabase.from('clients').select('*, industry:industries(*)').eq('id', id).single()
@@ -92,9 +94,12 @@ export const industriesApi = {
 // ============================================
 
 export const accountItemsApi = {
-  getAll: () => handleResponse<AccountItem[]>(
-    supabase.from('account_items').select('*').order('code', { ascending: true })
-  ),
+  getAll: (orgId?: string) => {
+    let query = supabase.from('account_items').select('*');
+    if (orgId) query = query.or(`organization_id.eq.${orgId},organization_id.is.null`);
+    query = query.order('code', { ascending: true });
+    return handleResponse<AccountItem[]>(query);
+  },
 
   getById: (id: string) => handleResponse<AccountItem>(
     supabase.from('account_items').select('*').eq('id', id).single()
@@ -209,7 +214,7 @@ export const documentsApi = {
 
 export const journalEntriesApi = {
   // journal_entry_lines を JOIN して取得
-  getAll: (clientId?: string, workflowId?: string) => {
+  getAll: async (clientId?: string, workflowId?: string) => {
     let query = supabase
       .from('journal_entries')
       .select('*, lines:journal_entry_lines(*)')
@@ -218,10 +223,17 @@ export const journalEntriesApi = {
       query = query.eq('client_id', clientId);
     }
     if (workflowId) {
-      // document_id を経由して workflow に紐づく仕訳を取得する場合は
-      // documents テーブルとの JOIN が必要だが、ここでは workflow_id を
-      // journal_entries に持たせる設計も検討。現状は clientId でフィルタ。
-      query = query.eq('document_id', workflowId); // 暫定: 呼び出し側で適切に使い分ける
+      // workflow に紐づく document_id を先に取得
+      const { data: docs } = await supabase
+        .from('documents')
+        .select('id')
+        .eq('workflow_id', workflowId);
+      if (docs && docs.length > 0) {
+        const docIds = docs.map(d => d.id);
+        query = query.in('document_id', docIds);
+      } else {
+        return { data: [] as JournalEntry[], error: null, status: 200 };
+      }
     }
     return handleResponse<JournalEntry[]>(query);
   },
@@ -274,53 +286,31 @@ export const journalEntriesApi = {
     }
   },
 
-  // ヘッダー update + 明細行は全削除→再 insert
+  // ヘッダー update + 明細行は全削除→再 insert（RPC でトランザクション化）
   update: async (
     id: string,
     header: Partial<JournalEntry>,
     lines: Partial<JournalEntryLine>[]
   ): Promise<ApiResponse<JournalEntry>> => {
     try {
-      // 1. ヘッダーを update
-      const { data: entryData, error: entryError } = await supabase
-        .from('journal_entries')
-        .update(header)
-        .eq('id', id)
-        .select()
-        .single();
+      const linesPayload = lines.map((line, index) => ({
+        ...line,
+        journal_entry_id: id,
+        line_number: line.line_number ?? index + 1,
+      }));
 
-      if (entryError) {
-        return { data: null, error: entryError.message, status: 400 };
+      const { error } = await supabase.rpc('update_journal_entry_with_lines', {
+        p_entry_id: id,
+        p_header: header,
+        p_lines: linesPayload,
+      });
+
+      if (error) {
+        return { data: null, error: error.message, status: 400 };
       }
 
-      // 2. 既存の明細行を全削除
-      const { error: deleteError } = await supabase
-        .from('journal_entry_lines')
-        .delete()
-        .eq('journal_entry_id', id);
-
-      if (deleteError) {
-        return { data: null, error: deleteError.message, status: 400 };
-      }
-
-      // 3. 新しい明細行を一括 insert
-      if (lines.length > 0) {
-        const linesWithEntryId = lines.map((line, index) => ({
-          ...line,
-          journal_entry_id: id,
-          line_number: line.line_number ?? index + 1,
-        }));
-
-        const { error: linesError } = await supabase
-          .from('journal_entry_lines')
-          .insert(linesWithEntryId);
-
-        if (linesError) {
-          return { data: null, error: linesError.message, status: 400 };
-        }
-      }
-
-      return { data: entryData, error: null, status: 200 };
+      // 更新後のデータを再取得
+      return journalEntriesApi.getById(id);
     } catch (error: any) {
       return { data: null, error: error.message, status: 500 };
     }
@@ -337,9 +327,12 @@ export const journalEntriesApi = {
 // ============================================
 
 export const suppliersApi = {
-  getAll: () => handleResponse<Supplier[]>(
-    supabase.from('suppliers').select('*').order('name', { ascending: true })
-  ),
+  getAll: (orgId?: string) => {
+    let query = supabase.from('suppliers').select('*');
+    if (orgId) query = query.eq('organization_id', orgId);
+    query = query.order('name', { ascending: true });
+    return handleResponse<Supplier[]>(query);
+  },
 
   getById: (id: string) => handleResponse<Supplier>(
     supabase.from('suppliers').select('*').eq('id', id).single()

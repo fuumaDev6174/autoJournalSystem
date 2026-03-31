@@ -24,8 +24,15 @@
     /* Path mapping */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@/core/*": ["./src/core/*"],
+      "@/modules/*": ["./src/modules/*"],
+      "@/adapters/*": ["./src/adapters/*"],
+      "@/api/*": ["./src/api/*"],
+      "@/web/*": ["./src/web/*"],
+      "@/shared/*": ["./src/shared/*"],
+      "@/types": ["./src/shared/types/index.ts"]
     }
   },
-  "include": ["src/client", "src/types", "src/vite-env.d.ts", "src/types"]
+  "include": ["src/client", "src/types", "src/shared", "src/web", "src/vite-env.d.ts"]
 }

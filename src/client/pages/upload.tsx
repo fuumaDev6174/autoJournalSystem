@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect  } from 'react';
 import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useWorkflow } from '@/client/context/WorkflowContext';
-import { useAuth } from '@/client/main';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 import { supabase } from '@/client/lib/supabase';
 import { documentsApi } from '@/client/lib/api';
 import WorkflowHeader from '@/client/components/workflow/WorkflowHeader';
@@ -20,15 +20,14 @@ interface UploadedFile {
 
 export default function UploadPage() {
   const { currentWorkflow, updateWorkflowData } = useWorkflow();
-  const { user } = useAuth();
+  const { user, userProfile } = useAuth();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const uploadToSupabase = async (uploadFile: UploadedFile) => {
     if (!currentWorkflow || !user) return;
     const clientId = currentWorkflow.clientId;
     const workflowId = currentWorkflow.id;
-    const { data: userData } = await supabase.from('users').select('organization_id').eq('id', user.id).single();
-    const organizationId = userData?.organization_id;
+    const organizationId = userProfile?.organization_id;
     const timestamp = Date.now();
     const safeName = uploadFile.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
     const storagePath = organizationId
@@ -101,6 +100,8 @@ export default function UploadPage() {
     const hasError = uploadedFiles.some((f) => f.status === 'error');
     if (hasError) { if (!window.confirm('エラーのあるファイルがあります。このまま進みますか？')) return false; }
     const documentIds = uploadedFiles.filter((f) => f.status === 'success' && f.documentId).map((f) => f.documentId as string);
+    // TODO: updateWorkflowData 失敗時に孤立ドキュメントが残る可能性あり。
+    // 定期クリーンアップバッチで対応を検討。
     updateWorkflowData({ documents: documentIds });
     return true;
   };

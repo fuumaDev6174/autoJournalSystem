@@ -3,10 +3,10 @@ import { Plus, Edit, Trash2, Search } from 'lucide-react';
 import type { AccountItem, AccountCategory, TaxCategory } from '@/types';
 import Modal from '@/client/components/ui/Modal';
 import { supabase } from '@/client/lib/supabase';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 
-// 不動産賃貸業のindustry id（DB登録済み）
-const REAL_ESTATE_INDUSTRY_ID = 'b4124b27-de96-4675-87d9-6f08eccce3f6';
+// 不動産賃貸業のIDはDBから動的取得
 
 // account_categories のコード → 表示名・区分
 const CATEGORY_CODE_MAP: Record<string, { label: string; filter: string }> = {
@@ -20,6 +20,7 @@ const CATEGORY_CODE_MAP: Record<string, { label: string; filter: string }> = {
 type CategoryFilterType = 'all' | 'income' | 'expense' | 'asset' | 'liability';
 
 export default function AccountsPage() {
+  const { userProfile } = useAuth();
   const [accountItems, setAccountItems] = useState<AccountItem[]>([]);
   const [accountCategories, setAccountCategories] = useState<AccountCategory[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
@@ -31,9 +32,10 @@ export default function AccountsPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<AccountItem | null>(null);
   const [expandedDescription, setExpandedDescription] = useState<string | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('viewer');
+  const [realEstateIndustryId, setRealEstateIndustryId] = useState<string | null>(null);
 
+  const orgId = userProfile?.organization_id || null;
+  const userRole = userProfile?.role || 'viewer';
   const canEdit = userRole === 'admin' || userRole === 'manager';
   const canDelete = userRole === 'admin';
 
@@ -58,18 +60,14 @@ export default function AccountsPage() {
     }
   }, [activeTab, showActiveOnly, accountCategories]);
 
-  // マスタデータ（カテゴリ・税区分）を先に取得 + P1: orgId/role
+  // マスタデータ（カテゴリ・税区分）を先に取得
   const loadMasterData = async () => {
-    // ユーザー情報取得
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) {
-      const { data: userRow } = await supabase.from('users').select('organization_id, role').eq('id', authData.user.id).single();
-      if (userRow) { setOrgId(userRow.organization_id); setUserRole(userRow.role); }
-    }
-    const [catRes, taxRes] = await Promise.all([
+    const [catRes, taxRes, realEstateRes] = await Promise.all([
       supabase.from('account_categories').select('*').order('sort_order'),
       supabase.from('tax_categories').select('*').order('sort_order'),
+      supabase.from('industries').select('id').eq('code', 'real_estate').single(),
     ]);
+    if (realEstateRes.data) setRealEstateIndustryId(realEstateRes.data.id);
     if (catRes.data && catRes.data.length > 0) {
       setAccountCategories(catRes.data as AccountCategory[]);
     } else {
@@ -96,7 +94,7 @@ export default function AccountsPage() {
     if (activeTab === 'general') {
       query = query.is('industry_id', null);
     } else {
-      query = query.eq('industry_id', REAL_ESTATE_INDUSTRY_ID);
+      query = query.eq('industry_id', realEstateIndustryId);
     }
 
     // 有効のみ表示
@@ -177,7 +175,7 @@ export default function AccountsPage() {
       short_name: formData.short_name || null,
       description: formData.description || null,
       sub_category: formData.sub_category || null,
-      industry_id: activeTab === 'real_estate' ? REAL_ESTATE_INDUSTRY_ID : null,
+      industry_id: activeTab === 'real_estate' ? realEstateIndustryId : null,
       is_default: false,
       is_system: false,
       is_active: true,

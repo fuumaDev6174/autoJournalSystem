@@ -26,8 +26,18 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ミドルウェア設定
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.VITE_APP_URL || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim());
+
 app.use(cors({
-  origin: process.env.VITE_APP_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('CORS not allowed'));
+    }
+  },
   credentials: true,
 }));
 app.use(express.json());
@@ -39,10 +49,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// レート制限（API全体: 15分間に100リクエスト）
+// レート制限（API全体: 15分間に100リクエスト、ユーザー別）
+const extractUserId = (req: any): string => {
+  const token = req.headers.authorization?.replace('Bearer ', '');
+  if (token) {
+    try {
+      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+      return payload.sub || req.ip || 'unknown';
+    } catch { return req.ip || 'unknown'; }
+  }
+  return req.ip || 'unknown';
+};
+
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
+  keyGenerator: extractUserId,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'リクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
@@ -52,6 +74,7 @@ const apiLimiter = rateLimit({
 const expensiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 20,
+  keyGenerator: extractUserId,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'AI処理のリクエスト数が制限を超えました。しばらく待ってから再試行してください。' },

@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, FileText, AlertCircle, History, Calendar } from 'lucide-react';
 import { useWorkflow } from '@/client/context/WorkflowContext';
+import { useMasterData } from '@/client/context/MasterDataContext';
 import { supabase } from '@/client/lib/supabase';
-import { accountItemsApi, taxCategoriesApi } from '@/client/lib/api';
 import WorkflowHeader from '@/client/components/workflow/WorkflowHeader';
 
 // ============================================
@@ -84,7 +84,7 @@ function getEntryAmount(entry: EntryWithJoin) { return entry.lines?.filter(l => 
 // ============================================
 // シンプルCSV生成（Tax Copilot独自形式）
 // ============================================
-function buildSimpleCsv(entries: EntryWithJoin[]): string {
+function buildSimpleCsv(entries: EntryWithJoin[], acctMap: Map<string, string>, txCatMap: Map<string, string>): string {
   const headers = [
     '収支区分', '取引日', '取引先タグ', '勘定科目', '税区分', '金額', '品目タグ', '決済日', '決済口座', '決済金額'
   ];
@@ -93,11 +93,11 @@ function buildSimpleCsv(entries: EntryWithJoin[]): string {
     const debit = getDebitLine(entry);
     const credit = getCreditLine(entry);
     if (!debit) return;
-    const accountName = entry._debitAccountName || '';
-    const taxCatName = entry._debitTaxCatName || '';
+    const accountName = debit.account_item_id ? acctMap.get(debit.account_item_id) || '' : '';
+    const taxCatName = debit.tax_category_id ? txCatMap.get(debit.tax_category_id) || '' : '';
     const amount = debit.amount?.toString() || '0';
     const isIncome = accountName.includes('売上') || accountName.includes('収入');
-    const creditAccountName = credit ? (entry.lines?.find(l => l.debit_credit === 'credit')?.description || '') : '';
+    const creditAccountName = credit?.account_item_id ? acctMap.get(credit.account_item_id) || '' : '';
 
     rows.push([
       isIncome ? '収入' : '支出',
@@ -121,7 +121,7 @@ function buildSimpleCsv(entries: EntryWithJoin[]): string {
 // ============================================
 // freee取込CSV生成（freee公式インポート形式 21列）
 // ============================================
-function buildFreeeCsv(entries: EntryWithJoin[]): string {
+function buildFreeeCsv(entries: EntryWithJoin[], acctMap: Map<string, string>, txCatMap: Map<string, string>): string {
   const headers = [
     '収支区分', '管理番号', '発生日', '決済期日', '取引先コード', '取引先',
     '勘定科目', '税区分', '金額', '税計算区分', '税額', '備考', '品目', '部門',
@@ -135,15 +135,28 @@ function buildFreeeCsv(entries: EntryWithJoin[]): string {
     const credit = getCreditLine(entry);
     if (debitLines.length === 0) return;
 
-    const isIncome = (entry._debitAccountName || '').includes('売上') || (entry._debitAccountName || '').includes('収入');
+    const firstDebitAccountName = debitLines[0]?.account_item_id ? acctMap.get(debitLines[0].account_item_id) || '' : '';
+    const isIncome = firstDebitAccountName.includes('売上') || firstDebitAccountName.includes('収入');
     const entryDate = entry.entry_date?.replace(/-/g, '/') || '';
 
     // 複合仕訳対応: 借方が複数行の場合、1行目に決済情報、2行目以降は決済なし
     debitLines.forEach((debit, idx) => {
-      const accountName = entry._debitAccountName || '';
-      const taxCatName = entry._debitTaxCatName || '';
+      const accountName = debit.account_item_id ? acctMap.get(debit.account_item_id) || '' : '';
+      const taxCatName = debit.tax_category_id ? txCatMap.get(debit.tax_category_id) || '' : '';
       const amount = debit.amount?.toString() || '0';
       const taxAmount = debit.tax_amount?.toString() || '';
+
+      // P0-2: 税計算区分を税額から判定（内税 or 税込）
+      let taxCalcType = '内税';
+      if (debit.tax_amount != null && debit.tax_rate != null && debit.amount != null) {
+        const internalTax = Math.round(debit.amount * debit.tax_rate / (1 + debit.tax_rate));
+        taxCalcType = debit.tax_amount === internalTax ? '内税' : '税込';
+      }
+
+      // P0-3: 決済口座を貸方勘定科目名から取得
+      const settlementAccount = idx === 0 && credit?.account_item_id
+        ? (acctMap.get(credit.account_item_id) || '')
+        : '';
 
       rows.push([
         idx === 0 ? (isIncome ? '収入' : '支出') : '', // 収支区分（2行目以降は空）
@@ -155,7 +168,7 @@ function buildFreeeCsv(entries: EntryWithJoin[]): string {
         accountName,
         taxCatName,
         amount,
-        '内税', // 税計算区分
+        taxCalcType, // P0-2: 動的判定
         taxAmount,
         entry.description || '', // 備考
         '', // 品目
@@ -163,7 +176,7 @@ function buildFreeeCsv(entries: EntryWithJoin[]): string {
         '', // メモタグ
         '', '', '', // セグメント1-3
         idx === 0 && credit ? entryDate : '', // 決済日
-        idx === 0 && credit ? '' : '', // 決済口座
+        settlementAccount, // P0-3: 貸方科目名
         idx === 0 && credit ? (credit.amount?.toString() || '') : '', // 決済金額
       ]);
     });
@@ -197,6 +210,7 @@ function StatusBadge({ status }: { status: string }) {
 // ============================================
 export default function ExportPage() {
   const { currentWorkflow } = useWorkflow();
+  const { accountMap, taxCatMap } = useMasterData();
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id') ?? currentWorkflow?.clientId ?? '';
 
@@ -258,17 +272,6 @@ export default function ExportPage() {
   const loadEntries = async () => {
     setLoading(true);
 
-    // マスタ取得
-    const [accountsRes, taxRes] = await Promise.all([
-      accountItemsApi.getAll(),
-      taxCategoriesApi.getAll(),
-    ]);
-    const accts = accountsRes.data || [];
-    const taxCats = taxRes.data || [];
-
-    const accountMap = new Map(accts.map(a => [a.id, a.name]));
-    const taxCatMap = new Map(taxCats.map(t => [t.id, t.display_name || t.name]));
-
     // -------------------------------------------------------
     // 2段階クエリ: journal_entries → journal_entry_lines を別クエリ
     // PostgREST の ambiguous relationship エラーを完全回避
@@ -279,7 +282,7 @@ export default function ExportPage() {
       .from('journal_entries')
       .select('id, entry_date, created_at, description, status, is_excluded, supplier_id')
       .eq('client_id', clientId)
-      .in('status', ['approved', 'posted'])
+      .in('status', ['reviewed', 'approved', 'posted']) // reviewed も含む（確認済み仕訳も出力可能に）
       .order('entry_date', { ascending: false });
 
     if (entriesError) {
@@ -379,7 +382,7 @@ export default function ExportPage() {
       const ok = window.confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
       if (!ok) return;
     }
-    const csv = buildSimpleCsv(filteredEntries);
+    const csv = buildSimpleCsv(filteredEntries, accountMap, taxCatMap);
     const name = currentWorkflow?.clientName ?? clientId;
     const dateStr = new Date().toISOString().slice(0, 10);
     downloadCsv(csv, `仕訳データ_${name}_${dateStr}.csv`);
@@ -390,7 +393,7 @@ export default function ExportPage() {
       const ok = window.confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
       if (!ok) return;
     }
-    const csv = buildFreeeCsv(filteredEntries);
+    const csv = buildFreeeCsv(filteredEntries, accountMap, taxCatMap);
     const name = currentWorkflow?.clientName ?? clientId;
     const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
     downloadCsv(csv, `freee取込_${name}_${dateStr}.csv`);

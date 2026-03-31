@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle, AlertCircle, Filter, ChevronDown, Loader, Clock, Undo2 } from 'lucide-react';
 import { supabase } from '@/client/lib/supabase';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 // 仕訳承認の行データ
 interface ApprovalEntry {
@@ -23,15 +24,16 @@ interface ApprovalEntry {
 type TabFilter = 'reviewed' | 'approved' | 'amended' | 'all';
 
 export default function ApprovalsPage() {
+  const { userProfile } = useAuth();
   const [entries, setEntries] = useState<ApprovalEntry[]>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
-  const [userRole, setUserRole] = useState<string>('viewer');
   const [activeTab, setActiveTab] = useState<TabFilter>('reviewed');
   const [clientFilter, setClientFilter] = useState<string>('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [processing, setProcessing] = useState(false);
 
+  const userRole = userProfile?.role || 'viewer';
   const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
 
   useEffect(() => { loadData(); }, []);
@@ -39,43 +41,54 @@ export default function ApprovalsPage() {
   const loadData = async () => {
     setLoading(true);
 
-    // ユーザーロール取得
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (authUser) {
-      const { data: userRow } = await supabase.from('users').select('role').eq('id', authUser.id).single();
-      if (userRow) setUserRole(userRow.role);
-    }
-
     // 顧客一覧
     const { data: clientsData } = await supabase.from('clients').select('id, name').order('name');
     if (clientsData) setClients(clientsData);
 
-    // 承認対象の仕訳を取得（reviewed + approved + amended）
+    // 承認対象の仕訳を取得（2段階クエリ: ambiguous relationship 回避）
+    // STEP 1: journal_entries のみ
     const { data: entriesData } = await supabase
       .from('journal_entries')
-      .select(`
-        id, client_id, document_id, entry_date, description, status,
-        ai_generated, ai_confidence, requires_review,
-        clients(name),
-        journal_entry_lines(amount, account_item:account_items(name), tax_category:tax_categories(name))
-      `)
+      .select('id, client_id, document_id, entry_date, description, status, ai_generated, ai_confidence, requires_review')
       .in('status', ['reviewed', 'approved', 'amended'])
       .order('entry_date', { ascending: false });
 
-    if (entriesData) {
+    if (entriesData && entriesData.length > 0) {
+      // STEP 2: journal_entry_lines を別クエリ
+      const entryIds = entriesData.map((e: any) => e.id);
+      const { data: linesData } = await supabase
+        .from('journal_entry_lines')
+        .select('journal_entry_id, amount, account_item_id, tax_category_id')
+        .in('journal_entry_id', entryIds);
+
+      // STEP 3: clients を別クエリ
+      const clientIds = [...new Set(entriesData.map((e: any) => e.client_id))];
+      const [{ data: clientsDataRaw }, { data: accountItems }, { data: taxCats }] = await Promise.all([
+        supabase.from('clients').select('id, name').in('id', clientIds),
+        supabase.from('account_items').select('id, name'),
+        supabase.from('tax_categories').select('id, name, display_name'),
+      ]);
+
+      const clientMap = new Map((clientsDataRaw || []).map((c: any) => [c.id, c.name]));
+      const accountMap = new Map((accountItems || []).map((a: any) => [a.id, a.name]));
+      const taxCatMap = new Map((taxCats || []).map((t: any) => [t.id, t.display_name || t.name]));
+
+      // STEP 4: lines をグループ化
+      const linesMap = new Map<string, any[]>();
+      (linesData || []).forEach((line: any) => {
+        const existing = linesMap.get(line.journal_entry_id) || [];
+        existing.push(line);
+        linesMap.set(line.journal_entry_id, existing);
+      });
+
+      // STEP 5: マージ
       const mapped: ApprovalEntry[] = entriesData.map((e: any) => {
-        const firstLine = Array.isArray(e.journal_entry_lines) ? e.journal_entry_lines[0] : e.journal_entry_lines;
-        const clientName = Array.isArray(e.clients) ? e.clients[0]?.name : e.clients?.name;
-        const accountName = firstLine?.account_item
-          ? (Array.isArray(firstLine.account_item) ? firstLine.account_item[0]?.name : firstLine.account_item?.name)
-          : null;
-        const taxName = firstLine?.tax_category
-          ? (Array.isArray(firstLine.tax_category) ? firstLine.tax_category[0]?.name : firstLine.tax_category?.name)
-          : null;
+        const lines = linesMap.get(e.id) || [];
+        const firstLine = lines[0];
         return {
           id: e.id,
           client_id: e.client_id,
-          client_name: clientName || '不明',
+          client_name: clientMap.get(e.client_id) || '不明',
           document_id: e.document_id,
           entry_date: e.entry_date,
           description: e.description,
@@ -84,8 +97,8 @@ export default function ApprovalsPage() {
           ai_confidence: e.ai_confidence,
           requires_review: e.requires_review || false,
           amount: firstLine?.amount || 0,
-          account_item_name: accountName,
-          tax_category_name: taxName,
+          account_item_name: firstLine?.account_item_id ? accountMap.get(firstLine.account_item_id) || null : null,
+          tax_category_name: firstLine?.tax_category_id ? taxCatMap.get(firstLine.tax_category_id) || null : null,
           supplier_name: null,
         };
       });

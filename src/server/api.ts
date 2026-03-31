@@ -620,8 +620,10 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
         item_name: ocr_result.extracted_items?.[0]?.name || null,
         document_type: ocr_result.document_type || null,
         has_invoice_number: ocr_result.extracted_invoice_number ? true : null,
-        tax_rate_hint: ocr_result.transactions?.[0]?.items?.[0]?.tax_rate ?? null,
-        is_internal_tax: ocr_result.transactions?.[0]?.tax_included ?? null,
+        tax_rate_hint: ocr_result.transactions?.[0]?.items?.[0]?.tax_rate
+          ?? ocr_result.extracted_items?.[0]?.tax_rate ?? null,
+        is_internal_tax: ocr_result.transactions?.[0]?.tax_included
+          ?? ocr_result.tax_included ?? null,
         frequency_hint: null,
         tategaki: ocr_result.extracted_tategaki || null,
         withholding_tax_amount: ocr_result.extracted_withholding_tax ?? null,

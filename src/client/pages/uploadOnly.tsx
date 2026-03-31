@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Upload, CheckCircle, AlertCircle, FileText, LogOut } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '@/client/lib/supabase';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 interface UploadedFile {
   id: string;
@@ -22,24 +23,22 @@ interface RecentDoc {
 export default function UploadOnlyPage() {
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
+  const { user: authUser, userProfile } = useAuth();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [recentDocs, setRecentDocs] = useState<RecentDoc[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [orgId, setOrgId] = useState<string | null>(null);
+
+  const userId = authUser?.id || null;
+  const orgId = userProfile?.organization_id || null;
 
   useEffect(() => {
     const init = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const { data: userRow } = await supabase.from('users').select('organization_id').eq('id', user.id).single();
-      if (userRow) setOrgId(userRow.organization_id);
+      if (!authUser) return;
       const { data: clientsData } = await supabase.from('clients').select('id, name').order('name');
       if (clientsData) setClients(clientsData);
     };
     init();
-  }, []);
+  }, [authUser]);
 
   useEffect(() => {
     if (!selectedClientId) { setRecentDocs([]); setPendingCount(0); return; }

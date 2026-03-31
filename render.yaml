@@ -22,4 +22,12 @@ services:
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
         sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GEMINI_MODEL_OCR
+        value: gemini-3-flash-preview
+      - key: GEMINI_MODEL_JOURNAL
+        value: gemini-3.1-pro-preview
+      - key: ALLOWED_ORIGINS
+        value: https://tax-copilot.onrender.com
     autoDeploy: true

@@ -6,7 +6,12 @@
       "Bash(find /f/3.programing/beso -maxdepth 2 -type f \\\\\\(-name *.json -o -name *.yaml -o -name *.yml -o -name .env* \\\\\\))",
       "Bash(npx -p typescript tsc --noEmit)",
       "Bash(wc:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(cd:*)",
+      "Bash(npm test:*)",
+      "Bash(ls -la /f/3.programing/beso/src/server/api.*)"
     ]
   }
 }
