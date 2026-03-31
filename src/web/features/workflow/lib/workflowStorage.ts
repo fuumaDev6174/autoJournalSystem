@@ -3,7 +3,6 @@
 // ローカルキャッシュ + Supabase永続化
 // ============================================
 
-import { supabase } from '@/adapters/supabase/supabase.client';
 import { workflowsApi as backendWorkflowsApi } from '@/web/shared/lib/api/backend.api';
 
 export interface WorkflowState {
@@ -92,12 +91,8 @@ export const workflowsApi = {
   },
 
   /** 完了 */
-  complete: async (id: string): Promise<boolean> => {
-    // D7: 完了者の記録
-    const { data: authData } = await supabase.auth.getUser();
-    const completedBy = authData.user?.id || null;
-
-    const { error } = await backendWorkflowsApi.complete(id, completedBy || '');
+  complete: async (id: string, userId?: string): Promise<boolean> => {
+    const { error } = await backendWorkflowsApi.complete(id, userId || '');
 
     return !error;
   },

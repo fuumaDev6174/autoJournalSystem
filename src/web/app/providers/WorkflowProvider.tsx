@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { workflowsApi, getStepPath } from '@/web/features/workflow/lib/workflowStorage';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 import type { WorkflowState } from '@/web/features/workflow/lib/workflowStorage';
 
 // ============================================
@@ -41,6 +42,7 @@ interface WorkflowProviderProps {
 export function WorkflowProvider({ children }: WorkflowProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
 
   // パスパラメータから client_id を取得
   const params = useParams<{ id?: string }>();
@@ -212,10 +214,10 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   const completeWorkflow = useCallback(async () => {
     if (!currentWorkflow) return;
 
-    await workflowsApi.complete(currentWorkflow.id);
+    await workflowsApi.complete(currentWorkflow.id, user?.id);
     setCurrentWorkflow(null);
     navigate('/clients');
-  }, [currentWorkflow, navigate]);
+  }, [currentWorkflow, navigate, user]);
 
   // ============================================
   // ステップ完了チェック
