@@ -1,11 +1,9 @@
 import { Router, Request, Response } from 'express';
 import type { File as MulterFile } from 'multer';
 import fs from 'fs';
-import {
-  processOCR,
-  generateJournalEntry,
-  mapLinesToDBFormat,
-} from '../../server/services/index.js';
+import { processOCR } from '../../modules/ocr/extractor.service.js';
+import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../modules/journal/line-mapper.service.js';
 import {
   supabaseAdmin,
   getOrganizationId,

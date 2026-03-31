@@ -1,10 +1,7 @@
 import { Router, Request, Response } from 'express';
-import {
-  processOCR,
-  classifyDocument,
-  checkDocumentDuplicate,
-  checkReceiptDuplicate,
-} from '../../server/services/index.js';
+import { processOCR } from '../../modules/ocr/extractor.service.js';
+import { classifyDocument } from '../../modules/ocr/classifier.service.js';
+import { checkDocumentDuplicate, checkReceiptDuplicate } from '../../modules/document/duplicate-checker.js';
 import {
   supabaseAdmin,
   isValidUUID,

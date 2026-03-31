@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import crypto from 'crypto';
-import { exportToFreee } from '../../server/services/index.js';
+import { exportToFreee } from '../../server/services/freee.service.js';
 import {
   supabaseAdmin,
   createNotification,

@@ -3,7 +3,7 @@ import { Upload, CheckCircle, AlertCircle, FileText, LogOut } from 'lucide-react
 import { useDropzone } from 'react-dropzone';
 import { supabase } from '@/adapters/supabase/supabase.client';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-import { clientsApi, documentsApi } from '@/web/shared/lib/api/backend.api';
+import { clientsApi, documentsApi, storageApi } from '@/web/shared/lib/api/backend.api';
 
 interface UploadedFile {
   id: string;
@@ -71,10 +71,8 @@ export default function UploadOnlyPage() {
         const safeName = uf.file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
         const storagePath = `documents/${orgId}/${selectedClientId}/${timestamp}_${safeName}`;
 
-        // TODO: Replace with backend storageApi when multipart upload is supported
-        const { error: storageError } = await supabase.storage
-          .from('documents').upload(storagePath, uf.file, { cacheControl: '3600', upsert: false });
-        if (storageError) throw new Error(storageError.message);
+        const { error: storageError } = await storageApi.upload(storagePath, uf.file);
+        if (storageError) throw new Error(storageError);
 
         const { error: dbError } = await documentsApi.create({
           client_id: selectedClientId,

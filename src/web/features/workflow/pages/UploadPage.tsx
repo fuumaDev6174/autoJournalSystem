@@ -3,7 +3,6 @@ import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-import { supabase } from '@/adapters/supabase/supabase.client';
 import { documentsApi, storageApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
 
@@ -34,9 +33,8 @@ export default function UploadPage() {
       ? `documents/${organizationId}/${clientId}/${workflowId}/${timestamp}_${safeName}`
       : `documents/${clientId}/${workflowId}/${timestamp}_${safeName}`;
 
-    // TODO: Replace with backend storageApi when multipart upload is supported
-    const { error: storageError } = await supabase.storage.from('documents').upload(storagePath, uploadFile.file, { cacheControl: '3600', upsert: false });
-    if (storageError) throw new Error(`Storage upload failed: ${storageError.message}`);
+    const { error: storageError } = await storageApi.upload(storagePath, uploadFile.file);
+    if (storageError) throw new Error(`Storage upload failed: ${storageError}`);
 
     setUploadedFiles((prev) => prev.map((f) => f.id === uploadFile.id ? { ...f, progress: 100 } : f));
 

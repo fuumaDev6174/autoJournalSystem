@@ -197,6 +197,19 @@ export const documentsApi = {
 
 // ─── ストレージ ────────────────────────────────────
 export const storageApi = {
+  upload: async (storagePath: string, file: File): Promise<{ data: any | null; error: string | null }> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('path', storagePath);
+      const res = await fetch(`${API_BASE}/api/storage/upload`, { method: 'POST', body: formData });
+      const json = await res.json();
+      if (!res.ok || !json.success) return { data: null, error: json.error || `HTTP ${res.status}` };
+      return { data: json.data, error: null };
+    } catch (e: any) {
+      return { data: null, error: e.message };
+    }
+  },
   getSignedUrl: (path: string) => apiFetch<{ signedUrl: string }>(`/api/storage/signed-url?path=${encodeURIComponent(path)}`),
   delete: (path: string) => apiFetch<any>(`/api/storage/delete?path=${encodeURIComponent(path)}`, { method: 'DELETE' }),
 };

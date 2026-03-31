@@ -1,29 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
-import type { AccountItemRef, TaxCategoryRef } from '../../server/services/index.js';
+import { supabaseAdmin } from '../../adapters/supabase/supabase-admin.client.js';
+import type { AccountItemRef, TaxCategoryRef } from '../../modules/journal/journal.types.js';
 
-// ============================================
-// Supabase サーバーサイドクライアント（service_role で RLS バイパス）
-// ============================================
-const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-// 起動時の環境変数診断ログ
-console.log('=== Supabase 環境変数診断 ===');
-console.log(`  SUPABASE_URL:              ${supabaseUrl ? '✅ 設定済み' : '❌ 未設定'}`);
-console.log(`  VITE_SUPABASE_URL:         ${process.env.VITE_SUPABASE_URL ? '✅ 設定済み' : '（未設定 - フォールバック対象）'}`);
-console.log(`  SUPABASE_SERVICE_ROLE_KEY:  ${supabaseServiceKey ? '✅ 設定済み' : '❌ 未設定'}`);
-console.log('============================');
-
-if (!supabaseUrl) {
-  console.error('⚠️  SUPABASE_URL も VITE_SUPABASE_URL も設定されていません。マスタ取得が全て失敗します。');
-}
-if (!supabaseServiceKey) {
-  console.error('⚠️  SUPABASE_SERVICE_ROLE_KEY が設定されていません。RLS バイパスできず、全クエリが失敗します。');
-}
-
-export const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+export { supabaseAdmin };
 
 // ============================================
 // UUID形式バリデーション

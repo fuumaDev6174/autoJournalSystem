@@ -1,14 +1,12 @@
 import { Router, Request, Response } from 'express';
-import {
-  generateJournalEntry,
-  mapLinesToDBFormat,
-  matchProcessingRulesWithCandidates,
-  buildEntryFromRule,
-  extractMultipleEntries,
-  validateDebitCreditBalance,
-  findSupplierAliasMatch,
-} from '../../server/services/index.js';
-import type { GeneratedJournalEntry } from '../../server/services/index.js';
+import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../modules/journal/line-mapper.service.js';
+import { buildEntryFromRule } from '../../modules/journal/rule-generator.service.js';
+import { matchProcessingRulesWithCandidates } from '../../modules/rule-engine/matcher-with-candidates.js';
+import { extractMultipleEntries } from '../../modules/ocr/multi-extractor.service.js';
+import { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.js';
+import { validateDebitCreditBalance } from '../../server/services/validation.service.js';
+import type { GeneratedJournalEntry } from '../../modules/journal/journal.types.js';
 import {
   supabaseAdmin,
   isValidUUID,
