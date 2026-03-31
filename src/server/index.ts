@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import path from 'path';
 
 import documentsRoute from '../api/routes/documents.route.js';
@@ -26,9 +28,6 @@ import clientRatiosCrud from '../api/routes/crud/client-ratios.crud.js';
 import storageCrud from '../api/routes/crud/storage.crud.js';
 import documentsCrud from '../api/routes/crud/documents.crud.js';
 import journalCorrectionsCrud from '../api/routes/crud/journal-corrections.crud.js';
-
-// 環境変数を読み込み
-dotenv.config();
 
 // 必須環境変数の起動時チェック
 const requiredEnvVars = ['GEMINI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
