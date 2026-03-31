@@ -41,15 +41,17 @@ function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const loadNotifications = useCallback(async () => {
+    if (!user?.id) return;
     const [recentRes, countRes] = await Promise.all([
-      notificationsApi.getRecent(15),
-      notificationsApi.getUnreadCount(),
+      notificationsApi.getAll({ user_id: user.id, limit: '15' }),
+      notificationsApi.getUnreadCount(user.id),
     ]);
     if (recentRes.data) setNotifications(recentRes.data);
-    if (countRes.data !== null) setUnreadCount(countRes.data);
-  }, []);
+    if (countRes.data !== null) setUnreadCount(countRes.data as unknown as number);
+  }, [user?.id]);
 
   useEffect(() => {
     loadNotifications();
@@ -67,7 +69,7 @@ function NotificationBell() {
 
   const handleNotificationClick = async (n: Notification) => {
     if (!n.is_read) {
-      await notificationsApi.markAsRead(n.id);
+      await notificationsApi.markRead(n.id);
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x));
       setUnreadCount(prev => Math.max(0, prev - 1));
     }
@@ -76,7 +78,8 @@ function NotificationBell() {
   };
 
   const handleMarkAllRead = async () => {
-    await notificationsApi.markAllRead();
+    if (!user?.id) return;
+    await notificationsApi.markAllRead(user.id);
     setNotifications(prev => prev.map(x => ({ ...x, is_read: true })));
     setUnreadCount(0);
   };

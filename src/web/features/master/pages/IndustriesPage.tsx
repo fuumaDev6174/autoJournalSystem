@@ -57,10 +57,10 @@ export default function IndustriesPage() {
     };
     if (editingIndustry) {
       const { error } = await industriesApi.update(editingIndustry.id, data);
-      if (error) { alert('更新に失敗しました: ' + error.message); return; }
+      if (error) { alert('更新に失敗しました: ' + error); return; }
     } else {
       const { error } = await industriesApi.create(data);
-      if (error) { alert('登録に失敗しました: ' + error.message); return; }
+      if (error) { alert('登録に失敗しました: ' + error); return; }
     }
     setShowModal(false); setEditingIndustry(null); loadData();
   };
@@ -69,7 +69,7 @@ export default function IndustriesPage() {
     if (clientCount > 0) { alert(`この業種は${clientCount}件の顧客に紐付いています。\n先に顧客の業種を変更してください。`); return; }
     if (!window.confirm(`「${industry.name}」を削除しますか？`)) return;
     const { error } = await industriesApi.delete(industry.id);
-    if (error) alert('削除に失敗しました: ' + error.message); else loadData();
+    if (error) alert('削除に失敗しました: ' + error); else loadData();
   };
 
   const filtered = industries.filter(ind => {

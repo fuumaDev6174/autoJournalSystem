@@ -94,7 +94,7 @@ export default function SuppliersPage() {
       if (userRow) { setOrgId(userRow.organization_id); setUserRole(userRow.role); }
     }
     const { data, error } = await suppliersApi.getAll({ is_active: 'true' });
-    if (error) console.error('取引先取得エラー:', error.message);
+    if (error) console.error('取引先取得エラー:', error);
     if (data) setSuppliers(data as Supplier[]);
     setLoading(false);
   };
