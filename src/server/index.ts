@@ -100,6 +100,7 @@ const apiLimiter = rateLimit({
   keyGenerator: extractUserId,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: { error: 'リクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
 });
 
@@ -110,6 +111,7 @@ const expensiveLimiter = rateLimit({
   keyGenerator: extractUserId,
   standardHeaders: true,
   legacyHeaders: false,
+  validate: false,
   message: { error: 'AI処理のリクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
 });
 

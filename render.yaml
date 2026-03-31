@@ -29,5 +29,5 @@ services:
       - key: GEMINI_MODEL_JOURNAL
         value: gemini-3.1-pro-preview
       - key: ALLOWED_ORIGINS
-        value: https://tax-copilot.onrender.com
+        value: https://besoautojournalsystem.onrender.com
     autoDeploy: true
