@@ -1,4 +1,5 @@
 import { Router, Request, Response } from 'express';
+import type { File as MulterFile } from 'multer';
 import fs from 'fs';
 import {
   processOCR,
@@ -22,7 +23,7 @@ const router = Router();
 
 router.post('/process/batch', upload.array('files', 500), async (req: Request, res: Response) => {
   try {
-    const files = req.files as Express.Multer.File[];
+    const files = req.files as MulterFile[];
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'ファイルがアップロードされていません' });
     }
