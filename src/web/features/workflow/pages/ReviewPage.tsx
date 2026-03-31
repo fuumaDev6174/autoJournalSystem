@@ -4,7 +4,6 @@ import {
 } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useSearchParams } from 'react-router-dom';
-import { supabase } from '@/adapters/supabase/supabase.client';
 import {
   journalEntriesApi, documentsApi, clientsApi, accountItemsApi, taxCategoriesApi,
   taxRatesApi, suppliersApi, itemsApi, rulesApi, storageApi, clientAccountRatiosApi,
@@ -118,7 +117,7 @@ export default function ReviewPage() {
   const [industries, setIndustries] = useState<Array<{ id: string; name: string }>>([]);
   const [itemsMaster, setItemsMaster] = useState<Array<{ id: string; name: string; code: string | null; default_account_item_id: string | null; default_tax_category_id: string | null }>>([]);
   const [businessRatio, setBusinessRatio] = useState(100);
-  const { userProfile } = useAuth();
+  const { user, userProfile } = useAuth();
   const userRole = userProfile?.role || 'viewer';
   const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
   const [clientRatios, setClientRatios] = useState<Array<{ account_item_id: string; business_ratio: number }>>([]);
@@ -478,7 +477,7 @@ export default function ReviewPage() {
         });
       }
       if (markApproved && entryId && !form.isExcluded) {
-        const { data: { user: currentUser } } = await supabase.auth.getUser();
+        const currentUser = user;
         if (currentUser) {
           if (isManagerOrAdmin) {
             await journalEntriesApi.approve(entryId, {
@@ -551,7 +550,7 @@ export default function ReviewPage() {
       }
       if (corrections.length > 0) {
         const { data: cd } = await clientsApi.getById(currentWorkflow.clientId);
-        const { data: { user: authUser } } = await supabase.auth.getUser();
+        const authUser = user;
         if (cd?.organization_id && authUser) {
           for (const c of corrections) {
             await journalCorrectionsApi.create({
@@ -647,7 +646,7 @@ export default function ReviewPage() {
   };
 
   const handleApproveFromList = async (entryId: string) => {
-    const { data: { user: currentUser } } = await supabase.auth.getUser();
+    const currentUser = user;
     if (!currentUser || !isManagerOrAdmin) return;
     await journalEntriesApi.approve(entryId, {
       approver_id: currentUser.id,
@@ -832,7 +831,7 @@ export default function ReviewPage() {
               onClick={async () => {
                 if (!window.confirm(`確認済みの${reviewedCount}件を一括承認しますか？`)) return;
                 const reviewedEntries = entries.filter(e => e.status === 'reviewed');
-                const { data: { user: currentUser } } = await supabase.auth.getUser();
+                const currentUser = user;
                 if (!currentUser) return;
                 for (const e of reviewedEntries) {
                   await journalEntriesApi.approve(e.id, {
