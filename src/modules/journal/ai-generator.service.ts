@@ -1,6 +1,6 @@
 import { ai, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
-import { buildJournalGenerationPrompt } from './ai-generator.prompt';
-import type { JournalEntryInput, GeneratedJournalEntry, GeneratedJournalLine } from './journal.types';
+import { buildJournalGenerationPrompt } from './ai-generator.prompt.js';
+import type { JournalEntryInput, GeneratedJournalEntry, GeneratedJournalLine } from './journal.types.js';
 
 export async function generateJournalEntry(
   input: JournalEntryInput

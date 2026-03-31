@@ -1,7 +1,7 @@
 import { matchProcessingRules } from '../rule-engine/matcher.service.js';
-import { buildEntryFromRule } from './rule-generator.service';
-import { generateJournalEntry } from './ai-generator.service';
-import type { JournalEntryInput, AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types';
+import { buildEntryFromRule } from './rule-generator.service.js';
+import { generateJournalEntry } from './ai-generator.service.js';
+import type { JournalEntryInput, AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types.js';
 import type { RuleMatchInput } from '../rule-engine/rule-engine.types.js';
 
 /**

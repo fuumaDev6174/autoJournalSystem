@@ -1,5 +1,5 @@
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
-import { CLASSIFY_DOCUMENT_PROMPT } from './classifier.prompt';
+import { CLASSIFY_DOCUMENT_PROMPT } from './classifier.prompt.js';
 
 export async function classifyDocument(
   imageBase64: string,

@@ -1,6 +1,6 @@
 import { evaluateConditions } from '../../core/matching/condition-evaluator.js';
-import { matchProcessingRules } from './matcher.service';
-import type { RuleMatchInput, MatchedRule } from './rule-engine.types';
+import { matchProcessingRules } from './matcher.service.js';
+import type { RuleMatchInput, MatchedRule } from './rule-engine.types.js';
 
 export function matchProcessingRulesWithCandidates(
   rules: Parameters<typeof matchProcessingRules>[0],

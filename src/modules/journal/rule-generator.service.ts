@@ -1,5 +1,5 @@
 import { splitByHouseholdRatio } from '../../core/accounting/household-ratio.js';
-import type { AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types';
+import type { AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types.js';
 import type { MatchedRule } from '../rule-engine/rule-engine.types.js';
 
 export function buildEntryFromRule(

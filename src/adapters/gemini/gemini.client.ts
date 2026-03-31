@@ -1,5 +1,5 @@
 import { GoogleGenAI } from '@google/genai';
-import { GEMINI_CONFIG } from './gemini.config';
+import { GEMINI_CONFIG } from './gemini.config.js';
 
 if (!process.env.GEMINI_API_KEY) {
   console.error('FATAL: GEMINI_API_KEY が設定されていません。OCR・仕訳生成が動作しません。');

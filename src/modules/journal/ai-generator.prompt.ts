@@ -1,4 +1,4 @@
-import type { JournalEntryInput } from './journal.types';
+import type { JournalEntryInput } from './journal.types.js';
 
 export function buildJournalGenerationPrompt(input: JournalEntryInput): string {
   const accountList = input.account_items

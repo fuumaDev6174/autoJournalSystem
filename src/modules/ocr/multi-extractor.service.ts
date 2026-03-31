@@ -1,5 +1,5 @@
 import { ai, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
-import { buildMultiExtractPrompt } from './multi-extractor.prompt';
+import { buildMultiExtractPrompt } from './multi-extractor.prompt.js';
 
 export async function extractMultipleEntries(
   imageBase64: string,

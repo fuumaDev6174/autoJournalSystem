@@ -1,6 +1,6 @@
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
-import { EXTRACT_OCR_PROMPT } from './extractor.prompt';
-import type { OCRTransaction, OCRResult } from './ocr.types';
+import { EXTRACT_OCR_PROMPT } from './extractor.prompt.js';
+import type { OCRTransaction, OCRResult } from './ocr.types.js';
 
 export async function processOCR(imageUrl: string): Promise<OCRResult> {
   try {
