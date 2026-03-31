@@ -25,7 +25,8 @@
       "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const react = pkg.packages[''node_modules/@types/react'']; console.log\\(JSON.stringify\\(react, null, 2\\)\\)\")",
       "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const rd = pkg.packages[''node_modules/@types/react-dom'']; console.log\\(JSON.stringify\\(rd, null, 2\\)\\)\")",
       "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const vp = pkg.packages[''node_modules/@vitejs/plugin-react'']; console.log\\(JSON.stringify\\({version: vp.version, dev: vp.dev}, null, 2\\)\\)\")",
-      "Bash(node -e \":*)"
+      "Bash(node -e \":*)",
+      "Bash(npm ls:*)"
     ]
   }
 }
