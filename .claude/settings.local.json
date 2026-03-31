@@ -20,7 +20,12 @@
       "Bash(grep -r src/types /f/3.programing/beso --include=*.json --include=*.ts --include=*.js --include=*.yaml --include=*.yml)",
       "Bash(grep -r \"from [''''].*\\\\./types\" /f/3.programing/beso/src --include=*.ts --include=*.tsx)",
       "Bash(find /f/3.programing/beso -maxdepth 1 -type f \\\\\\(-name *.json -o -name *.config.ts -o -name *.yaml \\\\\\))",
-      "Bash(xargs ls:*)"
+      "Bash(xargs ls:*)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\(''./node_modules/@vitejs/plugin-react/package.json''\\).exports, null, 2\\)\\)\")",
+      "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const react = pkg.packages[''node_modules/@types/react'']; console.log\\(JSON.stringify\\(react, null, 2\\)\\)\")",
+      "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const rd = pkg.packages[''node_modules/@types/react-dom'']; console.log\\(JSON.stringify\\(rd, null, 2\\)\\)\")",
+      "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const vp = pkg.packages[''node_modules/@vitejs/plugin-react'']; console.log\\(JSON.stringify\\({version: vp.version, dev: vp.dev}, null, 2\\)\\)\")",
+      "Bash(node -e \":*)"
     ]
   }
 }
