@@ -4,7 +4,7 @@ services:
     env: node
     region: singapore
     plan: free
-    buildCommand: npm ci && npm run build:all
+    buildCommand: npm ci --include=dev && npm run build:all
     startCommand: npm run start
     healthCheckPath: /health
     envVars:
