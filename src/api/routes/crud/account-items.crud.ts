@@ -9,7 +9,7 @@ router.get('/account-items', async (req: Request, res: Response) => {
     const { industry_id, is_active } = req.query;
     let query = supabaseAdmin.from('account_items').select('*, account_categories(*), tax_categories(*), industries(*)');
     if (is_active !== undefined) query = query.eq('is_active', is_active === 'true');
-    if (industry_id) {
+    if (industry_id && industry_id !== 'null' && industry_id !== 'undefined') {
       query = query.or(`industry_id.eq.${industry_id},industry_id.is.null`);
     }
     const { data, error } = await query.order('code');
