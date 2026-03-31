@@ -1065,7 +1065,7 @@ router.get('/freee/account-items', async (_req: Request, res: Response) => {
 
 router.post('/process/batch', upload.array('files', 500), async (req: Request, res: Response) => {
   try {
-    const files = req.files as Express.Multer.File[];
+    const files = req.files as multer.File[];
     if (!files || files.length === 0) {
       return res.status(400).json({ error: 'ファイルがアップロードされていません' });
     }
