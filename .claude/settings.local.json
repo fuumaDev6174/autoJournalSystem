@@ -26,7 +26,13 @@
       "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const rd = pkg.packages[''node_modules/@types/react-dom'']; console.log\\(JSON.stringify\\(rd, null, 2\\)\\)\")",
       "Bash(node -e \"const pkg = require\\(''./package-lock.json''\\); const vp = pkg.packages[''node_modules/@vitejs/plugin-react'']; console.log\\(JSON.stringify\\({version: vp.version, dev: vp.dev}, null, 2\\)\\)\")",
       "Bash(node -e \":*)",
-      "Bash(npm ls:*)"
+      "Bash(npm ls:*)",
+      "Bash(grep -n from.*['']@/ /f/3.programing/beso/src/server/api.ts)",
+      "Bash(find /f/3.programing/beso/dist/server -name *.js)",
+      "Bash(grep -r froms*['']@/ /f/3.programing/beso/dist/server/server)",
+      "Bash(curl -s http://localhost:3001/server/server/index.js)",
+      "Bash(grep -r froms*[''][^.] src/server --include=*.ts)",
+      "Bash(grep -r froms*['']../ /f/3.programing/beso/dist/server/server/ --include=*.js)"
     ]
   }
 }

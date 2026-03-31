@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "build:server": "tsc --project tsconfig.server.json",
     "build:all": "npm run build && npm run build:server",
-    "start": "node dist/server/index.js",
+    "start": "node dist-server/server/index.js",
     "preview": "vite preview --host 0.0.0.0 --port ${PORT:-5173}",
     "lint": "eslint .",
     "test": "vitest run",
