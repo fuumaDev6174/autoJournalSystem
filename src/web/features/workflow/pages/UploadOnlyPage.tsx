@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Upload, CheckCircle, AlertCircle, FileText, LogOut } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
-import { supabase } from '@/adapters/supabase/supabase.client';
+import { auth } from '@/adapters/supabase/supabase.client';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 import { clientsApi, documentsApi, storageApi } from '@/web/shared/lib/api/backend.api';
 
@@ -105,7 +105,7 @@ export default function UploadOnlyPage() {
   });
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await auth.signOut();
     window.location.href = '/login';
   };
 
