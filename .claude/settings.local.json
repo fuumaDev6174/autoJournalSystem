@@ -11,7 +11,16 @@
       "Bash(npm run:*)",
       "Bash(cd:*)",
       "Bash(npm test:*)",
-      "Bash(ls -la /f/3.programing/beso/src/server/api.*)"
+      "Bash(ls -la /f/3.programing/beso/src/server/api.*)",
+      "Bash(git log:*)",
+      "Bash(find /f/3.programing/beso -type f -name *.json -o -name *.ts -o -name *.js -o -name *.yaml -o -name .*rc)",
+      "Bash(find /f/3.programing/beso/src -type f \\\\\\(-name *.ts -o -name *.tsx -o -name *.js \\\\\\))",
+      "Bash(grep -E \"\\\\.\\(json|ts|yaml|yml|rc\\)$\")",
+      "Bash(ls -la /f/3.programing/beso/src/modules/*/types)",
+      "Bash(grep -r src/types /f/3.programing/beso --include=*.json --include=*.ts --include=*.js --include=*.yaml --include=*.yml)",
+      "Bash(grep -r \"from [''''].*\\\\./types\" /f/3.programing/beso/src --include=*.ts --include=*.tsx)",
+      "Bash(find /f/3.programing/beso -maxdepth 1 -type f \\\\\\(-name *.json -o -name *.config.ts -o -name *.yaml \\\\\\))",
+      "Bash(xargs ls:*)"
     ]
   }
 }
