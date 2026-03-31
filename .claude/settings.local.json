@@ -32,7 +32,12 @@
       "Bash(grep -r froms*['']@/ /f/3.programing/beso/dist/server/server)",
       "Bash(curl -s http://localhost:3001/server/server/index.js)",
       "Bash(grep -r froms*[''][^.] src/server --include=*.ts)",
-      "Bash(grep -r froms*['']../ /f/3.programing/beso/dist/server/server/ --include=*.js)"
+      "Bash(grep -r froms*['']../ /f/3.programing/beso/dist/server/server/ --include=*.js)",
+      "Bash(find /f/3.programing/beso/src -type f \\\\\\(-name *.tsx -o -name *.ts -o -name *.json \\\\\\))",
+      "Bash(grep:*)",
+      "Bash(npx vite:*)",
+      "Bash(grep -rn \"from ''''\\\\.\\\\.\" src/web/ src/adapters/ --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(ls src/api/routes/*.route.ts)"
     ]
   }
 }

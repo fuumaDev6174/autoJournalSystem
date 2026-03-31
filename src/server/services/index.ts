@@ -17,4 +17,4 @@ export type { DuplicateCheckResult, SupplierMatchResult, BalanceCheckResult, Rec
 export { checkDocumentDuplicate, findSupplierAliasMatch, validateDebitCreditBalance, checkReceiptDuplicate, validateJournalBalance } from './validation.service.js';
 
 // Re-export utilities
-export { sleep, callGeminiWithRetry, ai, GEMINI_MODEL_OCR, GEMINI_MODEL_JOURNAL } from '../utils/normalize.js';
+export { sleep, callGeminiWithRetry, ai, GEMINI_MODEL_OCR, GEMINI_MODEL_JOURNAL } from '../../adapters/gemini/gemini.client.js';

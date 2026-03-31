@@ -1,4 +1,4 @@
-import { ai, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../utils/normalize.js';
+import { ai, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
 import type { OCRTransaction } from './ocr.service.js';
 
 // ============================================

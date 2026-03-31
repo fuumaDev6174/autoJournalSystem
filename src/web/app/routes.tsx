@@ -1,10 +1,9 @@
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 
-// web/features/ からインポート
 import ClientsPage from '@/web/features/clients/pages/ClientListPage';
 import UploadPage from '@/web/features/workflow/pages/UploadPage';
 import OCRPage from '@/web/features/workflow/pages/OCRPage';
-import ReviewPage from '@/web/features/workflow/pages/ReviewPage/ReviewPage';
+import ReviewPage from '@/web/features/workflow/pages/ReviewPage';
 import ExportPage from '@/web/features/workflow/pages/ExportPage';
 import SummaryPage from '@/web/features/clients/pages/ClientSummaryPage';
 import ExcludedPage from '@/web/features/excluded/pages/ExcludedPage';

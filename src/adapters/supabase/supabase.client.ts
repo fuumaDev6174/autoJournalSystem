@@ -16,52 +16,18 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 });
 
 export const auth = {
-  signIn: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    return { data, error };
-  },
-  signOut: async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
-  },
-  getCurrentUser: async () => {
-    const { data: { user }, error } = await supabase.auth.getUser();
-    return { user, error };
-  },
-  getSession: async () => {
-    const { data: { session }, error } = await supabase.auth.getSession();
-    return { session, error };
-  },
-  signInWithGoogle: async () => {
-    const { data, error } = await supabase.auth.signInWithOAuth({
+  signIn: (email: string, password: string) =>
+    supabase.auth.signInWithPassword({ email, password }),
+  signOut: () => supabase.auth.signOut(),
+  getCurrentUser: () => supabase.auth.getUser(),
+  getSession: () => supabase.auth.getSession(),
+  signInWithGoogle: () =>
+    supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: `${window.location.origin}/` },
-    });
-    return { data, error };
-  },
-  signUp: async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signUp({ email, password });
-    return { data, error };
-  },
-  onAuthStateChange: (callback: (event: string, session: any) => void) => {
-    return supabase.auth.onAuthStateChange(callback);
-  },
-};
-
-export const storage = {
-  uploadFile: async (bucket: string, path: string, file: File) => {
-    const { data, error } = await supabase.storage.from(bucket).upload(path, file, {
-      cacheControl: '3600',
-      upsert: false,
-    });
-    return { data, error };
-  },
-  getPublicUrl: (bucket: string, path: string) => {
-    const { data } = supabase.storage.from(bucket).getPublicUrl(path);
-    return data.publicUrl;
-  },
-  deleteFile: async (bucket: string, path: string) => {
-    const { data, error } = await supabase.storage.from(bucket).remove([path]);
-    return { data, error };
-  },
+    }),
+  signUp: (email: string, password: string) =>
+    supabase.auth.signUp({ email, password }),
+  onAuthStateChange: (callback: (event: string, session: any) => void) =>
+    supabase.auth.onAuthStateChange(callback),
 };

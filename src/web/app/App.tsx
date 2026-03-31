@@ -1,9 +1,9 @@
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './providers/AuthProvider';
-import { MasterDataProvider } from './providers/MasterDataProvider';
-import { WorkflowProvider } from './providers/WorkflowProvider';
-import MainLayout from './layouts/MainLayout';
+import { MasterDataProvider } from '@/web/app/providers/MasterDataProvider';
+import { WorkflowProvider } from '@/web/app/providers/WorkflowProvider';
+import MainLayout from '@/web/app/layouts/MainLayout';
 import { AppRoutes } from './routes';
 import LoginPage from '@/web/features/auth/pages/LoginPage';
 import UploadOnlyPage from '@/web/features/workflow/pages/UploadOnlyPage';

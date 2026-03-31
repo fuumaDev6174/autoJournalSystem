@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/client/lib/supabase';
+import { supabase } from '@/adapters/supabase/supabase.client';
+import { usersApi } from '@/web/shared/lib/api/backend.api';
 
 interface UserProfile {
   role: 'admin' | 'manager' | 'operator' | 'viewer';
@@ -41,12 +42,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) { setUserProfile(null); return; }
-    supabase.from('users')
-      .select('role, organization_id, name')
-      .eq('id', user.id)
-      .single()
+    usersApi.getById(user.id)
       .then(({ data }) => {
-        if (data) setUserProfile(data as UserProfile);
+        if (data) setUserProfile({ role: data.role, organization_id: data.organization_id, name: data.name } as UserProfile);
       });
   }, [user]);
 

@@ -1,4 +1,4 @@
-import { ai, GEMINI_MODEL_OCR, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../utils/normalize.js';
+import { ai, GEMINI_MODEL_OCR, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
 
 // ============================================
 // OCRサービス - 画像から文字を抽出

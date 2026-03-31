@@ -5,7 +5,13 @@ import path from 'path';
 import { apiLimiter, expensiveLimiter } from './middleware/rate-limit.middleware';
 import { loggingMiddleware } from './middleware/logging.middleware';
 import { errorHandler, notFoundHandler } from './middleware/error-handler.middleware';
-import apiRouter from '../server/api.js';
+import documentsRoute from './routes/documents.route.js';
+import ocrRoute from './routes/ocr.route.js';
+import journalsRoute from './routes/journals.route.js';
+import freeeRoute from './routes/freee.route.js';
+import batchRoute from './routes/batch.route.js';
+import validationRoute from './routes/validation.route.js';
+import healthRoute from './routes/health.route.js';
 
 dotenv.config();
 
@@ -49,7 +55,13 @@ app.use('/api/journal-entries/generate', expensiveLimiter);
 app.use('/api/process/batch', expensiveLimiter);
 
 // APIルート
-app.use('/api', apiRouter);
+app.use('/api', documentsRoute);
+app.use('/api', ocrRoute);
+app.use('/api', journalsRoute);
+app.use('/api', freeeRoute);
+app.use('/api', batchRoute);
+app.use('/api', validationRoute);
+app.use('/api', healthRoute);
 
 // 静的ファイル配信（本番環境）
 if (process.env.NODE_ENV === 'production') {
