@@ -23,8 +23,8 @@
     "noUnusedParameters": false,
     "esModuleInterop": true,
     "resolveJsonModule": true,
-    "types": ["node"]
+    "types": ["node", "multer"]
   },
   "include": ["src/server/**/*", "src/shared/**/*", "src/core/**/*", "src/modules/**/*", "src/adapters/gemini/**/*", "src/adapters/freee/**/*", "src/adapters/supabase/supabase-admin.client.ts", "src/api/**/*"],
-  "exclude": ["src/adapters/supabase/supabase.client.ts", "src/adapters/supabase/supabase.debug.ts"]
+  "exclude": ["src/adapters/supabase/supabase.client.ts", "src/adapters/supabase/supabase.debug.ts", "src/**/__tests__/**/*", "src/**/*.test.ts", "src/**/*.spec.ts"]
 }
