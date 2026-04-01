@@ -27,6 +27,21 @@ router.get('/workflows', async (req: Request, res: Response) => {
   }
 });
 
+// GET /api/workflows/:id
+router.get('/workflows/:id', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabaseAdmin
+      .from('workflows')
+      .select('*, clients(name)')
+      .eq('id', req.params.id)
+      .single();
+    if (error) return res.status(404).json({ error: error.message });
+    res.json({ data });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // POST /api/workflows
 router.post('/workflows', async (req: Request, res: Response) => {
   try {

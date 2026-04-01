@@ -39,11 +39,9 @@ export const workflowsApi = {
 
   /** IDで取得 */
   getById: async (id: string): Promise<WorkflowState | null> => {
-    // TODO: Backend lacks GET /api/workflows/:id — using getAll as workaround
-    const { data, error } = await backendWorkflowsApi.getAll({});
-    const found = data?.find((w: any) => w.id === id);
-    if (error || !found) return null;
-    return dbRowToState(found);
+    const { data, error } = await backendWorkflowsApi.getById(id);
+    if (error || !data) return null;
+    return dbRowToState(data);
   },
 
   /** 新規作成 */

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertCircle, Loader, RotateCcw } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
-import { documentsApi, clientsApi, journalEntriesApi, storageApi } from '@/web/shared/lib/api/backend.api';
+import { documentsApi, clientsApi, journalEntriesApi, storageApi, ocrApi, journalGenerateApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
 
 // ============================================
@@ -23,7 +23,6 @@ interface OCRResultItem {
   retryCount: number;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 const MAX_RETRY = 3;
 
 // エラーステップの日本語ラベル
@@ -107,25 +106,16 @@ export default function OCRPage() {
 
       // --- STEP 2: OCR API ---
       currentStep = 'ocr_api';
-      const ocrResponse = await fetch(`${API_BASE}/api/ocr/process`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document_id: result.documentId,
-          file_url: signedUrlData.signedUrl,
-          file_path: result.storagePath,
-        }),
+      const { data: ocrData, error: ocrError } = await ocrApi.process({
+        document_id: result.documentId,
+        file_url: signedUrlData.signedUrl,
+        file_path: result.storagePath,
       });
 
-      if (!ocrResponse.ok) {
-        const errBody = await ocrResponse.json().catch(() => ({}));
-        const status = ocrResponse.status;
-        if (status === 429) throw new Error('API レート制限に達しました。しばらく待ってから再処理してください。');
-        if (status >= 500) throw new Error(`OCRサーバーエラー (${status}): ${errBody.error || '内部エラー'}`);
-        throw new Error(errBody.error || `OCR API エラー: ${status}`);
+      if (ocrError || !ocrData) {
+        throw new Error(ocrError || 'OCR API エラー');
       }
 
-      const ocrData = await ocrResponse.json();
       const ocrResult = ocrData.ocr_result;
 
       // --- STEP 3: OCR結果をDBに保存 ---
@@ -146,26 +136,17 @@ export default function OCRPage() {
 
       // --- STEP 4: 仕訳生成API ---
       currentStep = 'journal_api';
-      const journalResponse = await fetch(`${API_BASE}/api/journal-entries/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          document_id: result.documentId,
-          client_id: currentWorkflow!.clientId,
-          ocr_result: ocrResult,
-          industry,
-        }),
+      const { data: journalData, error: journalError } = await journalGenerateApi.generate({
+        document_id: result.documentId,
+        client_id: currentWorkflow!.clientId,
+        ocr_result: ocrResult,
+        industry,
       });
 
-      if (!journalResponse.ok) {
-        const errBody = await journalResponse.json().catch(() => ({}));
-        const status = journalResponse.status;
-        if (status === 429) throw new Error('API レート制限に達しました。しばらく待ってから再処理してください。');
-        if (status >= 500) throw new Error(`仕訳生成サーバーエラー (${status}): ${errBody.error || '内部エラー'}`);
-        throw new Error(errBody.error || `仕訳生成 API エラー: ${status}`);
+      if (journalError || !journalData) {
+        throw new Error(journalError || '仕訳生成 API エラー');
       }
 
-      const journalData = await journalResponse.json();
       const journalEntry = journalData.journal_entry;
 
       // --- STEP 5: 仕訳ヘッダーINSERT ---

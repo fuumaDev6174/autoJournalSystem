@@ -161,6 +161,7 @@ export const journalEntriesApi = {
 export const workflowsApi = {
   getAll: (params?: { client_id?: string; status?: string }) =>
     apiFetch<any[]>(`/api/workflows${qs(params || {})}`),
+  getById: (id: string) => apiFetch<any>(`/api/workflows/${id}`),
   create: (data: any) => apiFetch<any>('/api/workflows', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) => apiFetch<any>(`/api/workflows/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   complete: (id: string, completedBy: string) =>
@@ -216,6 +217,18 @@ export const documentsApi = {
   create: (data: any) => apiFetch<any>('/api/documents', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: any) => apiFetch<any>(`/api/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => apiFetch<any>(`/api/documents/${id}`, { method: 'DELETE' }),
+};
+
+// ─── OCR処理 ──────────────────────────────────────
+export const ocrApi = {
+  process: (data: { document_id: string; file_url: string; file_path: string }) =>
+    apiFetch<any>('/api/ocr/process', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ─── 仕訳生成 ─────────────────────────────────────
+export const journalGenerateApi = {
+  generate: (data: { document_id: string; client_id: string; ocr_result: any; industry?: string }) =>
+    apiFetch<any>('/api/journal-entries/generate', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ─── ストレージ ────────────────────────────────────
