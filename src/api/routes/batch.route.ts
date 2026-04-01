@@ -1,6 +1,17 @@
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
-type MulterFile = Express.Multer.File;
+
+interface MulterFile {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination: string;
+  filename: string;
+  path: string;
+  buffer: Buffer;
+}
 import fs from 'fs';
 import { processOCR } from '../../modules/ocr/extractor.service.js';
 import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
