@@ -5,14 +5,15 @@ import {
   supabaseAdmin,
   createNotification,
 } from '../helpers/master-data.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
 // ============================================
 // freee OAuth設定
 // ============================================
-const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || process.env.VITE_FREEE_CLIENT_ID || '';
-const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || process.env.VITE_FREEE_CLIENT_SECRET || '';
+const FREEE_CLIENT_ID = process.env.FREEE_CLIENT_ID || '';
+const FREEE_CLIENT_SECRET = process.env.FREEE_CLIENT_SECRET || '';
 const FREEE_REDIRECT_URI = process.env.FREEE_REDIRECT_URI || 'http://localhost:5173/settings';
 const FREEE_AUTH_URL = 'https://accounts.secure.freee.co.jp/public_api/authorize';
 const FREEE_TOKEN_URL = 'https://accounts.secure.freee.co.jp/public_api/token';
@@ -29,9 +30,12 @@ router.post('/freee/export', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'journal_entriesは配列である必要があります' });
     }
 
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
+
     // freee接続情報を取得
     const { data: conn } = await supabaseAdmin.from('freee_connections')
       .select('access_token, freee_company_id, token_expires_at')
+      .eq('organization_id', orgId)
       .eq('sync_status', 'active').limit(1).single();
     if (!conn) {
       return res.status(400).json({ error: 'freeeに接続されていません。設定画面からfreee連携を行ってください。' });
@@ -104,14 +108,13 @@ router.post('/freee/export', async (req: Request, res: Response) => {
 
     // エクスポート成功時に通知
     if (result.exported_count > 0) {
-      const { data: orgData } = await supabaseAdmin.from('organizations').select('id').limit(1).single();
-      if (orgData?.id) {
+      if (orgId) {
         // 全管理者に通知
-        const { data: admins } = await supabaseAdmin.from('users').select('id').eq('organization_id', orgData.id).in('role', ['admin', 'manager']);
+        const { data: admins } = await supabaseAdmin.from('users').select('id').eq('organization_id', orgId).in('role', ['admin', 'manager']);
         if (admins) {
           for (const admin of admins) {
             await createNotification({
-              organizationId: orgData.id,
+              organizationId: orgId,
               userId: admin.id,
               type: 'exported',
               title: 'freeeエクスポート完了',
@@ -134,6 +137,8 @@ router.post('/freee/export', async (req: Request, res: Response) => {
 // ============================================
 
 // OAuth認証URL生成
+// NOTE: OAuth state is returned to the client for CSRF validation on callback.
+// Ideally state should be stored server-side (e.g. in DB or session) for verification.
 router.get('/freee/auth-url', async (_req: Request, res: Response) => {
   if (!FREEE_CLIENT_ID) {
     return res.status(400).json({ error: 'FREEE_CLIENT_ID が設定されていません' });
@@ -163,7 +168,7 @@ router.post('/freee/callback', async (req: Request, res: Response) => {
     });
     const tokenData = await tokenRes.json() as Record<string, any>;
     if (!tokenRes.ok) {
-      return res.status(400).json({ error: 'トークン取得失敗', details: tokenData });
+      return res.status(400).json({ error: 'トークン取得失敗' });
     }
 
     // ユーザー情報取得（事業所ID含む）
@@ -176,7 +181,7 @@ router.post('/freee/callback', async (req: Request, res: Response) => {
     // DB保存
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 86400) * 1000).toISOString();
     await supabaseAdmin.from('freee_connections').upsert({
-      organization_id: (await supabaseAdmin.from('organizations').select('id').limit(1).single()).data?.id,
+      organization_id: (req as AuthenticatedRequest).user.organization_id,
       freee_company_id: companyId,
       access_token: tokenData.access_token,
       refresh_token: tokenData.refresh_token,
@@ -194,10 +199,12 @@ router.post('/freee/callback', async (req: Request, res: Response) => {
 });
 
 // 接続状態確認
-router.get('/freee/connection-status', async (_req: Request, res: Response) => {
+router.get('/freee/connection-status', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
     const { data } = await supabaseAdmin.from('freee_connections')
       .select('freee_company_id, token_expires_at, sync_status, connected_at')
+      .eq('organization_id', orgId)
       .eq('sync_status', 'active').limit(1).single();
     if (data) {
       const isExpired = new Date(data.token_expires_at) < new Date();
@@ -211,10 +218,11 @@ router.get('/freee/connection-status', async (_req: Request, res: Response) => {
 });
 
 // トークンリフレッシュ
-router.post('/freee/refresh-token', async (_req: Request, res: Response) => {
+router.post('/freee/refresh-token', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
     const { data: conn } = await supabaseAdmin.from('freee_connections')
-      .select('id, refresh_token').eq('sync_status', 'active').limit(1).single();
+      .select('id, refresh_token').eq('organization_id', orgId).eq('sync_status', 'active').limit(1).single();
     if (!conn) return res.status(404).json({ error: 'freee接続が見つかりません' });
 
     const tokenRes = await fetch(FREEE_TOKEN_URL, {
@@ -228,7 +236,7 @@ router.post('/freee/refresh-token', async (_req: Request, res: Response) => {
       }),
     });
     const tokenData = await tokenRes.json() as Record<string, any>;
-    if (!tokenRes.ok) return res.status(400).json({ error: 'リフレッシュ失敗', details: tokenData });
+    if (!tokenRes.ok) return res.status(400).json({ error: 'リフレッシュ失敗' });
 
     const expiresAt = new Date(Date.now() + (tokenData.expires_in || 86400) * 1000).toISOString();
     await supabaseAdmin.from('freee_connections').update({
@@ -245,9 +253,10 @@ router.post('/freee/refresh-token', async (_req: Request, res: Response) => {
 });
 
 // 切断
-router.post('/freee/disconnect', async (_req: Request, res: Response) => {
+router.post('/freee/disconnect', async (req: Request, res: Response) => {
   try {
-    await supabaseAdmin.from('freee_connections').update({ sync_status: 'revoked' }).eq('sync_status', 'active');
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
+    await supabaseAdmin.from('freee_connections').update({ sync_status: 'revoked' }).eq('organization_id', orgId).eq('sync_status', 'active');
     res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -255,10 +264,11 @@ router.post('/freee/disconnect', async (_req: Request, res: Response) => {
 });
 
 // freee勘定科目取得
-router.get('/freee/account-items', async (_req: Request, res: Response) => {
+router.get('/freee/account-items', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
     const { data: conn } = await supabaseAdmin.from('freee_connections')
-      .select('access_token, freee_company_id').eq('sync_status', 'active').limit(1).single();
+      .select('access_token, freee_company_id').eq('organization_id', orgId).eq('sync_status', 'active').limit(1).single();
     if (!conn) return res.status(404).json({ error: 'freee接続が見つかりません' });
 
     const apiRes = await fetch(`${FREEE_API_BASE}/api/1/account_items?company_id=${conn.freee_company_id}`, {

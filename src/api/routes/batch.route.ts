@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
-import type { File as MulterFile } from 'multer';
+import multer from 'multer';
+type MulterFile = Express.Multer.File;
 import fs from 'fs';
 import { processOCR } from '../../modules/ocr/extractor.service.js';
 import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
@@ -10,7 +11,9 @@ import {
   fetchAccountItems,
   fetchTaxCategories,
   findFallbackAccountId,
+  verifyClientOwnership,
 } from '../helpers/master-data.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 import { upload } from './documents.route.js';
 
 const router = Router();
@@ -19,7 +22,7 @@ const router = Router();
 // 一括処理API
 // ============================================
 
-router.post('/process/batch', upload.array('files', 500), async (req: Request, res: Response) => {
+router.post('/process/batch', upload.array('files', 20), async (req: Request, res: Response) => {
   try {
     const files = req.files as MulterFile[];
     if (!files || files.length === 0) {
@@ -30,13 +33,18 @@ router.post('/process/batch', upload.array('files', 500), async (req: Request, r
       return res.status(400).json({ error: 'client_idとuploaded_byは必須です' });
     }
 
+    // クライアント所有権の確認
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!(await verifyClientOwnership(client_id, authUser.organization_id))) {
+      return res.status(403).json({ error: '指定されたクライアントへのアクセス権限がありません' });
+    }
+
     console.log(`[バッチ] 処理開始: ${files.length}件, client_id="${client_id}"`);
 
     const organizationId = await getOrganizationId(client_id);
     if (!organizationId) {
       return res.status(400).json({
         error: '指定された client_id に紐づく組織が見つかりません',
-        debug: { client_id, supabase_url_set: !!process.env.SUPABASE_URL, service_key_set: !!process.env.SUPABASE_SERVICE_ROLE_KEY },
       });
     }
 

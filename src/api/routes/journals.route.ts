@@ -15,7 +15,9 @@ import {
   fetchAccountItems,
   fetchTaxCategories,
   findFallbackAccountId,
+  verifyClientOwnership,
 } from '../helpers/master-data.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
@@ -41,17 +43,18 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'document_id / client_id が不正な形式です' });
     }
 
+    // クライアント所有権の確認
+    const authUser = (req as AuthenticatedRequest).user;
+    if (!(await verifyClientOwnership(client_id, authUser.organization_id))) {
+      return res.status(403).json({ error: '指定されたクライアントへのアクセス権限がありません' });
+    }
+
     // 1. organization_id を解決
     const organizationId = await getOrganizationId(client_id);
     if (!organizationId) {
       console.error(`[仕訳生成] ❌ organization_id 解決失敗。client_id="${client_id}"`);
       return res.status(400).json({
         error: '指定された client_id に紐づく組織が見つかりません',
-        debug: {
-          client_id,
-          supabase_url_set: !!process.env.SUPABASE_URL,
-          service_key_set: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        },
       });
     }
 

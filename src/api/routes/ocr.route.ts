@@ -7,6 +7,7 @@ import {
   isValidUUID,
   createNotification,
 } from '../helpers/master-data.js';
+import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 

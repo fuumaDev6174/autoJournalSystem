@@ -1,12 +1,35 @@
+import { supabase } from '@/adapters/supabase/supabase.client';
+
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+// ============================================
+// 認証ヘッダー取得
+// ============================================
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const { data: { session } } = await supabase.auth.getSession();
+  if (session?.access_token) {
+    return { Authorization: `Bearer ${session.access_token}` };
+  }
+  return {};
+}
+
+// ============================================
+// 共通 fetch ラッパー（認証トークン自動付与）
+// ============================================
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ data: T | null; error: string | null }> {
   try {
+    const authHeaders = await getAuthHeaders();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...authHeaders,
+      ...(options?.headers as Record<string, string> || {}),
+    };
     const res = await fetch(`${API_BASE}${path}`, {
-      headers: { 'Content-Type': 'application/json', ...options?.headers },
       ...options,
+      headers,
     });
     if (res.status === 204) return { data: null, error: null };
+    if (res.status === 401) return { data: null, error: '認証が必要です。再ログインしてください。' };
     const json = await res.json();
     if (!res.ok) return { data: null, error: json.error || `HTTP ${res.status}` };
     return { data: json.data ?? json, error: null };
@@ -199,10 +222,15 @@ export const documentsApi = {
 export const storageApi = {
   upload: async (storagePath: string, file: File): Promise<{ data: any | null; error: string | null }> => {
     try {
+      const authHeaders = await getAuthHeaders();
       const formData = new FormData();
       formData.append('file', file);
       formData.append('path', storagePath);
-      const res = await fetch(`${API_BASE}/api/storage/upload`, { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE}/api/storage/upload`, {
+        method: 'POST',
+        headers: { ...authHeaders },
+        body: formData,
+      });
       const json = await res.json();
       if (!res.ok || !json.success) return { data: null, error: json.error || `HTTP ${res.status}` };
       return { data: json.data, error: null };

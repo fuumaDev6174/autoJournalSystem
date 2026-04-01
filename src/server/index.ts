@@ -3,8 +3,10 @@ dotenv.config();
 
 import express from 'express';
 import cors from 'cors';
-import rateLimit from 'express-rate-limit';
 import path from 'path';
+
+import { authMiddleware } from '../api/middleware/auth.middleware.js';
+import { apiLimiter, expensiveLimiter } from '../api/middleware/rate-limit.middleware.js';
 
 import documentsRoute from '../api/routes/documents.route.js';
 import ocrRoute from '../api/routes/ocr.route.js';
@@ -37,7 +39,6 @@ if (missingEnvVars.length > 0) {
   console.error('サーバーを起動できません。.env ファイルまたはホスティング設定を確認してください。');
   process.exit(1);
 }
-// SUPABASE_URL は VITE_SUPABASE_URL からのフォールバックがあるためwarningのみ
 if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
   console.warn('WARNING: SUPABASE_URL / VITE_SUPABASE_URL が未設定です。DB接続に失敗します。');
 }
@@ -46,17 +47,17 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ログミドルウェア
-app.use((req, res, next) => {
+app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
 });
 
-// ヘルスチェックエンドポイント（UptimeRobot用）
-app.get('/health', (req, res) => {
+// ヘルスチェック（認証不要・CORS不要）
+app.get('/health', (_req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 静的ファイル配信（本番環境） — CORSやAPI middlewareより前に配置
+// 静的ファイル配信（本番環境）— CORS/API middlewareより前に配置
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(process.cwd(), 'dist');
   app.use(express.static(distPath));
@@ -79,54 +80,27 @@ const apiCors = cors({
 });
 
 app.use('/api', apiCors);
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '10mb' }));
 
-// レート制限（API全体: 15分間に100リクエスト、ユーザー別）
-const extractUserId = (req: any): string => {
-  const token = req.headers.authorization?.replace('Bearer ', '');
-  if (token) {
-    try {
-      const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
-      return payload.sub || req.ip || 'unknown';
-    } catch { return req.ip || 'unknown'; }
-  }
-  return req.ip || 'unknown';
-};
-
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  keyGenerator: extractUserId,
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  message: { error: 'リクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
-});
-
-// Gemini呼び出しを含む高コストエンドポイント用（15分間に20リクエスト）
-const expensiveLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 20,
-  keyGenerator: extractUserId,
-  standardHeaders: true,
-  legacyHeaders: false,
-  validate: false,
-  message: { error: 'AI処理のリクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
-});
-
-// APIルートをマウント
+// レート制限（認証前に適用 — DoS防御）
 app.use('/api', apiLimiter);
 app.use('/api/ocr/process', expensiveLimiter);
 app.use('/api/journal-entries/generate', expensiveLimiter);
 app.use('/api/process/batch', expensiveLimiter);
+
+// ヘルスチェック（/api/health — 認証不要）
+app.use('/api', healthRoute);
+
+// 認証ミドルウェア（/api/health 以外の全 API に適用）
+app.use('/api', authMiddleware as any);
+
+// APIルートをマウント
 app.use('/api', documentsRoute);
 app.use('/api', ocrRoute);
 app.use('/api', journalsRoute);
 app.use('/api', freeeRoute);
 app.use('/api', batchRoute);
 app.use('/api', validationRoute);
-app.use('/api', healthRoute);
 
 // CRUDルート
 app.use('/api', clientsCrud);
@@ -145,66 +119,48 @@ app.use('/api', storageCrud);
 app.use('/api', documentsCrud);
 app.use('/api', journalCorrectionsCrud);
 
-// ルートエンドポイント（開発環境用）
-app.get('/', (req, res) => {
-  res.json({
-    message: '経理自動化システム API Server',
-    version: '1.0.0',
-    endpoints: {
-      health: '/api/health',
-      upload: 'POST /api/documents/upload',
-      ocr: 'POST /api/ocr/process',
-      generate_journal: 'POST /api/journal-entries/generate',
-      freee_export: 'POST /api/freee/export',
-      batch_process: 'POST /api/process/batch',
-    },
-    status: 'running',
+// ルートエンドポイント（開発環境のみ）
+if (process.env.NODE_ENV !== 'production') {
+  app.get('/', (_req, res) => {
+    res.json({
+      message: '経理自動化システム API Server',
+      version: '1.0.0',
+      status: 'running',
+    });
   });
-});
+}
 
 // React Router SPA フォールバック（本番環境）
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(process.cwd(), 'dist');
-  app.get('*', (req, res) => {
+  app.get('*', (_req, res) => {
     res.sendFile(path.join(distPath, 'index.html'));
   });
 }
 
 // エラーハンドリングミドルウェア
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error('エラー:', err);
   const statusCode = err.status || 500;
-  res.status(statusCode).json({
-    success: false,
-    error: err.message || 'サーバーエラーが発生しました',
-  });
+  const message = process.env.NODE_ENV === 'production'
+    ? 'サーバーエラーが発生しました'
+    : (err.message || 'サーバーエラーが発生しました');
+  res.status(statusCode).json({ success: false, error: message });
 });
 
 // 404ハンドリング
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'エンドポイントが見つかりません',
-  });
+app.use((_req, res) => {
+  res.status(404).json({ success: false, error: 'エンドポイントが見つかりません' });
 });
 
 // サーバー起動
 app.listen(PORT, () => {
   console.log('='.repeat(50));
-  console.log('🚀 経理自動化システム API Server');
+  console.log('経理自動化システム API Server');
   console.log('='.repeat(50));
-  console.log(`📡 Server running on: http://localhost:${PORT}`);
-  console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🤖 Gemini API: ${process.env.GEMINI_API_KEY ? '✅ 設定済み' : '❌ 未設定'}`);
-  console.log(`📂 Upload directory: ${process.cwd()}/uploads`);
-  console.log('='.repeat(50));
-  console.log('利用可能なエンドポイント:');
-  console.log('  GET  /api/health              - ヘルスチェック');
-  console.log('  POST /api/documents/upload    - ファイルアップロード');
-  console.log('  POST /api/ocr/process         - OCR処理');
-  console.log('  POST /api/journal-entries/generate - 仕訳生成');
-  console.log('  POST /api/freee/export        - freeeエクスポート');
-  console.log('  POST /api/process/batch       - 一括処理');
+  console.log(`Server running on: http://localhost:${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Gemini API: ${process.env.GEMINI_API_KEY ? '設定済み' : '未設定'}`);
   console.log('='.repeat(50));
 });
 

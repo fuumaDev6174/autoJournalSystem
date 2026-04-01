@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
+import { sanitizeBody } from '../../helpers/master-data.js';
 
 const router = Router();
 
@@ -20,7 +21,8 @@ router.get('/tax-categories', async (req: Request, res: Response) => {
 // POST /api/tax-categories
 router.post('/tax-categories', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin.from('tax_categories').insert(req.body).select().single();
+    const body = sanitizeBody(req.body);
+    const { data, error } = await supabaseAdmin.from('tax_categories').insert(body).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ data });
   } catch (e: any) {
@@ -31,9 +33,10 @@ router.post('/tax-categories', async (req: Request, res: Response) => {
 // PUT /api/tax-categories/:id
 router.put('/tax-categories/:id', async (req: Request, res: Response) => {
   try {
+    const body = sanitizeBody(req.body);
     const { data, error } = await supabaseAdmin
       .from('tax_categories')
-      .update(req.body)
+      .update(body)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -72,7 +75,8 @@ router.get('/tax-rates', async (req: Request, res: Response) => {
 // POST /api/tax-rates
 router.post('/tax-rates', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabaseAdmin.from('tax_rates').insert(req.body).select().single();
+    const body = sanitizeBody(req.body);
+    const { data, error } = await supabaseAdmin.from('tax_rates').insert(body).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ data });
   } catch (e: any) {
@@ -83,9 +87,10 @@ router.post('/tax-rates', async (req: Request, res: Response) => {
 // PUT /api/tax-rates/:id
 router.put('/tax-rates/:id', async (req: Request, res: Response) => {
   try {
+    const body = sanitizeBody(req.body);
     const { data, error } = await supabaseAdmin
       .from('tax_rates')
-      .update(req.body)
+      .update(body)
       .eq('id', req.params.id)
       .select()
       .single();
@@ -126,9 +131,10 @@ router.get('/client-tax-category-settings', async (req: Request, res: Response) 
 // POST /api/client-tax-category-settings (upsert)
 router.post('/client-tax-category-settings', async (req: Request, res: Response) => {
   try {
+    const body = sanitizeBody(req.body);
     const { data, error } = await supabaseAdmin
       .from('client_tax_category_settings')
-      .upsert(req.body)
+      .upsert(body)
       .select();
     if (error) return res.status(400).json({ error: error.message });
     res.json({ data });
