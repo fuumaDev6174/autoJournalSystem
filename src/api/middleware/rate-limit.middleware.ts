@@ -3,7 +3,7 @@ import rateLimit from 'express-rate-limit';
 // IP ベースのレート制限（JWT デコードによるバイパスを防止）
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 1000,
+  max: 5000,
   keyGenerator: (req) => req.ip || 'unknown',
   standardHeaders: true,
   legacyHeaders: false,
@@ -13,7 +13,7 @@ export const apiLimiter = rateLimit({
 
 export const expensiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 50,
+  max: 200,
   keyGenerator: (req) => req.ip || 'unknown',
   standardHeaders: true,
   legacyHeaders: false,
