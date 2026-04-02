@@ -70,11 +70,13 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS || process.env.VITE_APP_URL 
 
 const apiCors = cors({
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error('CORS not allowed'));
-    }
+    // 同一オリジン（origin なし）は常に許可
+    if (!origin) return callback(null, true);
+    // 明示的に許可されたオリジン
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    // 本番環境: Render の外部URLと同一オリジンなら許可
+    if (process.env.RENDER_EXTERNAL_URL && origin === process.env.RENDER_EXTERNAL_URL) return callback(null, true);
+    callback(new Error('CORS not allowed'));
   },
   credentials: true,
 });
