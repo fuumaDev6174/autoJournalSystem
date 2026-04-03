@@ -15,6 +15,7 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   LogOut,
   User,
   Store,
@@ -24,7 +25,9 @@ import {
   CheckCheck,
   FileText,
   AlertTriangle,
-  Info
+  Info,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from 'lucide-react';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 import { auth } from '@/adapters/supabase/supabase.client';
@@ -164,7 +167,7 @@ function getNotificationUrl(n: Notification): string | null {
 // ============================================================
 // サイドバーコンポーネント
 // ============================================================
-function Sidebar() {
+function Sidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { currentWorkflow } = useWorkflow();
@@ -258,17 +261,39 @@ function Sidebar() {
   // 仕訳確認と仕訳出力は個別にレンダリング（サブメニュー付きのため）
 
   return (
-    <aside className="w-64 bg-gray-50 border-r border-gray-200 h-screen flex flex-col flex-shrink-0">
-      {/* ロゴ */}
-      <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center gap-2">
-          <Building2 className="text-blue-600" size={24} />
-          <h1 className="text-lg font-semibold text-gray-900">仕訳自動化システム</h1>
+    <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-gray-50 border-r border-gray-200 h-screen flex flex-col flex-shrink-0 transition-all duration-200`}>
+      {/* ロゴ + 折りたたみボタン */}
+      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+        <div className="flex items-center gap-2 overflow-hidden">
+          <Building2 className="text-blue-600 flex-shrink-0" size={24} />
+          {!collapsed && <h1 className="text-lg font-semibold text-gray-900 whitespace-nowrap">仕訳自動化システム</h1>}
         </div>
+        <button onClick={onToggle} className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0" title={collapsed ? 'メニューを展開' : 'メニューを縮小'}>
+          {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+        </button>
       </div>
 
       {/* メニュー */}
-      <nav className="p-2 flex-1 overflow-y-auto">
+      <nav className={`${collapsed ? 'p-1' : 'p-2'} flex-1 overflow-y-auto`}>
+        {collapsed && (
+          <div className="space-y-1">
+            {/* 縮小時: アイコンのみ表示 */}
+            <Link to="/clients" className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive('/clients') ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="顧客一覧"><Users size={20} /></Link>
+            <Link to="/approvals" className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive('/approvals') ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="承認"><ClipboardCheck size={20} /></Link>
+            <div className="border-t border-gray-200 my-1.5" />
+            <Link to={workflowPath('summary')} onClick={e => { if (summaryPath === '#') e.preventDefault(); }} className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${summaryActive ? 'bg-blue-50 text-blue-600' : summaryPath === '#' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`} title="集計・チェック"><BarChart3 size={20} /></Link>
+            <Link to={workflowPath('upload')} onClick={e => { if (!activeClientId) e.preventDefault(); }} className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive(workflowPath('upload')) ? 'bg-blue-50 text-blue-600' : !activeClientId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`} title="証憑アップロード"><Upload size={20} /></Link>
+            <Link to={workflowPath('ocr')} onClick={e => { if (!activeClientId) e.preventDefault(); }} className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive(workflowPath('ocr')) ? 'bg-blue-50 text-blue-600' : !activeClientId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`} title="OCR処理"><Scan size={20} /></Link>
+            <Link to={reviewPath} onClick={e => { if (reviewPath === '#') e.preventDefault(); }} className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${reviewActive ? 'bg-blue-50 text-blue-600' : reviewPath === '#' ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`} title="仕訳確認"><Eye size={20} /></Link>
+            <Link to={workflowPath('export')} onClick={e => { if (!activeClientId) e.preventDefault(); }} className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive(workflowPath('export')) ? 'bg-blue-50 text-blue-600' : !activeClientId ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`} title="仕訳出力"><Download size={20} /></Link>
+            <div className="border-t border-gray-200 my-1.5" />
+            <Link to="/master/rules" className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive('/master/rules') ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="ルール管理"><List size={20} /></Link>
+            <Link to="/master/accounts" className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive('/master/accounts') ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="勘定科目"><Receipt size={20} /></Link>
+            <Link to="/settings" className={`flex items-center justify-center p-2.5 rounded-md transition-colors ${isActive('/settings') ? 'bg-blue-50 text-blue-600' : 'text-gray-500 hover:bg-gray-100'}`} title="設定"><Settings size={20} /></Link>
+          </div>
+        )}
+        {!collapsed && (<>
+        {/* ───── 以下、展開時の既存メニュー ───── */}
         {/* ───────────── 業務セクション ───────────── */}
         <div className="mb-1">
           <button
@@ -516,26 +541,31 @@ function Sidebar() {
             </div>
           )}
         </div>
+        </>)}
       </nav>
 
       {/* ユーザー情報（サイドバー下部に固定） */}
       <div className="border-t border-gray-200 p-3 mt-auto">
         <div className="relative">
           <button onClick={() => setShowUserMenu(!showUserMenu)}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-gray-100 transition-colors text-left">
+            className={`w-full flex items-center ${collapsed ? 'justify-center' : 'gap-2'} px-2 py-2 rounded-lg hover:bg-gray-100 transition-colors text-left`}>
             <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
               <User size={14} className="text-blue-600" />
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
-              <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
-            </div>
-            <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{displayName}</p>
+                  <p className="text-xs text-gray-500 truncate">{displayEmail}</p>
+                </div>
+                <ChevronDown size={14} className="text-gray-400 flex-shrink-0" />
+              </>
+            )}
           </button>
           {showUserMenu && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setShowUserMenu(false)} />
-              <div className="absolute bottom-full left-0 mb-2 w-full bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+              <div className={`absolute bottom-full ${collapsed ? 'left-full ml-2' : 'left-0'} mb-2 ${collapsed ? 'w-48' : 'w-full'} bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50`}>
                 <Link to="/settings" onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">
                   <Settings size={16} /><span>設定</span>
@@ -562,8 +592,18 @@ interface LayoutProps {
 
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
-
   const { userProfile } = useAuth();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
+  });
+
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem('sidebar-collapsed', String(next)); } catch { /* noop */ }
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     if (userProfile?.role === 'viewer') {
@@ -574,7 +614,7 @@ export default function Layout({ children }: LayoutProps) {
   return (
     <div className="h-screen bg-gray-100">
       <div className="flex h-full min-w-[1280px]">
-        <Sidebar />
+        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
         <div className="flex-1 flex flex-col overflow-hidden">
           <header className="h-12 bg-white border-b border-gray-200 flex items-center justify-end px-6 flex-shrink-0">
             <NotificationBell />

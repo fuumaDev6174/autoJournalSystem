@@ -1,0 +1,1804 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>書類レビューページ モックアップ（統合版）— 全書類種別対応</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;600;700&display=swap');
+  body { font-family: 'Noto Sans JP', sans-serif; }
+  .cat-active { background: white; color: #4f46e5; font-weight: 600; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+  .cat-inactive { background: transparent; color: #6b7280; }
+  .cat-inactive:hover { color: #374151; background: rgba(255,255,255,0.5); }
+  .sub-active { border-bottom: 2px solid #4f46e5; color: #4f46e5; font-weight: 600; }
+  .sub-inactive { border-bottom: 2px solid transparent; color: #6b7280; }
+  .sub-inactive:hover { color: #374151; border-color: #d1d5db; }
+  .field-group { transition: all 0.15s ease; }
+  .field-group:focus-within { box-shadow: 0 0 0 2px rgba(99,102,241,0.3); }
+  .line-row:nth-child(even) { background: #f9fafb; }
+  .badge-pulse { animation: pulse-soft 2s infinite; }
+  @keyframes pulse-soft { 0%,100%{opacity:1} 50%{opacity:0.7} }
+  .statement-table th { position: sticky; top: 0; z-index: 10; }
+  /* カテゴリ色 */
+  .cat-income { --cat: #3b82f6; --cat-bg: #eff6ff; --cat-border: #bfdbfe; }
+  .cat-expense { --cat: #ef4444; --cat-bg: #fef2f2; --cat-border: #fecaca; }
+  .cat-deduction { --cat: #10b981; --cat-bg: #ecfdf5; --cat-border: #a7f3d0; }
+  .cat-asset { --cat: #f59e0b; --cat-bg: #fffbeb; --cat-border: #fde68a; }
+  .cat-metadata { --cat: #8b5cf6; --cat-bg: #f5f3ff; --cat-border: #c4b5fd; }
+  .cat-archive { --cat: #6b7280; --cat-bg: #f9fafb; --cat-border: #d1d5db; }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<!-- ヘッダー -->
+<header class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between sticky top-0 z-50">
+  <div class="flex items-center gap-3">
+    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">B</div>
+    <h1 class="text-lg font-bold text-gray-800">書類レビュー</h1>
+    <span class="text-xs px-2 py-0.5 bg-indigo-50 text-indigo-600 rounded-full font-medium">モックアップ（統合版）</span>
+  </div>
+  <div class="flex items-center gap-4 text-sm text-gray-500">
+    <span>顧問先: サンプル個人事業主</span>
+    <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">令和7年分 確定申告</span>
+  </div>
+</header>
+
+<!-- カテゴリタブ（第1階層） -->
+<div class="bg-gray-200/60 px-6 py-2 sticky top-[53px] z-40">
+  <nav class="flex gap-1.5" id="categoryTabs">
+    <button onclick="showCategory('income')"    data-cat="income"    class="cat-active    px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-blue-500"></span>収入系 <span class="text-[10px] opacity-60">10</span></button>
+    <button onclick="showCategory('expense')"   data-cat="expense"   class="cat-inactive  px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-red-500"></span>経費系 <span class="text-[10px] opacity-60">7</span></button>
+    <button onclick="showCategory('deduction')" data-cat="deduction" class="cat-inactive  px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>所得控除・税額控除 <span class="text-[10px] opacity-60">9</span></button>
+    <button onclick="showCategory('asset')"     data-cat="asset"     class="cat-inactive  px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-amber-500"></span>資産・償却 <span class="text-[10px] opacity-60">3</span></button>
+    <button onclick="showCategory('metadata')"  data-cat="metadata"  class="cat-inactive  px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-purple-500"></span>メタデータ抽出 <span class="text-[10px] opacity-60">13</span></button>
+    <button onclick="showCategory('archive')"   data-cat="archive"   class="cat-inactive  px-4 py-2 text-xs rounded-lg transition-all flex items-center gap-1.5">
+      <span class="w-2 h-2 rounded-full bg-gray-400"></span>保管のみ <span class="text-[10px] opacity-60">7</span></button>
+  </nav>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ1: 収入系                                                     -->
+<!-- =================================================================== -->
+<div id="cat-income" class="category-panel cat-income">
+
+<!-- サブタブ -->
+<div class="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+  <nav class="flex gap-0 min-w-max" id="income-subtabs">
+    <button onclick="showSub('income','issued_invoice')" data-sub="issued_invoice" class="sub-active   px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">発行済み請求書</button>
+    <button onclick="showSub('income','payment_record')" data-sub="payment_record" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">支払調書</button>
+    <button onclick="showSub('income','platform_csv')"   data-sub="platform_csv"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">プラットフォーム売上</button>
+    <button onclick="showSub('income','bank_statement')" data-sub="bank_statement" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">入出金明細</button>
+    <button onclick="showSub('income','salary_cert')"    data-sub="salary_cert"    class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">給与源泉徴収票</button>
+    <button onclick="showSub('income','stock_report')"   data-sub="stock_report"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">特定口座報告書</button>
+    <button onclick="showSub('income','crypto_history')" data-sub="crypto_history" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">暗号資産取引</button>
+    <button onclick="showSub('income','pension_cert')"   data-sub="pension_cert"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">年金源泉徴収票</button>
+    <button onclick="showSub('income','realestate_inc')" data-sub="realestate_inc" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">不動産収入</button>
+    <button onclick="showSub('income','insurance_mat')"  data-sub="insurance_mat"  class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap transition-all">保険満期金</button>
+  </nav>
+</div>
+
+<main class="max-w-7xl mx-auto p-6">
+
+<!-- 発行済み請求書の控え -->
+<div id="sub-income-issued_invoice" class="sub-panel">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">📤</div>
+        <div><div class="text-sm font-semibold">発行済み請求書の控え</div><div class="text-xs text-gray-400">invoice_issued_202604.pdf</div></div>
+        <span class="ml-auto text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">収入系</span>
+      </div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">📤</div><div class="text-sm">請求書控え画像</div></div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-sm">売上計上データ</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200">売上計上</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">適格</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <!-- 抽出情報 -->
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">📤 OCR抽出結果</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">請求先:</span> <span class="font-medium">株式会社ABC</span></div>
+            <div><span class="text-gray-400">請求日:</span> <span class="font-medium">2026/04/01</span></div>
+            <div><span class="text-gray-400">売上金額(税抜):</span> <span class="font-bold text-blue-900">¥500,000</span></div>
+            <div><span class="text-gray-400">消費税額:</span> <span class="font-medium">¥50,000</span></div>
+            <div><span class="text-gray-400">登録番号:</span> <span class="font-mono">T1234567890123</span></div>
+            <div><span class="text-gray-400">入金予定日:</span> <span class="font-medium text-blue-600">2026/04/30</span></div>
+          </div>
+        </div>
+        <!-- 仕訳フォーム -->
+        <div class="bg-red-50 border-[1.5px] border-red-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold flex items-center gap-1.5 mb-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span>取引先（請求先）</label>
+          <input type="text" value="株式会社ABC" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-blue-50 border-[1.5px] border-blue-200 rounded-lg p-3 field-group">
+            <label class="text-xs font-semibold mb-1.5 block">売上計上日</label>
+            <input type="date" value="2026-04-01" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+          </div>
+          <div class="bg-green-50 border-[1.5px] border-green-200 rounded-lg p-3 field-group">
+            <label class="text-xs font-semibold mb-1.5 block">売上金額（税込）</label>
+            <input type="number" value="550000" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+          </div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="text-xs font-semibold mb-1.5 block">勘定科目</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>売上高</option><option>売掛金</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税区分</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>課税売上10%</option><option>課税売上8%</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税率</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>10%</option></select></div>
+        </div>
+        <!-- 売掛金の消込チェック -->
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-indigo-800 mb-1.5">💰 入金消込</div>
+          <div class="flex items-center gap-2 text-xs">
+            <label class="flex items-center gap-1"><input type="checkbox" class="w-3.5 h-3.5 rounded" /><span>売掛金として計上（入金時に消込）</span></label>
+          </div>
+        </div>
+        <div><label class="text-xs font-semibold mb-1.5 block">摘要</label><input type="text" value="4月分 業務委託費" class="w-full border border-gray-300 rounded-lg p-2 text-sm" /></div>
+        <div class="flex gap-3 pt-3 border-t border-gray-200">
+          <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white hover:bg-gray-50">← 前へ</button>
+          <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">確認OK・次へ →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 支払調書 -->
+<div id="sub-income-payment_record" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">📋</div><div><div class="text-sm font-semibold">支払調書</div><div class="text-xs text-gray-400">payment_record_2026.pdf</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">📋</div><div class="text-sm">支払調書画像</div></div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-sm">売上突合・源泉精算</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">支払調書</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">📋 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">支払者:</span> <span class="font-medium">株式会社クライアントA</span></div>
+            <div><span class="text-gray-400">区分:</span> <span class="font-medium">報酬・料金等</span></div>
+            <div><span class="text-gray-400">支払金額:</span> <span class="font-bold text-blue-900">¥2,400,000</span></div>
+            <div><span class="text-gray-400">源泉徴収税額:</span> <span class="font-bold text-red-700">¥245,280</span></div>
+          </div>
+        </div>
+        <!-- 突合パネル -->
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-2">🔍 売上突合チェック</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>調書の支払金額</span><span class="font-bold">¥2,400,000</span></div>
+            <div class="flex justify-between"><span>計上済み売上合計（同取引先）</span><span class="font-bold">¥2,200,000</span></div>
+            <div class="flex justify-between text-red-600 border-t border-amber-200 pt-1"><span class="font-medium">差額</span><span class="font-bold">¥200,000</span></div>
+          </div>
+          <div class="mt-2 text-[10px] text-amber-700 bg-amber-100 rounded p-1.5">⚠ 差額があります。未計上の売上がないか確認してください。</div>
+        </div>
+        <!-- 源泉税精算 -->
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-red-800 mb-2">💸 源泉徴収税の精算</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">源泉徴収税額</label><input type="number" value="245280" class="w-full border border-red-300 rounded p-1.5 text-sm bg-white font-mono" /></div>
+            <div><label class="text-gray-400 block mb-0.5">確定申告での精算区分</label><select class="w-full border border-gray-300 rounded p-1.5 text-sm"><option>事業所得の源泉</option><option>雑所得の源泉</option></select></div>
+          </div>
+        </div>
+        <div><label class="text-xs font-semibold mb-1.5 block">メモ</label><textarea rows="2" placeholder="突合結果のメモ" class="w-full border border-gray-300 rounded-lg p-2 text-sm resize-none"></textarea></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- プラットフォーム売上CSV -->
+<div id="sub-income-platform_csv" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">🛒</div><div><div class="text-sm font-semibold">プラットフォーム売上CSV</div><div class="text-xs text-gray-400">amazon_sales_202604.csv</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">🛒</div><div class="text-sm">CSVプレビュー</div></div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center justify-between">
+        <div class="flex items-center gap-2"><span class="font-bold text-sm">売上・手数料明細</span><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">明細抽出</span></div>
+        <button class="text-xs px-3 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">全て承認</button>
+      </div>
+      <div class="px-4 py-2 bg-blue-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-blue-800">🛒 Amazon セラーセントラル</span>
+        <span class="text-blue-600">期間: 2026/04/01〜04/30</span>
+        <span class="ml-auto font-semibold text-blue-700">売上合計: ¥456,000 / 手数料: ¥68,400</span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left w-8">✓</th><th class="px-3 py-2 text-left">日付</th><th class="px-3 py-2 text-left">注文番号</th><th class="px-3 py-2 text-right">売上額</th><th class="px-3 py-2 text-right text-red-600">手数料</th><th class="px-3 py-2 text-right text-blue-600">入金額</th><th class="px-3 py-2 text-left">勘定科目</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" checked class="w-3.5 h-3.5 text-green-600 rounded" /></td><td>04/03</td><td class="font-mono text-gray-500">503-123456</td><td class="text-right font-medium">¥12,800</td><td class="text-right text-red-600">-¥1,920</td><td class="text-right text-blue-600 font-medium">¥10,880</td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option selected>売上高</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/05</td><td class="font-mono text-gray-500">503-234567</td><td class="text-right font-medium">¥8,500</td><td class="text-right text-red-600">-¥1,275</td><td class="text-right text-blue-600 font-medium">¥7,225</td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option selected>売上高</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs flex justify-between">
+        <div class="flex gap-4"><span>売上: <b class="text-blue-700">¥21,300</b></span><span>手数料: <b class="text-red-600">-¥3,195</b></span><span>入金: <b>¥18,105</b></span></div>
+        <div class="text-[10px] text-gray-500">手数料は「支払手数料」で自動仕訳</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 銀行入出金明細 -->
+<div id="sub-income-bank_statement" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏦</div><div><div class="text-sm font-semibold">銀行口座の入出金明細</div><div class="text-xs text-gray-400">bank_202604.jpg</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">🏦</div><div class="text-sm">通帳画像</div></div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center justify-between">
+        <div class="flex items-center gap-2"><span class="font-bold text-sm">入出金明細レビュー</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">突合・消込</span></div>
+        <button class="text-xs px-3 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">全て承認</button>
+      </div>
+      <div class="px-4 py-2 bg-emerald-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-emerald-800">🏦 みずほ銀行 渋谷支店 普通 1234567</span>
+        <span class="ml-auto font-semibold text-emerald-700">残高: ¥3,456,789</span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left w-8">✓</th><th class="px-3 py-2 text-left">日付</th><th class="px-3 py-2 text-left">摘要</th><th class="px-3 py-2 text-left">取引先</th><th class="px-3 py-2 text-right">出金</th><th class="px-3 py-2 text-right">入金</th><th class="px-3 py-2 text-left">勘定科目</th><th class="px-3 py-2 text-center">消込</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded" /></td><td>04/01</td><td>家賃 4月分</td><td><input type="text" value="ABCビル管理" class="w-full border border-gray-200 rounded px-1.5 py-1 text-xs" /></td><td class="text-right text-red-600 font-medium">¥150,000</td><td class="text-right text-gray-300">-</td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option selected>地代家賃</option></select></td><td class="text-center">-</td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50 bg-green-50/30"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/05</td><td>振込 カ）ABC</td><td><input type="text" value="株式会社ABC" class="w-full border border-gray-200 rounded px-1.5 py-1 text-xs" /></td><td class="text-right text-gray-300">-</td><td class="text-right text-blue-600 font-medium">¥550,000</td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option>売掛金</option><option selected>売上高</option></select></td><td class="text-center"><span class="text-green-600 text-xs cursor-pointer hover:underline">消込</span></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs flex gap-4">
+        <span>出金: <b class="text-red-600">¥150,000</b></span><span>入金: <b class="text-blue-600">¥550,000</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 給与所得の源泉徴収票 -->
+<div id="sub-income-salary_cert" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">💼</div><div><div class="text-sm font-semibold">給与所得の源泉徴収票</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">💼</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">給与所得の計算</span><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">所得計算</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">💼 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">支払者:</span> <span class="font-medium">株式会社サンプル</span></div>
+            <div><span class="text-gray-400">支払金額:</span> <span class="font-bold text-blue-900">¥4,800,000</span></div>
+            <div><span class="text-gray-400">源泉徴収税額:</span> <span class="font-bold text-red-700">¥128,400</span></div>
+            <div><span class="text-gray-400">社会保険料等:</span> <span class="font-medium">¥680,000</span></div>
+          </div>
+        </div>
+        <!-- 給与所得計算パネル -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">📊 給与所得の自動計算</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>支払金額</span><span class="font-medium">¥4,800,000</span></div>
+            <div class="flex justify-between text-gray-500"><span>給与所得控除額</span><span>-¥1,400,000</span></div>
+            <div class="flex justify-between border-t pt-1 font-bold"><span>給与所得</span><span class="text-blue-700">¥3,400,000</span></div>
+          </div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-red-800 mb-1">源泉徴収税額（確定申告で精算）</div>
+          <div class="text-lg font-bold text-red-700">¥128,400</div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 特定口座年間取引報告書 -->
+<div id="sub-income-stock_report" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">📈</div><div><div class="text-sm font-semibold">特定口座年間取引報告書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📈</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">譲渡所得・配当所得</span><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">所得計算</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">📈 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">証券会社:</span> <span class="font-medium">SBI証券</span></div>
+            <div><span class="text-gray-400">口座種別:</span> <span class="font-medium">特定口座（源泉あり）</span></div>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+            <div class="text-xs font-semibold text-green-800 mb-2">譲渡所得</div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span>譲渡益</span><span class="font-bold">¥320,000</span></div>
+              <div class="flex justify-between text-red-600"><span>源泉所得税</span><span>¥48,945</span></div>
+              <div class="flex justify-between text-red-600"><span>住民税</span><span>¥16,000</span></div>
+            </div>
+          </div>
+          <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <div class="text-xs font-semibold text-purple-800 mb-2">配当所得</div>
+            <div class="space-y-1 text-xs">
+              <div class="flex justify-between"><span>配当金額</span><span class="font-bold">¥85,000</span></div>
+              <div class="flex justify-between text-red-600"><span>源泉所得税</span><span>¥13,003</span></div>
+              <div class="flex justify-between text-red-600"><span>住民税</span><span>¥4,250</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-1">申告方法の選択</div>
+          <div class="flex gap-2 mt-1.5">
+            <button class="px-3 py-1.5 text-xs rounded-lg border-2 border-amber-500 bg-amber-50 text-amber-700 font-medium">申告不要</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">総合課税</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">申告分離課税</button>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 暗号資産 -->
+<div id="sub-income-crypto_history" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-orange-100 flex items-center justify-center text-sm">🪙</div><div><div class="text-sm font-semibold">暗号資産の年間取引履歴</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🪙</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">暗号資産 損益計算</span><span class="text-xs px-2 py-0.5 rounded bg-orange-50 text-orange-700">雑所得</span></div>
+      <div class="px-4 py-2 bg-orange-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-orange-800">🪙 bitFlyer</span>
+        <span class="ml-auto font-semibold text-orange-700">年間損益: <span class="text-green-700">+¥180,000</span></span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left">日付</th><th class="px-3 py-2 text-left">通貨</th><th class="px-3 py-2 text-left">種別</th><th class="px-3 py-2 text-right">取得価額</th><th class="px-3 py-2 text-right">売却価額</th><th class="px-3 py-2 text-right">損益</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">04/10</td><td>BTC</td><td>売却</td><td class="text-right">¥500,000</td><td class="text-right">¥620,000</td><td class="text-right text-green-600 font-medium">+¥120,000</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">06/15</td><td>ETH</td><td>売却</td><td class="text-right">¥300,000</td><td class="text-right">¥360,000</td><td class="text-right text-green-600 font-medium">+¥60,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs">
+        <div class="flex justify-between"><span>雑所得（暗号資産）合計</span><span class="font-bold text-green-700">¥180,000</span></div>
+        <div class="text-[10px] text-gray-500 mt-1">※ 総平均法で計算。移動平均法の場合は設定で切替可能</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 年金 -->
+<div id="sub-income-pension_cert" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">👴</div><div><div class="text-sm font-semibold">公的年金等の源泉徴収票</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">👴</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">雑所得（年金）</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">👴 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">年金種別:</span> <span class="font-medium">老齢基礎年金＋老齢厚生年金</span></div>
+            <div><span class="text-gray-400">年金額:</span> <span class="font-bold text-blue-900">¥1,800,000</span></div>
+            <div><span class="text-gray-400">源泉徴収税額:</span> <span class="font-bold text-red-700">¥32,000</span></div>
+            <div><span class="text-gray-400">社会保険料:</span> <span class="font-medium">¥120,000</span></div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">📊 雑所得（年金）自動計算</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>年金収入</span><span>¥1,800,000</span></div>
+            <div class="flex justify-between text-gray-500"><span>公的年金等控除額</span><span>-¥1,100,000</span></div>
+            <div class="flex justify-between border-t pt-1 font-bold"><span>雑所得</span><span class="text-blue-700">¥700,000</span></div>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 不動産収入 -->
+<div id="sub-income-realestate_inc" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">🏠</div><div><div class="text-sm font-semibold">不動産収入の入金記録</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏠</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">不動産収入明細</span><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">不動産所得</span></div>
+      <div class="px-4 py-2 bg-blue-50 border-b text-xs"><span class="font-medium text-blue-800">🏠 物件: サンプルマンション 101号室</span></div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left w-8">✓</th><th class="px-3 py-2 text-left">月</th><th class="px-3 py-2 text-left">入居者</th><th class="px-3 py-2 text-right">家賃</th><th class="px-3 py-2 text-right">共益費</th><th class="px-3 py-2 text-right">合計</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded" /></td><td>4月</td><td>田中太郎</td><td class="text-right">¥80,000</td><td class="text-right">¥5,000</td><td class="text-right font-medium">¥85,000</td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded" /></td><td>5月</td><td>田中太郎</td><td class="text-right">¥80,000</td><td class="text-right">¥5,000</td><td class="text-right font-medium">¥85,000</td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs">年間収入合計: <b>¥1,020,000</b></div>
+    </div>
+  </div>
+</div>
+
+<!-- 保険満期金 -->
+<div id="sub-income-insurance_mat" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-sm">🛡</div><div><div class="text-sm font-semibold">保険満期金の支払証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🛡</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">一時所得の計算</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🛡 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">保険会社:</span> <span class="font-medium">日本生命</span></div>
+            <div><span class="text-gray-400">満期金額:</span> <span class="font-bold text-blue-900">¥3,000,000</span></div>
+            <div><span class="text-gray-400">既払込保険料:</span> <span class="font-medium">¥2,400,000</span></div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">📊 一時所得の自動計算</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>満期金額</span><span>¥3,000,000</span></div>
+            <div class="flex justify-between text-gray-500"><span>既払込保険料</span><span>-¥2,400,000</span></div>
+            <div class="flex justify-between text-gray-500"><span>特別控除額</span><span>-¥500,000</span></div>
+            <div class="flex justify-between border-t pt-1"><span>一時所得</span><span>¥100,000</span></div>
+            <div class="flex justify-between font-bold"><span>総所得に算入（1/2）</span><span class="text-blue-700">¥50,000</span></div>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ2: 経費系                                                     -->
+<!-- =================================================================== -->
+<div id="cat-expense" class="category-panel cat-expense hidden">
+<div class="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+  <nav class="flex gap-0 min-w-max" id="expense-subtabs">
+    <button onclick="showSub('expense','receipt')"     data-sub="receipt"     class="sub-active   px-3 py-2.5 text-[11px] whitespace-nowrap">レシート・領収書</button>
+    <button onclick="showSub('expense','pdf_invoice')"  data-sub="pdf_invoice"  class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">電子領収書・PDF請求書</button>
+    <button onclick="showSub('expense','credit_card')" data-sub="credit_card" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">クレカ明細</button>
+    <button onclick="showSub('expense','emoney')"      data-sub="emoney"      class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">電子マネー・QR</button>
+    <button onclick="showSub('expense','inventory')"   data-sub="inventory"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">期末棚卸表</button>
+    <button onclick="showSub('expense','recv_invoice')" data-sub="recv_invoice" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">受領インボイス</button>
+    <button onclick="showSub('expense','tax_interim')" data-sub="tax_interim" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">消費税中間納付</button>
+  </nav>
+</div>
+<main class="max-w-7xl mx-auto p-6">
+
+<!-- レシート -->
+<div id="sub-expense-receipt" class="sub-panel">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">🧾</div>
+        <div><div class="text-sm font-semibold">レシート・領収書</div><div class="text-xs text-gray-400">receipt_20260401_001.jpg</div></div>
+        <span class="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">AI信頼度 92%</span>
+      </div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">🧾</div><div class="text-sm">レシート画像プレビュー</div><div class="text-xs mt-1">ズーム / 回転操作</div></div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-sm">仕訳データ</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">日常経費</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-teal-50 text-teal-700">但: 文房具代として</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">適格</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-2">🧾 OCR読取結果</div>
+          <div class="grid grid-cols-3 gap-2 text-xs mb-2">
+            <div><span class="text-gray-400">店舗:</span> <span class="font-medium">コンビニABC 渋谷店</span></div>
+            <div><span class="text-gray-400">日付:</span> <span class="font-medium">2026/04/01</span></div>
+            <div><span class="text-gray-400">合計:</span> <span class="font-bold text-amber-900">¥1,280</span></div>
+          </div>
+          <details class="text-xs">
+            <summary class="cursor-pointer text-amber-700 font-medium hover:underline">明細 3品目</summary>
+            <table class="w-full mt-1.5 text-xs">
+              <thead><tr class="text-gray-400"><th class="text-left py-0.5">品名</th><th class="text-right">数量</th><th class="text-right">単価</th><th class="text-right">金額</th><th class="text-right">税率</th></tr></thead>
+              <tbody>
+                <tr><td>ボールペン</td><td class="text-right">2</td><td class="text-right">¥150</td><td class="text-right">¥300</td><td class="text-right">10%</td></tr>
+                <tr><td>コピー用紙A4</td><td class="text-right">1</td><td class="text-right">¥880</td><td class="text-right">¥880</td><td class="text-right">10%</td></tr>
+                <tr><td>お茶 500ml</td><td class="text-right">1</td><td class="text-right">¥100</td><td class="text-right">¥100</td><td class="text-right">8%</td></tr>
+              </tbody>
+              <tfoot><tr class="border-t border-amber-300 font-medium"><td colspan="3">合計</td><td class="text-right">¥1,280</td><td></td></tr></tfoot>
+            </table>
+          </details>
+        </div>
+        <div class="bg-red-50 border-[1.5px] border-red-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold flex items-center gap-1.5 mb-1.5"><span class="w-2 h-2 rounded-full bg-red-500"></span>取引先 <span class="text-red-400 text-[10px]">必須</span></label>
+          <input type="text" value="コンビニABC 渋谷店" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-blue-50 border-[1.5px] border-blue-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">取引日</label><input type="date" value="2026-04-01" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+          <div class="bg-green-50 border-[1.5px] border-green-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">金額（税込）</label><input type="number" value="1280" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="text-xs font-semibold mb-1.5 block">勘定科目</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>消耗品費</option><option>事務用品費</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税区分</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>課対仕入10%</option><option>課対仕入8%</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税率</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>10%</option><option>8%（軽）</option></select></div>
+        </div>
+        <div class="bg-orange-50 border border-orange-300 rounded-lg p-2.5 flex items-start gap-2">
+          <span class="text-orange-500 text-sm mt-0.5">⚠️</span>
+          <div class="text-xs text-orange-800">
+            <div class="font-semibold mb-0.5">軽減税率(8%)品目を検出</div>
+            <div>「お茶 500ml ¥100」は軽減税率8%対象です。税率混在の場合は分割仕訳を検討してください。</div>
+            <button class="mt-1.5 px-3 py-1 bg-orange-200 hover:bg-orange-300 rounded text-orange-800 font-medium text-[10px]">税率別に自動分割</button>
+          </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-xs font-semibold mb-1.5 block">品目</label><input type="text" value="文房具" class="w-full border border-gray-300 rounded-lg p-2 text-sm" /></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">摘要</label><input type="text" value="文房具代として" class="w-full border border-gray-300 rounded-lg p-2 text-sm" /></div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <label class="text-xs font-semibold mb-1.5 block">💳 支払方法（OCR検出）</label>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 text-xs rounded-lg border-2 border-indigo-500 bg-indigo-50 text-indigo-700 font-medium">現金</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">クレジットカード</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">電子マネー</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">銀行振込</button>
+          </div>
+        </div>
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-1"><label class="text-xs font-semibold text-blue-800">家事按分（事業用割合）</label><span class="text-sm font-bold text-blue-700">100%</span></div>
+          <input type="range" min="0" max="100" value="100" class="w-full h-2 rounded-lg appearance-none bg-blue-200 accent-blue-500" />
+        </div>
+        <div class="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
+          <div class="flex border border-gray-300 rounded-lg overflow-hidden"><button class="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white">事業用</button><button class="px-4 py-1.5 text-xs font-medium bg-white text-gray-600">プライベート</button></div>
+          <label class="flex items-center gap-1.5 cursor-pointer"><input type="checkbox" class="w-4 h-4 text-blue-600 rounded" /><span class="text-xs font-medium">ルール追加</span></label>
+        </div>
+        <div class="flex gap-3 pt-3 border-t border-gray-200">
+          <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white hover:bg-gray-50">← 前へ</button>
+          <button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700">確認OK・次へ →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 電子領収書・PDF請求書 -->
+<div id="sub-expense-pdf_invoice" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-sm">📄</div><div><div class="text-sm font-semibold">電子領収書・PDF請求書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📄</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-sm">仕訳データ</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-red-50 text-red-700">経費計上</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">適格</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-red-800 mb-2">📄 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">発行元:</span> <span class="font-medium">AWS Japan</span></div>
+            <div><span class="text-gray-400">金額(税込):</span> <span class="font-bold">¥34,560</span></div>
+            <div><span class="text-gray-400">消費税額:</span> <span class="font-medium">¥3,142</span></div>
+            <div><span class="text-gray-400">登録番号:</span> <span class="font-mono">T9876543210987</span></div>
+          </div>
+        </div>
+        <!-- インボイスパネル -->
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-xs font-semibold text-green-800">✅ インボイス情報</div>
+            <span class="text-xs px-2 py-0.5 rounded-full bg-green-200 text-green-800 font-semibold">適格請求書</span>
+          </div>
+          <div class="text-xs text-green-700">仕入税額控除 100% 適用可</div>
+        </div>
+        <div class="bg-red-50 border-[1.5px] border-red-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold mb-1.5 block">取引先</label>
+          <input type="text" value="AWS Japan" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="text-xs font-semibold mb-1.5 block">勘定科目</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>通信費</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税区分</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>課対仕入10%</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税率</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>10%</option></select></div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- クレカ明細 -->
+<div id="sub-expense-credit_card" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">💳</div><div><div class="text-sm font-semibold">クレジットカード明細</div><div class="text-xs text-gray-400">credit_202604.pdf</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">💳</div><div class="text-sm">クレカ明細画像</div></div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center justify-between">
+        <div class="flex items-center gap-2"><span class="font-bold text-sm">明細一括レビュー</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">クレカ明細</span></div>
+        <button class="text-xs px-3 py-1 bg-indigo-50 text-indigo-700 rounded font-medium">全て承認</button>
+      </div>
+      <div class="px-4 py-2 bg-purple-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-purple-800">💳 三井住友VISAカード ****-1234</span>
+        <span class="text-purple-600">引落日: 2026/05/26</span>
+        <span class="ml-auto font-semibold text-purple-700">今月利用額: ¥234,567</span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left w-8">✓</th><th class="px-3 py-2 text-left">利用日</th><th class="px-3 py-2 text-left">利用先</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2 text-left">勘定科目</th><th class="px-3 py-2 text-left">税区分</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" checked class="w-3.5 h-3.5 text-green-600 rounded" /></td><td>04/02</td><td class="font-medium">Amazon.co.jp</td><td class="text-right font-medium">¥12,800</td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option selected>消耗品費</option></select></td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option>課対仕入10%</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/05</td><td class="font-medium">JR東日本(モバイルSuica)</td><td class="text-right font-medium">¥3,200</td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option selected>旅費交通費</option></select></td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option>課対仕入10%</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/08</td><td class="font-medium">スターバックス 渋谷</td><td class="text-right font-medium">¥1,560</td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option selected>会議費</option></select></td><td><select class="w-full border border-gray-200 rounded px-1 py-1 text-xs"><option>課対仕入8%</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs flex justify-between">
+        <span>利用合計: <b>¥17,560</b> / 3件</span><span class="text-green-600">確認済: 1件</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 電子マネー・QR -->
+<div id="sub-expense-emoney" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-pink-100 flex items-center justify-center text-sm">📱</div><div><div class="text-sm font-semibold">電子マネー・QR決済</div><div class="text-xs text-gray-400">paypay_202604.pdf</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">📱</div><div class="text-sm">電子マネー明細</div></div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">電子マネー明細レビュー</span><span class="text-xs px-2 py-0.5 rounded bg-pink-50 text-pink-700 border border-pink-200">QR決済</span></div>
+      <div class="px-4 py-2 bg-pink-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-pink-800">📱 PayPay</span>
+        <span class="text-pink-600">アカウント: user@example.com</span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left w-8">✓</th><th class="px-3 py-2 text-left">日時</th><th class="px-3 py-2 text-left">利用先</th><th class="px-3 py-2 text-right">金額</th><th class="px-3 py-2 text-left">勘定科目</th><th class="px-3 py-2 text-left">税区分</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/02 12:30</td><td class="font-medium">ファミリーマート 青山店</td><td class="text-right font-medium">¥540</td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option selected>会議費</option></select></td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option>課対仕入8%</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+            <tr class="line-row border-b border-gray-100 hover:bg-blue-50"><td class="px-3 py-2.5"><input type="checkbox" class="w-3.5 h-3.5 rounded" /></td><td>04/05 18:45</td><td class="font-medium">タクシーGO</td><td class="text-right font-medium">¥2,800</td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option selected>旅費交通費</option></select></td><td><select class="border border-gray-200 rounded px-1 py-1 text-xs"><option>課対仕入10%</option></select></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-gray-50 text-xs">合計: <b>¥3,340</b> / 2件</div>
+    </div>
+  </div>
+</div>
+
+<!-- 期末棚卸表 -->
+<div id="sub-expense-inventory" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6 m-0" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">📦</div><div><div class="text-sm font-semibold">期末棚卸表</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📦</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">棚卸資産・売上原価計算</span><span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">売上原価</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-2">📦 棚卸データ</div>
+          <table class="w-full text-xs">
+            <thead><tr class="text-gray-400 border-b"><th class="text-left py-1">品目</th><th class="text-right">数量</th><th class="text-right">単価</th><th class="text-right">金額</th></tr></thead>
+            <tbody>
+              <tr><td>商品A</td><td class="text-right">100</td><td class="text-right">¥500</td><td class="text-right font-medium">¥50,000</td></tr>
+              <tr><td>商品B</td><td class="text-right">50</td><td class="text-right">¥1,200</td><td class="text-right font-medium">¥60,000</td></tr>
+              <tr class="border-t font-bold"><td>合計</td><td></td><td></td><td class="text-right">¥110,000</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">📊 売上原価の計算</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>期首棚卸高</span><input type="number" value="95000" class="w-28 border border-gray-300 rounded px-1.5 py-1 text-xs text-right" /></div>
+            <div class="flex justify-between"><span>仕入高</span><span class="font-medium">¥800,000</span></div>
+            <div class="flex justify-between"><span>期末棚卸高（今回）</span><span class="font-bold text-amber-700">¥110,000</span></div>
+            <div class="flex justify-between border-t pt-1 font-bold"><span>売上原価</span><span class="text-red-700">¥785,000</span></div>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 受領インボイス -->
+<div id="sub-expense-recv_invoice" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-green-100 flex items-center justify-center text-sm">📄</div><div><div class="text-sm font-semibold">受領したインボイス</div><div class="text-xs text-gray-400">invoice_xyz_202604.pdf</div></div><span class="ml-auto text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-semibold">AI信頼度 88%</span></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-center"><div class="text-5xl mb-2">📄</div><div class="text-sm">請求書画像プレビュー</div></div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2 flex-wrap">
+        <span class="font-bold text-sm">仕訳データ</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">仕入税額控除</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-green-50 text-green-700">適格請求書</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-blue-800 mb-2">📄 請求書情報</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">請求元:</span> <span class="font-medium">株式会社XYZ</span></div>
+            <div><span class="text-gray-400">請求日:</span> <span class="font-medium">2026/04/01</span></div>
+            <div><span class="text-gray-400">請求金額:</span> <span class="font-bold text-blue-900">¥550,000</span></div>
+            <div><span class="text-gray-400">支払期限:</span> <span class="font-medium text-red-600">2026/04/30</span></div>
+          </div>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-3">
+          <div class="flex items-center justify-between mb-2"><div class="text-xs font-semibold text-green-800">✅ インボイス情報</div><span class="text-xs px-2 py-0.5 rounded-full bg-green-200 text-green-800 font-semibold">適格請求書</span></div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">登録番号</label><input type="text" value="T1234567890123" class="w-full border border-green-300 rounded p-1.5 text-sm bg-white font-mono" /></div>
+            <div><label class="text-gray-400 block mb-0.5">適格区分</label><select class="w-full border border-green-300 rounded p-1.5 text-sm bg-white"><option selected>適格請求書（100%控除）</option><option>区分記載（80%控除）</option><option>なし（控除不可）</option></select></div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-gray-700 mb-2">税率別内訳</div>
+          <table class="w-full text-xs"><thead><tr class="text-gray-400 border-b"><th class="text-left py-1">税率</th><th class="text-right">税抜金額</th><th class="text-right">消費税</th><th class="text-right">税込金額</th></tr></thead>
+          <tbody><tr><td>10%</td><td class="text-right">¥500,000</td><td class="text-right">¥50,000</td><td class="text-right font-medium">¥550,000</td></tr></tbody></table>
+        </div>
+        <div class="bg-red-50 border-[1.5px] border-red-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold mb-1.5 block">取引先</label><input type="text" value="株式会社XYZ" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+        </div>
+        <div class="grid grid-cols-3 gap-3">
+          <div><label class="text-xs font-semibold mb-1.5 block">勘定科目</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>外注費</option><option>仕入高</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税区分</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>課対仕入10%</option></select></div>
+          <div><label class="text-xs font-semibold mb-1.5 block">税率</label><select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>10%</option></select></div>
+        </div>
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div class="flex items-center gap-2 mb-2"><div class="text-xs font-semibold text-red-800">💸 源泉徴収</div><label class="flex items-center gap-1"><input type="checkbox" class="w-3.5 h-3.5 rounded" /><span class="text-xs text-red-700">源泉徴収あり</span></label></div>
+        </div>
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🏧 振込手数料</div>
+          <div class="flex gap-2">
+            <button class="px-3 py-1.5 text-xs rounded-lg border-2 border-purple-500 bg-purple-50 text-purple-700 font-medium">先方負担</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">当方負担</button>
+            <button class="px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-500">なし</button>
+          </div>
+        </div>
+        <div><label class="text-xs font-semibold mb-1.5 block">摘要</label><input type="text" value="4月分 業務委託費" class="w-full border border-gray-300 rounded-lg p-2 text-sm" /></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 消費税中間納付 -->
+<div id="sub-expense-tax_interim" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center text-sm">🏛</div><div><div class="text-sm font-semibold">消費税の中間納付書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏛</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">中間納付の控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-red-800 mb-2">🏛 抽出データ</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">納付日:</span> <span class="font-medium">2026/08/31</span></div>
+            <div><span class="text-gray-400">中間納付額:</span> <span class="font-bold text-red-900">¥150,000</span></div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs">
+          <div class="font-semibold mb-1">確定申告での取扱い</div>
+          <div class="text-gray-600">消費税の確定申告時に中間納付額として控除されます。仕訳は「仮払消費税」として計上。</div>
+        </div>
+        <div class="bg-red-50 border-[1.5px] border-red-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold mb-1.5 block">勘定科目</label>
+          <select class="w-full border border-gray-300 rounded-lg p-2 text-sm"><option selected>仮払消費税</option><option>租税公課</option></select>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-blue-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ3: 所得控除・税額控除系                                         -->
+<!-- =================================================================== -->
+<div id="cat-deduction" class="category-panel cat-deduction hidden">
+<div class="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+  <nav class="flex gap-0 min-w-max" id="deduction-subtabs">
+    <button onclick="showSub('deduction','kokuho')"      data-sub="kokuho"      class="sub-active   px-3 py-2.5 text-[11px] whitespace-nowrap">国民健康保険</button>
+    <button onclick="showSub('deduction','nenkin')"      data-sub="nenkin"      class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">国民年金</button>
+    <button onclick="showSub('deduction','shokibo')"     data-sub="shokibo"     class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">小規模共済</button>
+    <button onclick="showSub('deduction','ideco')"       data-sub="ideco"       class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">iDeCo</button>
+    <button onclick="showSub('deduction','life_ins')"    data-sub="life_ins"    class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">生命保険料</button>
+    <button onclick="showSub('deduction','earthquake')"  data-sub="earthquake"  class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">地震保険料</button>
+    <button onclick="showSub('deduction','medical')"     data-sub="medical"     class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">医療費</button>
+    <button onclick="showSub('deduction','furusato')"    data-sub="furusato"    class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">ふるさと納税</button>
+    <button onclick="showSub('deduction','housing')"     data-sub="housing"     class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">住宅ローン控除</button>
+  </nav>
+</div>
+<main class="max-w-7xl mx-auto p-6">
+
+<!-- 共通テンプレート: 控除系は抽出→控除額計算の統一パターン -->
+<!-- 国民健康保険 -->
+<div id="sub-deduction-kokuho" class="sub-panel">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏥</div><div><div class="text-sm font-semibold">国民健康保険料の納付証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏥</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2">
+        <span class="font-bold text-sm">社会保険料控除</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">所得控除</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">🏥 OCR抽出結果</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">自治体:</span> <span class="font-medium">渋谷区</span></div>
+            <div><span class="text-gray-400">対象年度:</span> <span class="font-medium">令和7年</span></div>
+            <div><span class="text-gray-400">年間納付額:</span> <span class="font-bold text-emerald-900">¥420,000</span></div>
+          </div>
+        </div>
+        <!-- 控除額パネル -->
+        <div class="bg-white border-2 border-emerald-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-emerald-800 mb-3">✅ 控除額（自動計算）</div>
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-gray-600">
+              <div>控除種別: <span class="font-medium">社会保険料控除</span></div>
+              <div class="mt-0.5 text-[10px] text-gray-400">全額控除（上限なし）</div>
+            </div>
+            <div class="text-right">
+              <div class="text-2xl font-bold text-emerald-700">¥420,000</div>
+              <div class="text-[10px] text-emerald-600">所得から控除</div>
+            </div>
+          </div>
+        </div>
+        <!-- 編集可能フィールド -->
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 field-group">
+          <label class="text-xs font-semibold mb-1.5 block">年間納付額（修正可）</label>
+          <input type="number" value="420000" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" />
+        </div>
+        <div><label class="text-xs font-semibold mb-1.5 block">メモ</label><textarea rows="2" placeholder="" class="w-full border border-gray-300 rounded-lg p-2 text-sm resize-none"></textarea></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 国民年金 -->
+<div id="sub-deduction-nenkin" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏛</div><div><div class="text-sm font-semibold">国民年金の控除証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏛</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">社会保険料控除</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">🏛 OCR抽出結果</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">発行元:</span> <span class="font-medium">日本年金機構</span></div>
+            <div><span class="text-gray-400">年間納付額:</span> <span class="font-bold text-emerald-900">¥199,080</span></div>
+          </div>
+        </div>
+        <div class="bg-white border-2 border-emerald-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-emerald-800 mb-3">✅ 控除額（全額控除・上限なし）</div>
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-gray-600">控除種別: <span class="font-medium">社会保険料控除</span></div>
+            <div class="text-2xl font-bold text-emerald-700">¥199,080</div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">年間納付額（修正可）</label><input type="number" value="199080" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 小規模企業共済 -->
+<div id="sub-deduction-shokibo" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏢</div><div><div class="text-sm font-semibold">小規模企業共済の控除証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏢</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">小規模企業共済等掛金控除</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">🏢 OCR抽出結果</div>
+          <div class="text-xs"><span class="text-gray-400">年間掛金額:</span> <span class="font-bold text-emerald-900">¥840,000</span> <span class="text-gray-400">(月額 ¥70,000)</span></div>
+        </div>
+        <div class="bg-white border-2 border-emerald-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-emerald-800 mb-3">✅ 控除額（全額控除・上限なし）</div>
+          <div class="flex items-center justify-between"><div class="text-xs text-gray-600">控除種別: <span class="font-medium">小規模企業共済等掛金控除</span></div><div class="text-2xl font-bold text-emerald-700">¥840,000</div></div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">年間掛金額（修正可）</label><input type="number" value="840000" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- iDeCo -->
+<div id="sub-deduction-ideco" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">💎</div><div><div class="text-sm font-semibold">iDeCoの控除証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">💎</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">小規模企業共済等掛金控除</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">💎 OCR抽出結果</div>
+          <div class="text-xs"><span class="text-gray-400">年間掛金額:</span> <span class="font-bold text-emerald-900">¥276,000</span> <span class="text-gray-400">(月額 ¥23,000 / 上限)</span></div>
+        </div>
+        <div class="bg-white border-2 border-emerald-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-emerald-800 mb-3">✅ 控除額（全額控除）</div>
+          <div class="flex items-center justify-between"><div class="text-xs text-gray-600">控除種別: <span class="font-medium">小規模企業共済等掛金控除（iDeCo）</span></div><div class="text-2xl font-bold text-emerald-700">¥276,000</div></div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">年間掛金額（修正可）</label><input type="number" value="276000" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 生命保険料（特殊: 区分別計算） -->
+<div id="sub-deduction-life_ins" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">📑</div><div><div class="text-sm font-semibold">生命保険料の控除証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📑</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">生命保険料控除の計算</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">📑 OCR抽出結果</div>
+          <div class="text-xs"><span class="text-gray-400">保険会社:</span> <span class="font-medium">日本生命</span></div>
+        </div>
+        <!-- 生命保険料特有: 3区分の抽出 -->
+        <div class="border border-gray-200 rounded-lg overflow-hidden">
+          <div class="px-3 py-2 bg-gray-50 border-b text-xs font-bold">区分別保険料</div>
+          <table class="w-full text-xs">
+            <thead><tr class="border-b text-gray-400"><th class="px-3 py-1.5 text-left">区分</th><th class="px-3 py-1.5 text-center">新/旧</th><th class="px-3 py-1.5 text-right">年間保険料</th><th class="px-3 py-1.5 text-right">控除額</th></tr></thead>
+            <tbody>
+              <tr class="border-b border-gray-50"><td class="px-3 py-2">一般生命保険料</td><td class="px-3 py-2 text-center"><select class="border border-gray-200 rounded px-1 py-0.5 text-xs"><option selected>新制度</option><option>旧制度</option></select></td><td class="px-3 py-2 text-right"><input type="number" value="120000" class="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td><td class="px-3 py-2 text-right font-bold text-emerald-700">¥40,000</td></tr>
+              <tr class="border-b border-gray-50"><td class="px-3 py-2">介護医療保険料</td><td class="px-3 py-2 text-center"><span class="text-gray-400">新のみ</span></td><td class="px-3 py-2 text-right"><input type="number" value="36000" class="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td><td class="px-3 py-2 text-right font-bold text-emerald-700">¥28,000</td></tr>
+              <tr class="border-b border-gray-50"><td class="px-3 py-2">個人年金保険料</td><td class="px-3 py-2 text-center"><select class="border border-gray-200 rounded px-1 py-0.5 text-xs"><option selected>新制度</option><option>旧制度</option></select></td><td class="px-3 py-2 text-right"><input type="number" value="0" class="w-24 border border-gray-200 rounded px-1.5 py-1 text-xs text-right" /></td><td class="px-3 py-2 text-right text-gray-400">¥0</td></tr>
+            </tbody>
+            <tfoot><tr class="bg-emerald-50 font-bold"><td class="px-3 py-2" colspan="3">控除額合計（上限12万円）</td><td class="px-3 py-2 text-right text-emerald-700 text-lg">¥68,000</td></tr></tfoot>
+          </table>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sub-deduction-earthquake" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏠</div><div><div class="text-sm font-semibold">地震保険料の控除証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏠</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">地震保険料控除</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">🏠 OCR抽出結果</div>
+          <div class="text-xs"><span class="text-gray-400">年間保険料:</span> <span class="font-bold text-emerald-900">¥35,000</span></div>
+        </div>
+        <div class="bg-white border-2 border-emerald-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-emerald-800 mb-3">✅ 控除額（上限5万円）</div>
+          <div class="flex items-center justify-between">
+            <div class="text-xs text-gray-600">控除種別: <span class="font-medium">地震保険料控除</span><div class="text-[10px] text-gray-400 mt-0.5">上限 ¥50,000（全額控除）</div></div>
+            <div class="text-2xl font-bold text-emerald-700">¥35,000</div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 field-group"><label class="text-xs font-semibold mb-1.5 block">年間保険料（修正可）</label><input type="number" value="35000" class="w-full border border-gray-300 rounded-lg p-2 text-sm bg-white" /></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 医療費（特殊: 明細テーブル） -->
+<div id="sub-deduction-medical" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏥</div><div><div class="text-sm font-semibold">医療費の領収書・通知書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏥</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">医療費控除の計算</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left">日付</th><th class="px-3 py-2 text-left">医療機関</th><th class="px-3 py-2 text-left">患者</th><th class="px-3 py-2 text-right">医療費</th><th class="px-3 py-2 text-right">保険補填</th><th class="px-3 py-2 text-right">自己負担</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">03/15</td><td>渋谷クリニック</td><td>本人</td><td class="text-right">¥8,500</td><td class="text-right text-gray-400">¥0</td><td class="text-right font-medium">¥8,500</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">05/20</td><td>東京総合病院</td><td>配偶者</td><td class="text-right">¥45,000</td><td class="text-right text-blue-600">-¥15,000</td><td class="text-right font-medium">¥30,000</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">08/10</td><td>渋谷歯科</td><td>本人</td><td class="text-right">¥120,000</td><td class="text-right text-gray-400">¥0</td><td class="text-right font-medium">¥120,000</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-emerald-50 text-xs">
+        <div class="space-y-1">
+          <div class="flex justify-between"><span>自己負担合計</span><span class="font-bold">¥158,500</span></div>
+          <div class="flex justify-between text-gray-500"><span>足切り額（10万円）</span><span>-¥100,000</span></div>
+          <div class="flex justify-between font-bold text-lg border-t pt-1"><span>医療費控除額</span><span class="text-emerald-700">¥58,500</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ふるさと納税 -->
+<div id="sub-deduction-furusato" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🎌</div><div><div class="text-sm font-semibold">ふるさと納税 寄附金受領証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🎌</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">寄附金控除</span><span class="text-xs px-2 py-0.5 rounded bg-emerald-50 text-emerald-700">所得控除</span></div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left">寄附日</th><th class="px-3 py-2 text-left">自治体</th><th class="px-3 py-2 text-right">寄附金額</th><th class="px-3 py-2 text-center">ワンストップ</th><th class="px-3 py-2 text-center">状態</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">03/15</td><td class="font-medium">北海道紋別市</td><td class="text-right font-medium">¥30,000</td><td class="text-center"><span class="text-gray-400">申告</span></td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">06/20</td><td class="font-medium">宮崎県都城市</td><td class="text-right font-medium">¥20,000</td><td class="text-center"><span class="text-gray-400">申告</span></td><td class="text-center"><span class="px-1.5 py-0.5 bg-green-100 text-green-700 rounded-full text-[10px]">確認済</span></td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">11/10</td><td class="font-medium">山形県天童市</td><td class="text-right font-medium">¥10,000</td><td class="text-center"><span class="text-gray-400">申告</span></td><td class="text-center"><span class="px-1.5 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px]">未確認</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-emerald-50 text-xs">
+        <div class="space-y-1">
+          <div class="flex justify-between"><span>寄附金合計</span><span class="font-bold">¥60,000</span></div>
+          <div class="flex justify-between text-gray-500"><span>自己負担額</span><span>-¥2,000</span></div>
+          <div class="flex justify-between font-bold text-lg border-t pt-1"><span>寄附金控除額</span><span class="text-emerald-700">¥58,000</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 住宅ローン -->
+<div id="sub-deduction-housing" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-emerald-100 flex items-center justify-center text-sm">🏡</div><div><div class="text-sm font-semibold">住宅ローン年末残高証明書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏡</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">住宅ローン控除</span><span class="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700">税額控除</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-emerald-800 mb-2">🏡 OCR抽出結果</div>
+          <div class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+            <div><span class="text-gray-400">金融機関:</span> <span class="font-medium">住信SBIネット銀行</span></div>
+            <div><span class="text-gray-400">年末残高:</span> <span class="font-bold text-emerald-900">¥28,500,000</span></div>
+            <div><span class="text-gray-400">当初借入額:</span> <span class="font-medium">¥35,000,000</span></div>
+            <div><span class="text-gray-400">借入日:</span> <span class="font-medium">2024/03/15</span></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-3">✅ 税額控除額（自動計算）</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>年末残高</span><span>¥28,500,000</span></div>
+            <div class="flex justify-between text-gray-500"><span>控除率</span><span>0.7%</span></div>
+            <div class="flex justify-between"><span>控除限度額</span><span>¥210,000</span></div>
+            <div class="flex justify-between font-bold text-lg border-t pt-1"><span>税額控除額</span><span class="text-blue-700">¥199,500</span></div>
+          </div>
+          <div class="text-[10px] text-blue-600 mt-2">※ 所得税から控除しきれない分は住民税から控除（上限97,500円）</div>
+        </div>
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-1">適用要件チェック</div>
+          <div class="space-y-1 text-xs">
+            <label class="flex items-center gap-1.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded text-green-600" /><span>床面積50m²以上</span></label>
+            <label class="flex items-center gap-1.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded text-green-600" /><span>居住用（自己の居住の用に供している）</span></label>
+            <label class="flex items-center gap-1.5"><input type="checkbox" checked class="w-3.5 h-3.5 rounded text-green-600" /><span>合計所得金額2,000万円以下</span></label>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-emerald-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ4: 資産・償却系                                               -->
+<!-- =================================================================== -->
+<div id="cat-asset" class="category-panel cat-asset hidden">
+<div class="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+  <nav class="flex gap-0 min-w-max" id="asset-subtabs">
+    <button onclick="showSub('asset','fixed_asset')"   data-sub="fixed_asset"   class="sub-active   px-3 py-2.5 text-[11px] whitespace-nowrap">固定資産台帳</button>
+    <button onclick="showSub('asset','prev_return')"   data-sub="prev_return"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">前年の確定申告書</button>
+    <button onclick="showSub('asset','loan_schedule')" data-sub="loan_schedule" class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">借入金返済予定表</button>
+  </nav>
+</div>
+<main class="max-w-7xl mx-auto p-6">
+
+<!-- 固定資産台帳 -->
+<div id="sub-asset-fixed_asset" class="sub-panel">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">🏗</div><div><div class="text-sm font-semibold">固定資産台帳</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏗</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">減価償却費の計算</span><span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">資産管理</span></div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left">資産名</th><th class="px-3 py-2 text-right">取得価額</th><th class="px-3 py-2 text-center">耐用年数</th><th class="px-3 py-2 text-center">償却方法</th><th class="px-3 py-2 text-right">未償却残高</th><th class="px-3 py-2 text-right">今期償却費</th><th class="px-3 py-2 text-center">按分</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100">
+              <td class="px-3 py-2.5 font-medium">MacBook Pro</td><td class="text-right">¥350,000</td><td class="text-center">4年</td>
+              <td class="text-center"><select class="border border-gray-200 rounded px-1 py-0.5 text-xs"><option selected>定額法</option><option>定率法</option></select></td>
+              <td class="text-right">¥175,000</td><td class="text-right font-bold text-amber-700">¥87,500</td>
+              <td class="text-center"><input type="number" value="80" class="w-12 border border-gray-200 rounded px-1 py-0.5 text-xs text-center" />%</td>
+            </tr>
+            <tr class="line-row border-b border-gray-100">
+              <td class="px-3 py-2.5 font-medium">社用車</td><td class="text-right">¥2,000,000</td><td class="text-center">6年</td>
+              <td class="text-center"><select class="border border-gray-200 rounded px-1 py-0.5 text-xs"><option selected>定額法</option></select></td>
+              <td class="text-right">¥1,333,334</td><td class="text-right font-bold text-amber-700">¥333,333</td>
+              <td class="text-center"><input type="number" value="70" class="w-12 border border-gray-200 rounded px-1 py-0.5 text-xs text-center" />%</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-amber-50 text-xs flex justify-between">
+        <span>今期償却費合計: <b class="text-amber-700">¥420,833</b></span>
+        <span>按分後経費: <b class="text-amber-700">¥303,333</b></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sub-asset-prev_return" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">📝</div><div><div class="text-sm font-semibold">前年の確定申告書・決算書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📝</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">繰越・期首残高の設定</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-amber-800 mb-2">📝 抽出データ</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>繰越損失額</span><span class="font-bold text-red-700">¥-500,000</span></div>
+            <div class="flex justify-between"><span>貸倒引当金残高</span><span class="font-medium">¥30,000</span></div>
+            <div class="flex justify-between"><span>期末棚卸高</span><span class="font-medium">¥95,000</span></div>
+            <div class="flex justify-between"><span>前年所得税額</span><span class="font-medium">¥180,000</span></div>
+          </div>
+        </div>
+        <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs text-gray-600">
+          これらの値は今年の申告計算に自動引継ぎされます。修正が必要な場合は各フィールドを編集してください。
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-amber-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="sub-asset-loan_schedule" class="sub-panel hidden">
+  <div class="grid grid-cols-5 gap-6" style="height:calc(100vh - 250px)">
+    <div class="col-span-2 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center text-sm">📅</div><div><div class="text-sm font-semibold">借入金の返済予定表</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📅</div></div>
+    </div>
+    <div class="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">利子割引料の経費計上</span><span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-700">経費</span></div>
+      <div class="px-4 py-2 bg-amber-50 border-b text-xs flex items-center gap-4">
+        <span class="font-medium text-amber-800">🏦 日本政策金融公庫</span>
+        <span class="text-amber-600">借入残高: ¥4,800,000</span>
+      </div>
+      <div class="flex-1 overflow-auto">
+        <table class="w-full text-xs statement-table">
+          <thead><tr class="bg-gray-50 border-b"><th class="px-3 py-2 text-left">返済月</th><th class="px-3 py-2 text-right">返済額</th><th class="px-3 py-2 text-right">元本</th><th class="px-3 py-2 text-right text-amber-700">利息</th><th class="px-3 py-2 text-right">残高</th></tr></thead>
+          <tbody>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">2026/01</td><td class="text-right">¥95,000</td><td class="text-right text-gray-500">¥83,000</td><td class="text-right font-medium text-amber-700">¥12,000</td><td class="text-right">¥4,917,000</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">2026/02</td><td class="text-right">¥95,000</td><td class="text-right text-gray-500">¥83,200</td><td class="text-right font-medium text-amber-700">¥11,800</td><td class="text-right">¥4,833,800</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5">2026/03</td><td class="text-right">¥95,000</td><td class="text-right text-gray-500">¥83,400</td><td class="text-right font-medium text-amber-700">¥11,600</td><td class="text-right">¥4,750,400</td></tr>
+            <tr class="line-row border-b border-gray-100"><td class="px-3 py-2.5 font-medium">...</td><td colspan="4" class="text-center text-gray-400">12月まで自動抽出</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-4 py-3 border-t bg-amber-50 text-xs">
+        <div class="flex justify-between mb-1">
+          <span>年間利息合計（経費計上額）: <b class="text-amber-700">¥132,000</b></span>
+          <span class="text-gray-500">年間元本返済: ¥1,008,000（※経費にならない）</span>
+        </div>
+        <div class="text-[10px] text-amber-700 bg-amber-100 rounded p-1.5 mt-1">⚠ 元本返済額は経費ではありません。利息部分のみ「利子割引料」として計上します。</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ5: メタデータ抽出                                              -->
+<!-- =================================================================== -->
+<div id="cat-metadata" class="category-panel cat-metadata hidden">
+<div class="bg-white border-b border-gray-200 px-6 overflow-x-auto">
+  <nav class="flex gap-0 min-w-max" id="metadata-subtabs">
+    <button onclick="showSub('metadata','mynumber')"     data-sub="mynumber"     class="sub-active   px-3 py-2.5 text-[11px] whitespace-nowrap">マイナンバー</button>
+    <button onclick="showSub('metadata','kaigyo')"       data-sub="kaigyo"       class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">開業届</button>
+    <button onclick="showSub('metadata','aoiro')"        data-sub="aoiro"        class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">青色申告承認</button>
+    <button onclick="showSub('metadata','senjusha')"     data-sub="senjusha"     class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">専従者給与届出</button>
+    <button onclick="showSub('metadata','invoice_reg')"  data-sub="invoice_reg"  class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">インボイス登録</button>
+    <button onclick="showSub('metadata','kanizei')"      data-sub="kanizei"      class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">簡易課税届出</button>
+    <button onclick="showSub('metadata','tanaoroshi')"   data-sub="tanaoroshi"   class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">棚卸評価方法</button>
+    <button onclick="showSub('metadata','shoukyaku')"    data-sub="shoukyaku"    class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">償却方法</button>
+    <button onclick="showSub('metadata','chintai')"      data-sub="chintai"      class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">賃貸借契約書</button>
+    <button onclick="showSub('metadata','gaichuu')"      data-sub="gaichuu"      class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">業務委託契約</button>
+    <button onclick="showSub('metadata','fudosan_c')"    data-sub="fudosan_c"    class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">不動産契約</button>
+    <button onclick="showSub('metadata','lease')"        data-sub="lease"        class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">リース契約</button>
+    <button onclick="showSub('metadata','shaken')"       data-sub="shaken"       class="sub-inactive px-3 py-2.5 text-[11px] whitespace-nowrap">車検証</button>
+  </nav>
+</div>
+<main class="max-w-7xl mx-auto p-6">
+
+<!-- メタデータ共通パターン: 画像 + 設定パネル -->
+<div id="sub-metadata-mynumber" class="sub-panel">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🪪</div><div><div class="text-sm font-semibold">マイナンバーカード</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🪪</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2">
+        <span class="font-bold text-sm">メタデータ抽出</span>
+        <span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200">設定情報</span>
+        <span class="ml-auto text-[10px] text-gray-400">※ 仕訳は生成されません</span>
+      </div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🪪 抽出データ → 申告書自動記入</div>
+          <div class="space-y-2">
+            <div class="grid grid-cols-2 gap-2 text-xs">
+              <div><label class="text-gray-400 block mb-0.5">マイナンバー</label><input type="text" value="1234 5678 9012" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white font-mono" /></div>
+              <div><label class="text-gray-400 block mb-0.5">氏名</label><input type="text" value="山田 太郎" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+              <div><label class="text-gray-400 block mb-0.5">住所</label><input type="text" value="東京都渋谷区..." class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+              <div><label class="text-gray-400 block mb-0.5">生年月日</label><input type="date" value="1985-03-15" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            </div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
+          <div class="font-semibold mb-1">📌 システムでの用途</div>
+          <ul class="list-disc list-inside space-y-0.5 text-indigo-700">
+            <li>確定申告書への氏名・住所・マイナンバー自動記入</li>
+            <li>e-Tax連携時の本人確認情報</li>
+          </ul>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 開業届 -->
+<div id="sub-metadata-kaigyo" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📋</div><div><div class="text-sm font-semibold">開業届の控え</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📋</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📋 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">事業開始日</label><input type="date" value="2026-01-15" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">届出日</label><input type="date" value="2026-02-01" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">業種</label><input type="text" value="IT・ソフトウェア開発" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
+          <div class="font-semibold mb-1">📌 システムでの用途</div>
+          <ul class="list-disc list-inside space-y-0.5 text-indigo-700">
+            <li>年途中開業の場合の月数按分計算に使用</li>
+            <li>事業所得の判定</li>
+          </ul>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 青色申告承認 -->
+<div id="sub-metadata-aoiro" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📘</div><div><div class="text-sm font-semibold">青色申告承認申請書の控え</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📘</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📘 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">承認日</label><input type="date" value="2026-02-15" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">簿記方式</label>
+              <select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white">
+                <option selected>複式簿記</option><option>簡易簿記</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <!-- 青色特有: 控除額フラグの自動判定 -->
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 青色申告特別控除額（自動判定）</div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 text-xs rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold">65万円</button>
+            <button class="px-4 py-2 text-xs rounded-lg border border-gray-300 text-gray-500">55万円</button>
+            <button class="px-4 py-2 text-xs rounded-lg border border-gray-300 text-gray-500">10万円</button>
+          </div>
+          <div class="text-[10px] text-blue-600 mt-2">複式簿記 + e-Tax提出 → 65万円控除が適用されます</div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 専従者給与 -->
+<div id="sub-metadata-senjusha" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">👥</div><div><div class="text-sm font-semibold">専従者給与の届出書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">👥</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">👥 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">専従者氏名</label><input type="text" value="山田 花子" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">続柄</label><input type="text" value="配偶者" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">届出上限額（月額）</label><input type="number" value="80000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">届出上限額（年額）</label><input type="number" value="960000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white font-bold" /></div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800">
+          <div class="font-semibold mb-1">📌 システムでの用途</div>
+          <ul class="list-disc list-inside space-y-0.5 text-indigo-700"><li>専従者給与の経費計上上限チェック</li><li>上限超過時に警告表示</li></ul>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- インボイス登録 -->
+<div id="sub-metadata-invoice_reg" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🧾</div><div><div class="text-sm font-semibold">インボイス登録通知書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🧾</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🧾 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">登録番号</label><input type="text" value="T1234567890123" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white font-mono font-bold" /></div>
+            <div><label class="text-gray-400 block mb-0.5">登録日</label><input type="date" value="2023-10-01" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 自動設定</div>
+          <div class="space-y-1.5 text-xs">
+            <label class="flex items-center gap-2"><input type="checkbox" checked class="w-3.5 h-3.5 rounded text-blue-600" /><span>課税事業者フラグ ON</span></label>
+            <label class="flex items-center gap-2"><input type="checkbox" checked class="w-3.5 h-3.5 rounded text-blue-600" /><span>発行インボイスに登録番号を自動記入</span></label>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 簡易課税 -->
+<div id="sub-metadata-kanizei" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📊</div><div><div class="text-sm font-semibold">簡易課税選択届出書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📊</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📊 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">届出日</label><input type="date" value="2025-12-20" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">適用開始課税期間</label><input type="text" value="令和8年1月1日〜" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 消費税計算方法の分岐</div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 text-xs rounded-lg border border-gray-300 text-gray-500">原則課税</button>
+            <button class="px-4 py-2 text-xs rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold">簡易課税</button>
+          </div>
+          <div class="text-[10px] text-blue-600 mt-2">この届出により令和8年分から簡易課税が適用されます</div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 棚卸評価方法 -->
+<div id="sub-metadata-tanaoroshi" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📦</div><div><div class="text-sm font-semibold">棚卸資産の評価方法届出書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📦</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📦 抽出データ</div>
+          <div><label class="text-xs text-gray-400 block mb-0.5">評価方法</label><select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white"><option selected>最終仕入原価法</option><option>先入先出法</option><option>総平均法</option><option>移動平均法</option><option>個別法</option></select></div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"><div class="font-semibold mb-1">📌 用途</div><div class="text-indigo-700">棚卸資産の評価計算ロジックをこの方法で切替</div></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 償却方法 -->
+<div id="sub-metadata-shoukyaku" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🔧</div><div><div class="text-sm font-semibold">償却方法の届出書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🔧</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🔧 抽出データ</div>
+          <div><label class="text-xs text-gray-400 block mb-0.5">償却方法</label><select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white"><option selected>定額法</option><option>定率法</option></select></div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"><div class="font-semibold mb-1">📌 用途</div><div class="text-indigo-700">減価償却費の計算ロジックを定額法/定率法で切替。届出がない場合は法定償却方法（個人は定額法）。</div></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 賃貸借契約書 -->
+<div id="sub-metadata-chintai" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🏠</div><div><div class="text-sm font-semibold">賃貸借契約書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏠</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🏠 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">家賃（月額）</label><input type="number" value="120000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">物件面積</label><input type="text" value="65m²（2LDK）" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">契約者名</label><input type="text" value="山田 太郎" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">事業使用面積</label><input type="text" value="12m²（1部屋）" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 家事按分の自動算出</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>事業使用面積 / 総面積</span><span>12m² / 65m²</span></div>
+            <div class="flex justify-between font-bold text-lg border-t pt-1"><span>按分比率</span><span class="text-blue-700">18.5%</span></div>
+            <div class="flex justify-between text-gray-500"><span>月額経費（家賃 × 按分率）</span><span>¥22,200</span></div>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 外注・業務委託契約 -->
+<div id="sub-metadata-gaichuu" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📝</div><div><div class="text-sm font-semibold">外注・業務委託契約書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📝</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📝 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">契約先</label><input type="text" value="フリーランス 佐藤" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">業務内容</label><input type="text" value="Webデザイン制作" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">源泉徴収</label><select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white"><option selected>必要</option><option>不要</option></select></div>
+            <div><label class="text-gray-400 block mb-0.5">勘定科目区分</label><select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white"><option selected>外注費</option><option>給与（実態判定）</option></select></div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"><div class="font-semibold mb-1">📌 用途</div><ul class="list-disc list-inside space-y-0.5 text-indigo-700"><li>外注費/給与の区分判定</li><li>源泉徴収処理の要否を自動設定</li></ul></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 不動産契約 -->
+<div id="sub-metadata-fudosan_c" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🏢</div><div><div class="text-sm font-semibold">不動産の賃貸契約書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🏢</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🏢 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">物件名</label><input type="text" value="サンプルマンション 101" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">家賃</label><input type="number" value="80000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">契約期間</label><input type="text" value="2024/04/01〜2026/03/31" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">敷金/保証金</label><input type="number" value="160000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"><div class="font-semibold mb-1">📌 用途</div><div class="text-indigo-700">不動産所得の計上要件確認・賃貸条件の整合チェック</div></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- リース契約 -->
+<div id="sub-metadata-lease" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">📋</div><div><div class="text-sm font-semibold">リース契約書</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">📋</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">📋 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">リース期間</label><input type="text" value="60ヶ月" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">月額リース料</label><input type="number" value="25000" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">リース種別</label><select class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white"><option selected>オペレーティング</option><option>ファイナンス</option></select></div>
+            <div><label class="text-gray-400 block mb-0.5">対象物件</label><input type="text" value="複合機" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 経費計上方法の判定</div>
+          <div class="flex gap-2">
+            <button class="px-4 py-2 text-xs rounded-lg border-2 border-blue-500 bg-blue-50 text-blue-700 font-bold">賃貸借処理（月額経費）</button>
+            <button class="px-4 py-2 text-xs rounded-lg border border-gray-300 text-gray-500">売買処理（資産計上）</button>
+          </div>
+        </div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 車検証 -->
+<div id="sub-metadata-shaken" class="sub-panel hidden">
+  <div class="grid grid-cols-2 gap-6" style="height:calc(100vh - 250px)">
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><div class="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center text-sm">🚗</div><div><div class="text-sm font-semibold">車検証</div></div></div>
+      <div class="flex-1 bg-gray-50 flex items-center justify-center text-gray-300"><div class="text-5xl">🚗</div></div>
+    </div>
+    <div class="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden">
+      <div class="px-4 py-3 border-b flex items-center gap-2"><span class="font-bold text-sm">メタデータ抽出</span><span class="text-xs px-2 py-0.5 rounded bg-purple-50 text-purple-700">設定情報</span></div>
+      <div class="flex-1 p-4 flex flex-col gap-3 overflow-y-auto">
+        <div class="bg-purple-50 border border-purple-200 rounded-lg p-3">
+          <div class="text-xs font-semibold text-purple-800 mb-2">🚗 抽出データ</div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <div><label class="text-gray-400 block mb-0.5">車名</label><input type="text" value="トヨタ プリウス" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">初度登録年月</label><input type="text" value="2024年3月" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">用途</label><input type="text" value="自家用" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+            <div><label class="text-gray-400 block mb-0.5">排気量</label><input type="text" value="1,800cc" class="w-full border border-purple-300 rounded p-1.5 text-sm bg-white" /></div>
+          </div>
+        </div>
+        <div class="bg-blue-50 border-2 border-blue-300 rounded-lg p-4">
+          <div class="text-xs font-semibold text-blue-800 mb-2">🎯 自動判定</div>
+          <div class="space-y-1.5 text-xs">
+            <div class="flex justify-between"><span>法定耐用年数（普通自動車）</span><span class="font-bold text-blue-700">6年</span></div>
+            <div class="flex justify-between"><span>経過年数</span><span>2年</span></div>
+            <div class="flex justify-between"><span>残存耐用年数</span><span class="font-bold">4年</span></div>
+          </div>
+        </div>
+        <div class="bg-indigo-50 border border-indigo-200 rounded-lg p-3 text-xs text-indigo-800"><div class="font-semibold mb-1">📌 用途</div><ul class="list-disc list-inside space-y-0.5 text-indigo-700"><li>耐用年数の判定（減価償却計算に使用）</li><li>家事按分の根拠資料</li></ul></div>
+        <div class="flex gap-3 pt-3 border-t"><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold border border-gray-300 text-gray-600 bg-white">← 前へ</button><button class="flex-1 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-600">確認OK・次へ →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- カテゴリ6: 保管のみ                                                   -->
+<!-- =================================================================== -->
+<div id="cat-archive" class="category-panel cat-archive hidden">
+<div class="bg-white border-b border-gray-200 px-6">
+  <div class="py-2.5 text-xs text-gray-500">アップロードして保存義務を果たすだけ。システムが中身を読む必要はありません。</div>
+</div>
+<main class="max-w-7xl mx-auto p-6">
+  <div class="bg-white rounded-xl border border-gray-200 p-6">
+    <div class="text-sm font-bold text-gray-700 mb-4">保管のみの書類（処理不要）</div>
+    <div class="grid grid-cols-2 gap-4">
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">🏦</div>
+        <div><div class="text-sm font-medium">還付金振込先の口座情報</div><div class="text-[10px] text-gray-400">申告時に手入力。OCR不要。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">👨‍👩‍👧</div>
+        <div><div class="text-sm font-medium">戸籍謄本・親族関係書類</div><div class="text-[10px] text-gray-400">国外扶養の証拠。税務調査用。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">♿</div>
+        <div><div class="text-sm font-medium">障害者手帳のコピー</div><div class="text-[10px] text-gray-400">障害者控除の証拠。等級は手入力。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">🚗</div>
+        <div><div class="text-sm font-medium">自動車税の納付書</div><div class="text-[10px] text-gray-400">少額・年1回。手入力の方が速い。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">🛡</div>
+        <div><div class="text-sm font-medium">車両保険証券</div><div class="text-[10px] text-gray-400">按分根拠の補助資料。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">✈️</div>
+        <div><div class="text-sm font-medium">国外親族への送金書類</div><div class="text-[10px] text-gray-400">扶養控除の証拠。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+      <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+        <div class="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center text-lg">📒</div>
+        <div><div class="text-sm font-medium">給与台帳・源泉徴収簿</div><div class="text-[10px] text-gray-400">給与計算ソフト側の領域。</div></div>
+        <span class="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">保管済</span>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+
+<!-- =================================================================== -->
+<!-- 凡例                                                                 -->
+<!-- =================================================================== -->
+<div class="max-w-7xl mx-auto px-6 pb-8">
+  <div class="bg-white rounded-xl border border-gray-200 p-6">
+    <h2 class="text-sm font-bold text-gray-800 mb-4">UI設計パターン凡例 (v2)</h2>
+    <div class="grid grid-cols-3 gap-6 text-xs">
+      <div>
+        <h3 class="font-semibold text-blue-700 mb-2">収入系 (10種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li><b>単一仕訳:</b> 発行済請求書, 支払調書, 給与源泉, 特定口座, 年金, 保険満期</li>
+          <li><b>明細テーブル:</b> プラットフォームCSV, 入出金明細, 暗号資産, 不動産収入</li>
+          <li>固有UI: 売掛消込チェック, 突合パネル, 所得計算パネル, 申告方法選択</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-semibold text-red-700 mb-2">経費系 (7種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li><b>単一仕訳:</b> レシート, PDF請求書, インボイス, 消費税中間納付</li>
+          <li><b>明細テーブル:</b> クレカ, 電子マネー</li>
+          <li><b>計算パネル:</b> 期末棚卸表（売上原価計算）</li>
+          <li>固有UI: 品目リスト, インボイス番号, 軽減税率アラート</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-semibold text-emerald-700 mb-2">控除系 (9種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li><b>共通パターン:</b> 金額抽出 → 控除額自動計算</li>
+          <li><b>特殊UI:</b> 生命保険料（3区分別計算）, 医療費（明細テーブル）</li>
+          <li>控除額は上限チェック付きで自動計算表示</li>
+        </ul>
+      </div>
+    </div>
+    <div class="grid grid-cols-3 gap-6 text-xs mt-4 pt-4 border-t">
+      <div>
+        <h3 class="font-semibold text-amber-700 mb-2">資産・償却系 (3種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li>固定資産台帳: 減価償却テーブル + 按分</li>
+          <li>前年申告書: 繰越データ抽出</li>
+          <li>返済予定表: 元本/利息分離の明細</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-semibold text-purple-700 mb-2">メタデータ抽出 (13種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li>仕訳は生成しない。設定情報の抽出のみ</li>
+          <li>抽出データ → システム設定への反映</li>
+          <li>用途説明パネルを必ず表示</li>
+        </ul>
+      </div>
+      <div>
+        <h3 class="font-semibold text-gray-600 mb-2">保管のみ (7種)</h3>
+        <ul class="space-y-1 text-gray-500">
+          <li>アップロード・保管のみ</li>
+          <li>OCR処理なし、レビューUI不要</li>
+          <li>カード形式の一覧表示</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- JS -->
+<script>
+function showCategory(cat) {
+  document.querySelectorAll('.category-panel').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('#categoryTabs button').forEach(b => { b.classList.remove('cat-active'); b.classList.add('cat-inactive'); });
+  const panel = document.getElementById('cat-' + cat);
+  if (panel) panel.classList.remove('hidden');
+  const tab = document.querySelector(`[data-cat="${cat}"]`);
+  if (tab) { tab.classList.remove('cat-inactive'); tab.classList.add('cat-active'); }
+}
+
+function showSub(cat, sub) {
+  const container = document.getElementById('cat-' + cat);
+  if (!container) return;
+  container.querySelectorAll('.sub-panel').forEach(p => p.classList.add('hidden'));
+  const subtabs = document.getElementById(cat + '-subtabs');
+  if (subtabs) subtabs.querySelectorAll('button').forEach(b => { b.classList.remove('sub-active'); b.classList.add('sub-inactive'); });
+  const panel = document.getElementById('sub-' + cat + '-' + sub);
+  if (panel) panel.classList.remove('hidden');
+  const tab = subtabs?.querySelector(`[data-sub="${sub}"]`);
+  if (tab) { tab.classList.remove('sub-inactive'); tab.classList.add('sub-active'); }
+}
+</script>
+
+</body>
+</html>
