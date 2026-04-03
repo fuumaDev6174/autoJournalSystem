@@ -71,7 +71,7 @@
 | rule_name | varchar(255) | NO | | | |
 | priority | integer | YES | 100 | | 小さいほど優先 |
 | scope | varchar(20) | NO | | | CHECK: shared/industry/client |
-| rule_type | varchar(20) | NO | | | CHECK: 支出/収入 |
+| rule_type | varchar(20) | NO | | | CHECK: 支出/収入/複合仕訳 |
 | conditions | jsonb | NO | | | 16キー |
 | actions | jsonb | NO | | | 9キー |
 | is_active | boolean | YES | true | | |
@@ -157,7 +157,7 @@
 | organizations | plan_type_check | free, basic, standard, premium, pro |
 | organizations | status_check | active, inactive, suspended |
 | payment_methods | type_check | cash, bank, card, electronic, other |
-| processing_rules | rule_type_check | 支出, 収入 |
+| processing_rules | rule_type_check | 支出, 収入, 複合仕訳 |
 | processing_rules | scope_check | shared, industry, client |
 | rule_execution_logs | execution_result_check | success, error, skipped |
 | supplier_aliases | source_check | manual, ocr_learned, ai_suggested |
