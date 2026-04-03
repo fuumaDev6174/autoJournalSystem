@@ -37,7 +37,6 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
   const pct = ratio != null ? Math.round(Number(ratio) * 100) : null;
   const hasDerived = !!rule.derived_from_rule_id;
   const acctName = rule.actions?.account_item_id ? (accountItems.find(a => a.id === rule.actions.account_item_id)?.name || '—') : '—';
-  const taxName = rule.actions?.tax_category_id ? (taxCategories.find(t => t.id === rule.actions.tax_category_id)?.name || '—') : '—';
   const parentAcctName = parentRule?.actions?.account_item_id ? (accountItems.find(a => a.id === parentRule.actions.account_item_id)?.name || '—') : null;
 
   // トリガー条件を収集
