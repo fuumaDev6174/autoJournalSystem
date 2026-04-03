@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, BadgeCheck } from 'lucide-react';
 import Modal from '@/web/shared/components/ui/Modal';
-import { supabase } from '@/adapters/supabase/supabase.client';
-import { suppliersApi, rulesApi, usersApi } from '@/web/shared/lib/api/backend.api';
+import { suppliersApi, rulesApi } from '@/web/shared/lib/api/backend.api';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 interface Supplier {
   id: string;
@@ -45,16 +45,17 @@ interface SupplierAlias {
   created_at: string;
 }
 
-function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <button type="button" onClick={() => onChange(!checked)}
-      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'}`}>
+    <button type="button" onClick={() => !disabled && onChange(!checked)} disabled={disabled}
+      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${checked ? 'bg-blue-600' : 'bg-gray-300'} ${disabled ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
       <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${checked ? 'translate-x-6' : 'translate-x-1'}`} />
     </button>
   );
 }
 
 export default function SuppliersPage() {
+  const { userProfile } = useAuth();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -65,13 +66,13 @@ export default function SuppliersPage() {
   const [activeModalTab, setActiveModalTab] = useState<'info' | 'aliases' | 'rules'>('info');
   const [aliases, setAliases] = useState<SupplierAlias[]>([]);
   const [newAliasName, setNewAliasName] = useState('');
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('viewer');
   const [supplierRules, setSupplierRules] = useState<Array<{
     id: string; rule_name: string; priority: number; scope: string;
     conditions: any; actions: any;
   }>>([]);
 
+  const orgId = userProfile?.organization_id || null;
+  const userRole = userProfile?.role || 'viewer';
   const canEdit = ['admin','manager','operator'].includes(userRole);
 
   const [formData, setFormData] = useState({
@@ -87,12 +88,6 @@ export default function SuppliersPage() {
 
   const loadSuppliers = async () => {
     setLoading(true);
-    // P1: orgId/role取得
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) {
-      const { data: userRow } = await usersApi.getById(authData.user.id);
-      if (userRow) { setOrgId(userRow.organization_id); setUserRole(userRow.role); }
-    }
     const { data, error } = await suppliersApi.getAll({ is_active: 'true' });
     if (error) console.error('取引先取得エラー:', error);
     if (data) setSuppliers(data as Supplier[]);
@@ -153,7 +148,7 @@ export default function SuppliersPage() {
       invoice_number: formData.invoice_number || null,
       is_invoice_registered: formData.is_invoice_registered,
       category: formData.category || 'other',
-      is_active: true,
+      is_active: editingSupplier ? editingSupplier.is_active : true,
     };
     if (!editingSupplier) data.organization_id = orgId;
 
@@ -395,7 +390,7 @@ export default function SuppliersPage() {
             </div>
             <div className="flex justify-end gap-3 pt-4 border-t">
               <button type="button" onClick={() => { setShowModal(false); setEditingSupplier(null); }} className="btn-secondary">キャンセル</button>
-              <button type="submit" className="btn-primary">{editingSupplier ? '更新する' : '登録する'}</button>
+              <button type="submit" className="btn-primary" disabled={!canEdit}>{editingSupplier ? '更新する' : '登録する'}</button>
             </div>
           </form>
         )}
@@ -424,10 +419,12 @@ export default function SuppliersPage() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      {alias.source === 'ai_suggested' && (
+                      {alias.source === 'ai_suggested' && canEdit && (
                         <button onClick={() => handleApproveAlias(alias)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">承認</button>
                       )}
-                      <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-gray-400 hover:text-red-600 rounded"><Trash2 size={16} /></button>
+                      {canEdit && (
+                        <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-gray-400 hover:text-red-600 rounded"><Trash2 size={16} /></button>
+                      )}
                     </div>
                   </div>
                 ))
@@ -442,8 +439,9 @@ export default function SuppliersPage() {
                 onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAddAlias())}
                 className="input flex-1"
                 placeholder="別名を入力（例: ENEOSスタンド）"
+                disabled={!canEdit}
               />
-              <button type="button" onClick={handleAddAlias} disabled={!newAliasName.trim()} className="btn-primary disabled:opacity-50">
+              <button type="button" onClick={handleAddAlias} disabled={!canEdit || !newAliasName.trim()} className="btn-primary disabled:opacity-50">
                 <Plus size={18} />
               </button>
             </div>

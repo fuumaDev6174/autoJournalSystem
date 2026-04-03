@@ -91,7 +91,8 @@ export default function TaxCategoriesPage() {
     const found = clientSettings.find(s => s.tax_category_id === catId);
     if (found) return found;
     const cat = taxCategories.find(c => c.id === catId);
-    return { tax_category_id: catId, use_as_default: cat?.is_default ?? false, use_for_income: isIncome(cat!), use_for_expense: isExpense(cat!) };
+    if (!cat) return { tax_category_id: catId, use_as_default: false, use_for_income: false, use_for_expense: false };
+    return { tax_category_id: catId, use_as_default: cat.is_default ?? false, use_for_income: isIncome(cat), use_for_expense: isExpense(cat) };
   };
 
   const isIncome = (cat: TaxCategory) => cat.direction === '売上' || cat.direction === 'その他';
@@ -174,7 +175,8 @@ export default function TaxCategoriesPage() {
   };
 
   const handleToggleRateCurrent = async (rate: TaxRate) => {
-    await taxRatesApi.update(rate.id, { is_current: !rate.is_current });
+    const { error } = await taxRatesApi.update(rate.id, { is_current: !rate.is_current });
+    if (error) { alert('税率の更新に失敗しました: ' + error); return; }
     loadData();
   };
 
@@ -380,7 +382,7 @@ export default function TaxCategoriesPage() {
                       <td className="px-4 py-3 text-sm font-medium text-gray-900">{rate.name}</td>
                       <td className="px-4 py-3 text-sm text-right font-mono font-semibold">{(rate.rate * 100).toFixed(0)}%</td>
                       <td className="px-4 py-3 text-center">
-                        <Switch checked={rate.is_current} onChange={() => handleToggleRateCurrent(rate)} />
+                        <Switch checked={rate.is_current} onChange={() => handleToggleRateCurrent(rate)} disabled={!canEditTaxCat} />
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap gap-1">
@@ -398,7 +400,8 @@ export default function TaxCategoriesPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => handleOpenEditRate(rate)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="編集">
+                          <button onClick={() => canEditTaxCat && handleOpenEditRate(rate)} disabled={!canEditTaxCat}
+                            className={`p-1.5 rounded ${canEditTaxCat ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`} title="編集">
                             <Edit size={16} />
                           </button>
                           <button onClick={() => canEditTaxCat && handleDeleteRate(rate)} disabled={!canEditTaxCat}
@@ -480,14 +483,14 @@ export default function TaxCategoriesPage() {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">税率名 <span className="text-red-500">*</span></label>
             <input type="text" required value={rateForm.name} onChange={e => setRateForm(p => ({ ...p, name: e.target.value }))}
-              placeholder="例: 標準税率10%" className="input" />
+              placeholder="例: 標準税率10%" className="input" disabled={!canEditTaxCat} />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">税率（%） <span className="text-red-500">*</span></label>
             <div className="relative">
               <input type="number" required step="0.01" min="0" max="100" value={rateForm.rate}
                 onChange={e => setRateForm(p => ({ ...p, rate: e.target.value }))}
-                placeholder="例: 10" className="input pr-8" />
+                placeholder="例: 10" className="input pr-8" disabled={!canEditTaxCat} />
               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
             </div>
           </div>
@@ -496,12 +499,12 @@ export default function TaxCategoriesPage() {
               <p className="text-sm font-medium text-gray-700">有効</p>
               <p className="text-xs text-gray-500">ONの税率のみ仕訳確認画面に表示されます</p>
             </div>
-            <Switch checked={rateForm.is_current} onChange={v => setRateForm(p => ({ ...p, is_current: v }))} />
+            <Switch checked={rateForm.is_current} onChange={v => setRateForm(p => ({ ...p, is_current: v }))} disabled={!canEditTaxCat} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
             <button type="button" onClick={() => setShowRateModal(false)}
               className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">キャンセル</button>
-            <button type="submit" className="btn-primary">{editingRate ? '更新' : '追加'}</button>
+            <button type="submit" className="btn-primary" disabled={!canEditTaxCat}>{editingRate ? '更新' : '追加'}</button>
           </div>
         </form>
       </Modal>

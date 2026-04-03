@@ -120,6 +120,15 @@ router.post('/items/:id/aliases', async (req: Request, res: Response) => {
 // DELETE /api/item-aliases/:id
 router.delete('/item-aliases/:id', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
+    // Verify the alias belongs to an item in user's organization
+    const { data: alias } = await supabaseAdmin
+      .from('item_aliases').select('item_id').eq('id', req.params.id).single();
+    if (!alias) return res.status(404).json({ error: 'Alias not found' });
+    const { data: item } = await supabaseAdmin
+      .from('items').select('id').eq('id', alias.item_id).eq('organization_id', orgId).single();
+    if (!item) return res.status(403).json({ error: 'Unauthorized' });
+
     const { error } = await supabaseAdmin.from('item_aliases').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     res.status(204).send();

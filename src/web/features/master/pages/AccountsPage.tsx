@@ -17,7 +17,7 @@ const CATEGORY_CODE_MAP: Record<string, { label: string; filter: string }> = {
   '5': { label: '支出', filter: 'expense' },
 };
 
-type CategoryFilterType = 'all' | 'income' | 'expense' | 'asset' | 'liability';
+type CategoryFilterType = 'all' | 'income' | 'expense' | 'asset' | 'liability' | 'equity';
 
 export default function AccountsPage() {
   const { userProfile } = useAuth();
@@ -173,7 +173,7 @@ export default function AccountsPage() {
       industry_id: activeTab === 'real_estate' ? realEstateIndustryId : null,
       is_default: false,
       is_system: false,
-      is_active: true,
+      is_active: editingItem ? editingItem.is_active : true,
     };
     // P1: 新規作成時のみorganization_idをセット
     if (!editingItem) itemData.organization_id = orgId;
@@ -354,6 +354,7 @@ export default function AccountsPage() {
                 { key: 'expense',   label: '支出',    color: 'bg-red-600 text-white' },
                 { key: 'asset',     label: '資産',    color: 'bg-green-600 text-white' },
                 { key: 'liability', label: '負債',    color: 'bg-orange-600 text-white' },
+                { key: 'equity',    label: '純資産',  color: 'bg-purple-600 text-white' },
               ] as { key: CategoryFilterType; label: string; color: string }[]
             ).map(({ key, label, color }) => (
               <button
@@ -380,8 +381,7 @@ export default function AccountsPage() {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">科目名</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">区分</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">税区分</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">収入相手方</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">支出相手方</th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">相手方勘定</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ショートカット</th>
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">知識ベース</th>
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">状態</th>
@@ -391,7 +391,7 @@ export default function AccountsPage() {
             <tbody className="bg-white divide-y divide-gray-200">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="px-6 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-6 py-8 text-center text-gray-500">
                     {accountItems.length === 0
                       ? '勘定科目が登録されていません。「新規勘定科目」から追加してください。'
                       : '検索条件に一致する勘定科目が見つかりませんでした'}
@@ -415,13 +415,13 @@ export default function AccountsPage() {
                         getCategoryFilter(item) === 'expense' ? 'bg-red-100 text-red-700' :
                         getCategoryFilter(item) === 'asset' ? 'bg-green-100 text-green-700' :
                         getCategoryFilter(item) === 'liability' ? 'bg-orange-100 text-orange-700' :
+                        getCategoryFilter(item) === 'equity' ? 'bg-purple-100 text-purple-700' :
                         'bg-gray-100 text-gray-700'
                       }`}>
                         {getCategoryName(item)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-gray-600">{getTaxCategoryName(item)}</td>
-                    <td className="px-4 py-3 text-xs text-gray-500">{contraAccount?.name || '-'}</td>
                     <td className="px-4 py-3 text-xs text-gray-500">{contraAccount?.name || '-'}</td>
                     <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.short_name || '-'}</td>
                     <td className="px-4 py-3">
@@ -443,7 +443,7 @@ export default function AccountsPage() {
                         }`}
                       >
                         <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
-                          item.is_active ? 'translate-x-4.5' : 'translate-x-0.5'
+                          item.is_active ? 'translate-x-[18px]' : 'translate-x-0.5'
                         }`} />
                       </button>
                     </td>

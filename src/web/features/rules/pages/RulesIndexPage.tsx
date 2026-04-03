@@ -3,6 +3,7 @@ import { Plus, Search, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { rulesApi, accountItemsApi, taxCategoriesApi, industriesApi, clientsApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 // ============================================
 // スコープ別スタイル定義
@@ -39,6 +40,24 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
   const taxName = rule.actions?.tax_category_id ? (taxCategories.find(t => t.id === rule.actions.tax_category_id)?.name || '—') : '—';
   const parentAcctName = parentRule?.actions?.account_item_id ? (accountItems.find(a => a.id === parentRule.actions.account_item_id)?.name || '—') : null;
 
+  // トリガー条件を収集
+  const cond = rule.conditions || {};
+  const triggers: Array<{ label: string; value: string }> = [];
+  if (cond.supplier_pattern) triggers.push({ label: '取引先', value: cond.supplier_pattern });
+  if (cond.transaction_pattern) triggers.push({ label: '摘要', value: cond.transaction_pattern });
+  if (cond.document_type) triggers.push({ label: '証憑', value: cond.document_type });
+  if (cond.amount_min || cond.amount_max) triggers.push({ label: '金額', value: `¥${cond.amount_min?.toLocaleString() || '0'}〜¥${cond.amount_max?.toLocaleString() || '∞'}` });
+  if (cond.item_pattern) triggers.push({ label: '品目', value: cond.item_pattern });
+  if (cond.payment_method) triggers.push({ label: '支払', value: cond.payment_method });
+
+  // 詳細テキストを組み立て
+  const details: string[] = [];
+  if (rule.actions?.description_template) details.push(rule.actions.description_template);
+  if (pct != null && pct < 100) details.push(`按分${pct}%`);
+  if (rule.actions?.business_ratio_note) details.push(rule.actions.business_ratio_note);
+  if (hasDerived && parentAcctName) details.push(`派生: ${parentAcctName}`);
+  const detailText = details.join(' / ') || '—';
+
   // 編集フォーム state
   const [formConditions, setFormConditions] = useState(rule.conditions || {});
   const [formActions, setFormActions] = useState(rule.actions || {});
@@ -49,40 +68,54 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
       {/* 行本体 */}
       <div
         onClick={editable ? onToggle : undefined}
-        className={`flex items-center gap-2 px-3 py-2.5 ${s.bg} border-l-4 ${s.border} ${expanded ? 'rounded-t-md' : 'rounded-md'} ${editable ? 'cursor-pointer hover:brightness-95' : ''} ${!rule.is_active ? 'opacity-40' : ''} transition-all text-sm`}
+        className={`flex items-center gap-3 px-3 py-2 ${s.bg} border-l-4 ${s.border} ${expanded ? 'rounded-t-md' : 'rounded-md'} ${editable ? 'cursor-pointer hover:brightness-95' : ''} ${!rule.is_active ? 'opacity-40' : ''} transition-all text-sm`}
       >
-        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.badge} flex-shrink-0`}>{s.label}</span>
-        <div className="min-w-[110px] flex-shrink-0">
-          <div className="font-semibold text-gray-900 text-xs">{rule.conditions?.supplier_pattern || rule.conditions?.document_type || rule.conditions?.transaction_pattern || '—'}</div>
-          {rule.conditions?.transaction_pattern && rule.conditions?.supplier_pattern && (
-            <div className="text-[10px] text-gray-400">摘要: {rule.conditions.transaction_pattern}</div>
-          )}
-          {(rule.conditions?.amount_min || rule.conditions?.amount_max) && (
-            <div className="text-[10px] text-gray-400">¥{rule.conditions?.amount_min?.toLocaleString() || '0'}〜¥{rule.conditions?.amount_max?.toLocaleString() || '∞'}</div>
+        {/* カラム1: スコープバッジ + マッチ回数 */}
+        <div className="w-14 flex-shrink-0 text-center">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.badge}`}>{s.label}</span>
+          {rule.match_count > 0 && <div className="text-[9px] text-gray-400 mt-0.5">{rule.match_count}回</div>}
+        </div>
+
+        {/* カラム2: トリガー（種別 + 項目のサブカ��ム） */}
+        <div className="w-[260px] flex-shrink-0 overflow-hidden">
+          {triggers.length === 0 ? (
+            <span className="text-xs text-gray-400">—</span>
+          ) : (
+            <div className="space-y-0.5">
+              {triggers.map((t, i) => (
+                <div key={i} className="flex items-baseline gap-1.5">
+                  <span className="text-[10px] text-gray-400 w-10 flex-shrink-0 text-right">{t.label}</span>
+                  <span className="text-xs text-gray-800 truncate">{t.value}</span>
+                </div>
+              ))}
+            </div>
           )}
         </div>
-        <span className="text-gray-300 text-sm flex-shrink-0">→</span>
-        <div className="font-semibold text-gray-700 text-xs min-w-[70px] flex-shrink-0">{acctName}</div>
-        <div className="text-[11px] text-gray-500 min-w-[70px] flex-shrink-0">{taxName}</div>
-        {pct != null && pct < 100 && (
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200 flex-shrink-0">按分{pct}%</span>
-        )}
-        {hasDerived && parentAcctName && (
-          <span className="text-[9px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-500 border border-gray-200 flex-shrink-0">
-            ↑ 派生: {parentAcctName}
-          </span>
-        )}
-        <div className="ml-auto text-[10px] text-gray-400 flex-shrink-0">
-          {rule.match_count > 0 && `${rule.match_count}回`}
+
+        {/* カラム3: 勘定科目 + 按分バッジ */}
+        <div className="w-[140px] flex-shrink-0">
+          <div className="font-semibold text-gray-900 text-xs truncate">{acctName}</div>
+          {pct != null && pct < 100 && (
+            <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">按分{pct}%</span>
+          )}
         </div>
-        {editable && <ChevronDown size={12} className={`text-gray-400 transition-transform flex-shrink-0 ${expanded ? 'rotate-180' : ''}`} />}
-        {!editable && onCopyDerive && (
-          <button onClick={(e) => { e.stopPropagation(); onCopyDerive(); }}
-            className="text-[10px] font-semibold px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 flex-shrink-0">
-            派生ルール作成
-          </button>
-        )}
-        {!editable && !onCopyDerive && <span className="text-[10px] text-gray-300 flex-shrink-0">参照</span>}
+
+        {/* カラム4: 詳細（truncate） */}
+        <div className="flex-1 min-w-0">
+          <div className="text-[11px] text-gray-500 truncate">{detailText}</div>
+        </div>
+
+        {/* カラム5: 操�� */}
+        <div className="w-8 flex-shrink-0 flex items-center justify-center">
+          {editable && <ChevronDown size={12} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />}
+          {!editable && onCopyDerive && (
+            <button onClick={(e) => { e.stopPropagation(); onCopyDerive(); }}
+              className="text-[10px] font-semibold px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 whitespace-nowrap">
+              派生
+            </button>
+          )}
+          {!editable && !onCopyDerive && <span className="text-[10px] text-gray-300">参照</span>}
+        </div>
       </div>
 
       {/* アコーディオン展開 */}
@@ -212,6 +245,8 @@ export default function RulesIndexPage() {
 // 汎用ルールタブ
 // ============================================
 function SharedRulesTab() {
+  const { userProfile } = useAuth();
+  const canEdit = ['admin','manager','operator'].includes(userProfile?.role || 'viewer');
   const [rules, setRules] = useState<any[]>([]);
   const [accountItems, setAccountItems] = useState<AccountItem[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
@@ -252,7 +287,8 @@ function SharedRulesTab() {
 
   const handleDelete = async (rule: any) => {
     if (!confirm(`「${rule.rule_name}」を削除しますか？`)) return;
-    await rulesApi.delete(rule.id);
+    const { error } = await rulesApi.delete(rule.id);
+    if (error) { alert('削除に失敗しました: ' + error); return; }
     loadData();
   };
 
@@ -276,14 +312,17 @@ function SharedRulesTab() {
               className="pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-md w-56 outline-none focus:ring-1 focus:ring-blue-500" />
           </div>
         </div>
-        <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
-          <Plus size={14} /> 新規汎用ルール
-        </button>
+        {canEdit && (
+          <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <Plus size={14} /> 新規汎用ルール
+          </button>
+        )}
       </div>
 
       <div className="space-y-px">
         {filtered.map(rule => (
           <RuleRow key={rule.id} rule={rule} scope="shared" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
+            editable={canEdit}
             onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
             accountItems={accountItems} taxCategories={taxCategories} />
         ))}

@@ -10,10 +10,12 @@ router.get('/account-items', async (req: Request, res: Response) => {
   try {
     const orgId = (req as AuthenticatedRequest).user.organization_id;
     const { industry_id, is_active } = req.query;
-    let query = supabaseAdmin.from('account_items').select('*, category:account_categories(name)');
+    let query = supabaseAdmin.from('account_items').select('*, account_category:account_categories(id,code,name), tax_category:tax_categories(id,code,name,display_name)');
     if (is_active !== undefined) query = query.eq('is_active', is_active === 'true');
     if (industry_id && industry_id !== 'null' && industry_id !== 'undefined') {
       query = query.or(`industry_id.eq.${industry_id},industry_id.is.null`);
+    } else if (industry_id === 'null') {
+      query = query.is('industry_id', null);
     }
     // Scope to user's organization or shared (null) items
     query = query.or(`organization_id.eq.${orgId},organization_id.is.null`);

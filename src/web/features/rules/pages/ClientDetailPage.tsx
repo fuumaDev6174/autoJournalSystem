@@ -4,10 +4,13 @@ import { Plus, ChevronRight } from 'lucide-react';
 import { rulesApi, industriesApi, clientsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';
 import { RuleRow } from './RulesIndexPage';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 export default function ClientDetailPage() {
   const { industryId, clientId } = useParams<{ industryId: string; clientId: string }>();
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
+  const canEdit = ['admin','manager','operator'].includes(userProfile?.role || 'viewer');
 
   const [industry, setIndustry] = useState<any>(null);
   const [client, setClient] = useState<any>(null);
@@ -75,7 +78,8 @@ export default function ClientDetailPage() {
 
   const handleDelete = async (rule: any) => {
     if (!confirm(`「${rule.rule_name}」を削除しますか？`)) return;
-    await rulesApi.delete(rule.id);
+    const { error } = await rulesApi.delete(rule.id);
+    if (error) { alert('削除に失敗しました: ' + error); return; }
     loadData();
   };
 
@@ -194,9 +198,11 @@ export default function ClientDetailPage() {
               </span>
             </label>
           </div>
-          <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-md hover:bg-red-700">
-            <Plus size={13} /> 顧客ルール追加
-          </button>
+          {canEdit && (
+            <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-md hover:bg-red-700">
+              <Plus size={13} /> 顧客ルール追加
+            </button>
+          )}
         </div>
 
         {/* 派生作成パネル */}
@@ -267,6 +273,7 @@ export default function ClientDetailPage() {
           {/* 顧客別ルール（薄赤） */}
           {clientRules.map(rule => (
             <RuleRow key={rule.id} rule={rule} scope="client" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
+              editable={canEdit}
               onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
               parentRule={getParentRule(rule.derived_from_rule_id)}
               accountItems={accountItems} taxCategories={taxCategories} />

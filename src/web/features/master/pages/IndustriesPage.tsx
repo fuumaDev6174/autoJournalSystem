@@ -53,7 +53,7 @@ export default function IndustriesPage() {
     const maxSort = industries.reduce((max, s) => Math.max(max, s.sort_order), 0);
     const data = {
       code: formData.code, name: formData.name, description: formData.description || null,
-      sort_order: editingIndustry ? editingIndustry.sort_order : maxSort + 1, is_active: true,
+      sort_order: editingIndustry ? editingIndustry.sort_order : maxSort + 1, is_active: editingIndustry ? editingIndustry.is_active : true,
     };
     if (editingIndustry) {
       const { error } = await industriesApi.update(editingIndustry.id, data);

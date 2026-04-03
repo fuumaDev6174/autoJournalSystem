@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, ArrowLeft, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@/web/shared/components/ui/Modal';
-import { supabase } from '@/adapters/supabase/supabase.client';
-import { itemsApi, accountItemsApi, taxCategoriesApi, usersApi } from '@/web/shared/lib/api/backend.api';
+import { itemsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
+import { useAuth } from '@/web/app/providers/AuthProvider';
 
 
 // ============================================
@@ -57,6 +57,7 @@ const ITEM_CATEGORIES = [
 // ============================================
 export default function ItemsPage() {
   const navigate = useNavigate();
+  const { userProfile } = useAuth();
   const [items, setItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -68,9 +69,9 @@ export default function ItemsPage() {
   const [newAliasName, setNewAliasName] = useState('');
   const [accountItems, setAccountItems] = useState<AccountItemOption[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategoryOption[]>([]);
-  const [orgId, setOrgId] = useState<string | null>(null);
-  const [userRole, setUserRole] = useState<string>('viewer');
 
+  const orgId = userProfile?.organization_id || null;
+  const userRole = userProfile?.role || 'viewer';
   const canEdit = ['admin','manager','operator'].includes(userRole);
 
   const [formData, setFormData] = useState({
@@ -91,11 +92,6 @@ export default function ItemsPage() {
   // ============================================
   const loadItems = async () => {
     setLoading(true);
-    const { data: authData } = await supabase.auth.getUser();
-    if (authData.user) {
-      const { data: userRow } = await usersApi.getById(authData.user.id);
-      if (userRow) { setOrgId(userRow.organization_id); setUserRole(userRow.role); }
-    }
     const { data, error } = await itemsApi.getAll({ is_active: 'true' });
     if (error) console.error('品目取得エラー:', error);
     if (data) setItems(data as Item[]);
@@ -160,7 +156,7 @@ export default function ItemsPage() {
       default_account_item_id: formData.default_account_item_id || null,
       default_tax_category_id: formData.default_tax_category_id || null,
       description: formData.description || null,
-      is_active: true,
+      is_active: editingItem ? editingItem.is_active : true,
     };
     if (!editingItem) data.organization_id = orgId;
 
@@ -332,7 +328,8 @@ export default function ItemsPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{getAccountName(item.default_account_item_id)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => handleOpenEditModal(item)} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="編集">
+                      <button onClick={() => canEdit && handleOpenEditModal(item)} disabled={!canEdit}
+                        className={`p-1.5 rounded ${canEdit ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`} title="編集">
                         <Edit size={16} />
                       </button>
                       <button onClick={() => canEdit && handleDelete(item)} disabled={!canEdit}
@@ -430,7 +427,7 @@ export default function ItemsPage() {
                 className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
                 キャンセル
               </button>
-              <button type="submit" className="btn-primary">
+              <button type="submit" className="btn-primary" disabled={!canEdit}>
                 {editingItem ? '更新' : '登録'}
               </button>
             </div>
@@ -449,9 +446,9 @@ export default function ItemsPage() {
             {/* 追加フォーム */}
             <div className="flex gap-2">
               <input type="text" value={newAliasName} onChange={e => setNewAliasName(e.target.value)}
-                placeholder="別名を入力" className="input flex-1"
+                placeholder="別名を入力" className="input flex-1" disabled={!canEdit}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddAlias(); } }} />
-              <button onClick={handleAddAlias} disabled={!newAliasName.trim()}
+              <button onClick={handleAddAlias} disabled={!canEdit || !newAliasName.trim()}
                 className="btn-primary disabled:opacity-40">
                 <Plus size={16} /> 追加
               </button>
@@ -475,9 +472,11 @@ export default function ItemsPage() {
                         {alias.source === 'manual' ? '手動' : alias.source === 'ocr_learned' ? 'OCR学習' : 'AI提案'}
                       </span>
                     </div>
-                    <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-red-500 hover:bg-red-50 rounded">
-                      <Trash2 size={14} />
-                    </button>
+                    {canEdit && (
+                      <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                        <Trash2 size={14} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

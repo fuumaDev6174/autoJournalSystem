@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 import { sanitizeBody } from '../../helpers/master-data.js';
 
 const router = Router();
@@ -61,10 +62,13 @@ router.delete('/industries/:id', async (req: Request, res: Response) => {
 // GET /api/client-industries
 router.get('/client-industries', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
     const { client_id, industry_id } = req.query;
     let query = supabaseAdmin.from('client_industries').select('*, clients(*)');
     if (client_id) query = query.eq('client_id', client_id as string);
     if (industry_id) query = query.eq('industry_id', industry_id as string);
+    // Scope to user's organization via client relationship
+    query = query.eq('clients.organization_id', orgId);
     const { data, error } = await query;
     if (error) return res.status(400).json({ error: error.message });
     res.json({ data });

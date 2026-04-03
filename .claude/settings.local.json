@@ -37,7 +37,9 @@
       "Bash(grep:*)",
       "Bash(npx vite:*)",
       "Bash(grep -rn \"from ''''\\\\.\\\\.\" src/web/ src/adapters/ --include=\"*.tsx\" --include=\"*.ts\")",
-      "Bash(ls src/api/routes/*.route.ts)"
+      "Bash(ls src/api/routes/*.route.ts)",
+      "Bash(find /f/3.programing/beso -type f -iname *review* ! -path */node_modules/*)",
+      "Bash(cat:*)"
     ]
   }
 }

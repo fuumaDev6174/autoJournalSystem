@@ -132,9 +132,40 @@ router.get('/supplier-aliases', async (req: Request, res: Response) => {
   }
 });
 
+// PUT /api/supplier-aliases/:id
+router.put('/supplier-aliases/:id', async (req: Request, res: Response) => {
+  try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
+    // Verify the alias belongs to a supplier in user's organization
+    const { data: alias } = await supabaseAdmin
+      .from('supplier_aliases').select('supplier_id').eq('id', req.params.id).single();
+    if (!alias) return res.status(404).json({ error: 'Alias not found' });
+    const { data: supplier } = await supabaseAdmin
+      .from('suppliers').select('id').eq('id', alias.supplier_id).eq('organization_id', orgId).single();
+    if (!supplier) return res.status(403).json({ error: 'Unauthorized' });
+
+    const body = sanitizeBody(req.body, ['organization_id', 'supplier_id']);
+    const { data, error } = await supabaseAdmin
+      .from('supplier_aliases').update(body).eq('id', req.params.id).select().single();
+    if (error) return res.status(400).json({ error: error.message });
+    res.json({ data });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // DELETE /api/supplier-aliases/:id
 router.delete('/supplier-aliases/:id', async (req: Request, res: Response) => {
   try {
+    const orgId = (req as AuthenticatedRequest).user.organization_id;
+    // Verify the alias belongs to a supplier in user's organization
+    const { data: alias } = await supabaseAdmin
+      .from('supplier_aliases').select('supplier_id').eq('id', req.params.id).single();
+    if (!alias) return res.status(404).json({ error: 'Alias not found' });
+    const { data: supplier } = await supabaseAdmin
+      .from('suppliers').select('id').eq('id', alias.supplier_id).eq('organization_id', orgId).single();
+    if (!supplier) return res.status(403).json({ error: 'Unauthorized' });
+
     const { error } = await supabaseAdmin.from('supplier_aliases').delete().eq('id', req.params.id);
     if (error) return res.status(400).json({ error: error.message });
     res.status(204).send();
