@@ -115,7 +115,7 @@ export interface Rule {
   rule_name: string;
   priority: number;
   scope: 'shared' | 'industry' | 'client';
-  rule_type: '支出' | '収入';
+  rule_type: '支出' | '収入' | '複合仕訳';
   conditions: {
     supplier_pattern?: string | null;
     transaction_pattern?: string | null;
@@ -424,7 +424,7 @@ export interface ClientFormData {
 
 export interface RuleFormData {
   priority: number;
-  rule_type: '支出' | '収入';
+  rule_type: '支出' | '収入' | '複合仕訳';
   industry_id: string | null;
   client_id: string | null;
   supplier_pattern: string | null;

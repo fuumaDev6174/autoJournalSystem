@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Plus, ChevronRight } from 'lucide-react';
-import { rulesApi, industriesApi, clientsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
+import { rulesApi, industriesApi, clientsApi, accountItemsApi, taxCategoriesApi, suppliersApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';
-import { RuleRow } from './RulesIndexPage';
+import { RuleRow, RuleTableHeader } from './RulesIndexPage';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 
 export default function ClientDetailPage() {
@@ -30,12 +30,13 @@ export default function ClientDetailPage() {
   const [deriveTaxCatId, setDeriveTaxCatId] = useState('');
   const [deriveRatio, setDeriveRatio] = useState('');
   const [deriveRatioNote, setDeriveRatioNote] = useState('');
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; code?: string; name_kana?: string | null }>>([]);
 
   useEffect(() => { if (industryId && clientId) loadData(); }, [industryId, clientId]);
 
   const loadData = async () => {
     setLoading(true);
-    const [indRes, clRes, clRulesRes, indRulesRes, sharedRes, acctRes, taxRes] = await Promise.all([
+    const [indRes, clRes, clRulesRes, indRulesRes, sharedRes, acctRes, taxRes, supRes] = await Promise.all([
       industriesApi.getAll({ is_active: 'true' }),
       clientsApi.getById(clientId!),
       rulesApi.getAll({ scope: 'client', client_id: clientId, is_active: 'true' }),
@@ -43,6 +44,7 @@ export default function ClientDetailPage() {
       rulesApi.getAll({ scope: 'shared', is_active: 'true' }),
       accountItemsApi.getAll({ is_active: 'true' }),
       taxCategoriesApi.getAll(),
+      suppliersApi.getAll({ is_active: 'true' }),
     ]);
     const foundIndustry = indRes.data?.find((i: any) => i.id === industryId) || null;
     if (foundIndustry) setIndustry(foundIndustry);
@@ -52,6 +54,7 @@ export default function ClientDetailPage() {
     if (sharedRes.data) setSharedRules(sharedRes.data);
     if (acctRes.data) setAccountItems(acctRes.data as AccountItem[]);
     if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
+    if (supRes.data) setSuppliers(supRes.data as any[]);
     setLoading(false);
   };
 
@@ -70,10 +73,23 @@ export default function ClientDetailPage() {
 
   const handleSave = async (ruleId: string, data: any) => {
     const { error } = await rulesApi.update(ruleId, {
-      conditions: data.conditions, actions: data.actions, priority: data.priority,
+      conditions: data.conditions, actions: data.actions, priority: data.priority, rule_type: data.rule_type,
     });
     if (error) alert('保存失敗: ' + error);
     else loadData();
+  };
+
+  const handleToggleActive = async (ruleId: string, isActive: boolean) => {
+    const { error } = await rulesApi.update(ruleId, { is_active: isActive });
+    if (error) alert('状態の更新に失敗: ' + error);
+    else loadData();
+  };
+
+  const handleSupplierCreate = async (name: string) => {
+    const orgId = userProfile?.organization_id;
+    if (!orgId) return;
+    const { data } = await suppliersApi.create({ organization_id: orgId, name, is_active: true });
+    if (data) setSuppliers(prev => [...prev, data as any]);
   };
 
   const handleDelete = async (rule: any) => {
@@ -269,39 +285,44 @@ export default function ClientDetailPage() {
         )}
 
         {/* ルール一覧 */}
-        <div className="space-y-px">
-          {/* 顧客別ルール（薄赤） */}
-          {clientRules.map(rule => (
-            <RuleRow key={rule.id} rule={rule} scope="client" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
-              editable={canEdit}
-              onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
-              parentRule={getParentRule(rule.derived_from_rule_id)}
-              accountItems={accountItems} taxCategories={taxCategories} />
-          ))}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm">
+            <RuleTableHeader />
+            <tbody>
+              {/* 顧客別ルール */}
+              {clientRules.map(rule => (
+                <RuleRow key={rule.id} rule={rule} scope="client" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
+                  editable={canEdit}
+                  onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
+                  onToggleActive={handleToggleActive}
+                  parentRule={getParentRule(rule.derived_from_rule_id)}
+                  accountItems={accountItems} taxCategories={taxCategories}
+                  suppliers={suppliers} onSupplierCreate={handleSupplierCreate} />
+              ))}
+
+              {/* 継承ルール（トグルONで連続表示） */}
+              {showInherited && (
+                <>
+                  {industryRules.map(rule => (
+                    <RuleRow key={`ind-${rule.id}`} rule={rule} scope="industry" expanded={false} onToggle={() => {}} editable={false}
+                      parentRule={getParentRule(rule.derived_from_rule_id)}
+                      onCopyDerive={() => startDeriving(rule, 'industry')}
+                      accountItems={accountItems} taxCategories={taxCategories} />
+                  ))}
+                  {filteredShared.map(rule => (
+                    <RuleRow key={`sh-${rule.id}`} rule={rule} scope="shared" expanded={false} onToggle={() => {}} editable={false}
+                      onCopyDerive={() => startDeriving(rule, 'shared')}
+                      accountItems={accountItems} taxCategories={taxCategories} />
+                  ))}
+                </>
+              )}
+            </tbody>
+          </table>
 
           {clientRules.length === 0 && !showInherited && (
-            <div className="bg-red-50/50 rounded-md border border-dashed border-red-200 py-8 text-center">
+            <div className="bg-red-50/50 rounded-md border-t border-dashed border-red-200 py-8 text-center">
               <div className="text-xs text-gray-400">個別ルールなし — 汎用・業種別ルールが適用されます</div>
             </div>
-          )}
-
-          {/* 継承ルール（トグルONで連続表示） */}
-          {showInherited && (
-            <>
-              {/* 業種ルール（薄青） */}
-              {industryRules.map(rule => (
-                <RuleRow key={`ind-${rule.id}`} rule={rule} scope="industry" expanded={false} onToggle={() => {}} editable={false}
-                  parentRule={getParentRule(rule.derived_from_rule_id)}
-                  onCopyDerive={() => startDeriving(rule, 'industry')}
-                  accountItems={accountItems} taxCategories={taxCategories} />
-              ))}
-              {/* 汎用ルール（グレー、派生済み除外） */}
-              {filteredShared.map(rule => (
-                <RuleRow key={`sh-${rule.id}`} rule={rule} scope="shared" expanded={false} onToggle={() => {}} editable={false}
-                  onCopyDerive={() => startDeriving(rule, 'shared')}
-                  accountItems={accountItems} taxCategories={taxCategories} />
-              ))}
-            </>
           )}
         </div>
       </div>

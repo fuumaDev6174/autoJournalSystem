@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Plus, Search, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { rulesApi, accountItemsApi, taxCategoriesApi, industriesApi, clientsApi } from '@/web/shared/lib/api/backend.api';
+import { rulesApi, accountItemsApi, taxCategoriesApi, industriesApi, clientsApi, suppliersApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import ComboBox from '@/web/shared/components/ui/ComboBox';
 
 // ============================================
 // スコープ別スタイル定義
@@ -15,7 +16,37 @@ export const SCOPE_STYLES = {
 };
 
 // ============================================
-// RuleRow: アコーディオン展開式ルール行
+// 種別スタイル
+// ============================================
+const RULE_TYPE_STYLES: Record<string, { badge: string; label: string }> = {
+  '支出':     { badge: 'bg-red-100 text-red-700', label: '支出' },
+  '収入':     { badge: 'bg-blue-100 text-blue-700', label: '収入' },
+  '複合仕訳': { badge: 'bg-purple-100 text-purple-700', label: '複合仕訳' },
+};
+
+// ============================================
+// テーブルヘッダー
+// ============================================
+export function RuleTableHeader() {
+  return (
+    <thead>
+      <tr className="bg-gray-50 border-b border-gray-200">
+        <th className="w-16 px-3 py-2 text-center text-xs font-semibold text-gray-600">優先度</th>
+        <th className="w-20 px-3 py-2 text-center text-xs font-semibold text-gray-600">種別</th>
+        <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-gray-600">適用範囲</th>
+        <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">取引先パターン</th>
+        <th className="w-32 px-3 py-2 text-right text-xs font-semibold text-gray-600">金額範囲</th>
+        <th className="w-32 px-3 py-2 text-left text-xs font-semibold text-gray-600">勘定科目</th>
+        <th className="w-28 px-3 py-2 text-left text-xs font-semibold text-gray-600">税区分</th>
+        <th className="w-16 px-3 py-2 text-center text-xs font-semibold text-gray-600">状態</th>
+        <th className="w-8" />
+      </tr>
+    </thead>
+  );
+}
+
+// ============================================
+// RuleRow: テーブル行 + アコーディオン展開
 // ============================================
 interface RuleRowProps {
   rule: any;
@@ -26,86 +57,78 @@ interface RuleRowProps {
   onDelete?: () => void;
   onSave?: (data: any) => void;
   onCopyDerive?: () => void;
+  onToggleActive?: (ruleId: string, isActive: boolean) => void;
   parentRule?: any;
   accountItems: AccountItem[];
   taxCategories: TaxCategory[];
+  suppliers?: Array<{ id: string; name: string; code?: string; name_kana?: string | null }>;
+  onSupplierCreate?: (name: string) => Promise<void>;
 }
 
-export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDelete, onSave, onCopyDerive, parentRule, accountItems, taxCategories }: RuleRowProps) {
+export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDelete, onSave, onCopyDerive, onToggleActive, parentRule, accountItems, taxCategories, suppliers = [], onSupplierCreate }: RuleRowProps) {
   const s = SCOPE_STYLES[scope];
-  const ratio = rule.actions?.business_ratio;
-  const pct = ratio != null ? Math.round(Number(ratio) * 100) : null;
-  const hasDerived = !!rule.derived_from_rule_id;
+  const ruleTypeStyle = RULE_TYPE_STYLES[rule.rule_type] || RULE_TYPE_STYLES['支出'];
   const acctName = rule.actions?.account_item_id ? (accountItems.find(a => a.id === rule.actions.account_item_id)?.name || '—') : '—';
+  const taxName = rule.actions?.tax_category_id ? (taxCategories.find(t => t.id === rule.actions.tax_category_id)?.name || '—') : '—';
   const parentAcctName = parentRule?.actions?.account_item_id ? (accountItems.find(a => a.id === parentRule.actions.account_item_id)?.name || '—') : null;
 
-  // トリガー条件を収集
-  const cond = rule.conditions || {};
-  const triggers: Array<{ label: string; value: string }> = [];
-  if (cond.supplier_pattern) triggers.push({ label: '取引先', value: cond.supplier_pattern });
-  if (cond.transaction_pattern) triggers.push({ label: '摘要', value: cond.transaction_pattern });
-  if (cond.document_type) triggers.push({ label: '証憑', value: cond.document_type });
-  if (cond.amount_min || cond.amount_max) triggers.push({ label: '金額', value: `¥${cond.amount_min?.toLocaleString() || '0'}〜¥${cond.amount_max?.toLocaleString() || '∞'}` });
-  if (cond.item_pattern) triggers.push({ label: '品目', value: cond.item_pattern });
-  if (cond.payment_method) triggers.push({ label: '支払', value: cond.payment_method });
+  // 適用範囲テキスト
+  const scopeDetail = scope === 'shared' ? '汎用'
+    : scope === 'industry' ? `業種:${rule.industries?.name || '—'}`
+    : `顧客:${rule.clients?.name || '—'}`;
 
-  // 詳細テキストを組み立て
-  const details: string[] = [];
-  if (rule.actions?.description_template) details.push(rule.actions.description_template);
-  if (pct != null && pct < 100) details.push(`按分${pct}%`);
-  if (rule.actions?.business_ratio_note) details.push(rule.actions.business_ratio_note);
-  if (hasDerived && parentAcctName) details.push(`派生: ${parentAcctName}`);
-  const detailText = details.join(' / ') || '—';
+  // 金額範囲
+  const cond = rule.conditions || {};
+  const amountRange = (cond.amount_min != null || cond.amount_max != null)
+    ? `¥${(cond.amount_min ?? 0).toLocaleString()}〜${cond.amount_max != null ? `¥${cond.amount_max.toLocaleString()}` : '∞'}`
+    : '—';
 
   // 編集フォーム state
   const [formConditions, setFormConditions] = useState(rule.conditions || {});
   const [formActions, setFormActions] = useState(rule.actions || {});
   const [formPriority, setFormPriority] = useState(rule.priority);
+  const [formRuleType, setFormRuleType] = useState(rule.rule_type || '支出');
+
+  // 取引先ComboBox用: supplier_patternからマッチするsupplierを探す
+  const matchedSupplier = suppliers.find(s => s.name === formConditions.supplier_pattern);
 
   return (
-    <div className="mb-px">
+    <>
       {/* 行本体 */}
-      <div
+      <tr
         onClick={editable ? onToggle : undefined}
-        className={`flex items-center gap-3 px-3 py-2 ${s.bg} border-l-4 ${s.border} ${expanded ? 'rounded-t-md' : 'rounded-md'} ${editable ? 'cursor-pointer hover:brightness-95' : ''} ${!rule.is_active ? 'opacity-40' : ''} transition-all text-sm`}
+        className={`border-b border-gray-100 ${!rule.is_active ? 'opacity-40' : ''} ${editable ? 'cursor-pointer hover:bg-gray-50' : ''} transition-colors`}
       >
-        {/* カラム1: スコープバッジ + マッチ回数 */}
-        <div className="w-14 flex-shrink-0 text-center">
-          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.badge}`}>{s.label}</span>
-          {rule.match_count > 0 && <div className="text-[9px] text-gray-400 mt-0.5">{rule.match_count}回</div>}
-        </div>
-
-        {/* カラム2: トリガー（種別 + 項目のサブカ��ム） */}
-        <div className="w-[260px] flex-shrink-0 overflow-hidden">
-          {triggers.length === 0 ? (
-            <span className="text-xs text-gray-400">—</span>
-          ) : (
-            <div className="space-y-0.5">
-              {triggers.map((t, i) => (
-                <div key={i} className="flex items-baseline gap-1.5">
-                  <span className="text-[10px] text-gray-400 w-10 flex-shrink-0 text-right">{t.label}</span>
-                  <span className="text-xs text-gray-800 truncate">{t.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* カラム3: 勘定科目 + 按分バッジ */}
-        <div className="w-[140px] flex-shrink-0">
-          <div className="font-semibold text-gray-900 text-xs truncate">{acctName}</div>
-          {pct != null && pct < 100 && (
-            <span className="text-[9px] font-semibold px-1 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">按分{pct}%</span>
-          )}
-        </div>
-
-        {/* カラム4: 詳細（truncate） */}
-        <div className="flex-1 min-w-0">
-          <div className="text-[11px] text-gray-500 truncate">{detailText}</div>
-        </div>
-
-        {/* カラム5: 操�� */}
-        <div className="w-8 flex-shrink-0 flex items-center justify-center">
+        {/* 優先度 */}
+        <td className="px-3 py-2 text-center text-xs font-mono text-gray-700">{rule.priority}</td>
+        {/* 種別 */}
+        <td className="px-3 py-2 text-center">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${ruleTypeStyle.badge}`}>{ruleTypeStyle.label}</span>
+        </td>
+        {/* 適用範囲 */}
+        <td className="px-3 py-2 text-left">
+          <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${s.badge}`}>{scopeDetail}</span>
+        </td>
+        {/* 取引先パターン */}
+        <td className="px-3 py-2 text-sm text-gray-800 truncate max-w-[200px]">{cond.supplier_pattern || '—'}</td>
+        {/* 金額範囲 */}
+        <td className="px-3 py-2 text-right text-xs text-gray-600 font-mono whitespace-nowrap">{amountRange}</td>
+        {/* 勘定科目 */}
+        <td className="px-3 py-2 text-xs font-semibold text-gray-900 truncate">{acctName}</td>
+        {/* 税区分 */}
+        <td className="px-3 py-2 text-xs text-gray-600 truncate">{taxName}</td>
+        {/* 状態 */}
+        <td className="px-3 py-2 text-center">
+          <button
+            onClick={(e) => { e.stopPropagation(); onToggleActive?.(rule.id, !rule.is_active); }}
+            disabled={!editable}
+            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${rule.is_active ? 'bg-green-500' : 'bg-gray-300'} ${!editable ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${rule.is_active ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
+          </button>
+        </td>
+        {/* Chevron / アクション */}
+        <td className="px-2 py-2 text-center">
           {editable && <ChevronDown size={12} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />}
           {!editable && onCopyDerive && (
             <button onClick={(e) => { e.stopPropagation(); onCopyDerive(); }}
@@ -114,79 +137,108 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
             </button>
           )}
           {!editable && !onCopyDerive && <span className="text-[10px] text-gray-300">参照</span>}
-        </div>
-      </div>
+        </td>
+      </tr>
 
       {/* アコーディオン展開 */}
       {expanded && (
-        <div className={`bg-white border border-t-0 ${scope === 'industry' ? 'border-blue-200' : scope === 'client' ? 'border-red-200' : 'border-gray-200'} rounded-b-md p-4`}>
-          {/* 派生元表示 */}
-          {hasDerived && parentRule && (
-            <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4">
-              <div className="text-[10px] font-bold text-gray-500 mb-2 flex items-center gap-1">↑ 派生元の汎用ルール</div>
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">汎用</span>
-                <span className="font-semibold text-gray-500">{parentRule.conditions?.supplier_pattern || '—'}</span>
-                <span className="text-gray-300">→</span>
-                <span className="font-semibold text-gray-500 line-through">{parentAcctName}</span>
-                <span className="text-blue-600 font-semibold text-[11px] ml-2">この業種では「{acctName}」に変更</span>
+        <tr>
+          <td colSpan={9} className={`bg-white border-b-2 ${scope === 'industry' ? 'border-blue-200' : scope === 'client' ? 'border-red-200' : 'border-gray-200'} p-4`}>
+            {/* 派生元表示 */}
+            {!!rule.derived_from_rule_id && parentRule && (
+              <div className="bg-gray-50 border border-gray-200 rounded-md p-3 mb-4">
+                <div className="text-[10px] font-bold text-gray-500 mb-2 flex items-center gap-1">↑ 派生元の汎用ルール</div>
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">汎用</span>
+                  <span className="font-semibold text-gray-500">{parentRule.conditions?.supplier_pattern || '—'}</span>
+                  <span className="text-gray-300">→</span>
+                  <span className="font-semibold text-gray-500 line-through">{parentAcctName}</span>
+                  <span className="text-blue-600 font-semibold text-[11px] ml-2">この業種では「{acctName}」に変更</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          <div className="grid grid-cols-2 gap-3">
-            {/* 条件 */}
-            <div>
-              <div className="text-[10px] font-bold text-gray-600 mb-2 border-b border-gray-100 pb-1">条件</div>
-              <div className="space-y-2">
-                <FormField label="取引先パターン" value={formConditions.supplier_pattern || ''} onChange={v => setFormConditions({...formConditions, supplier_pattern: v})} ph="取引先名（部分一致）" />
-                <FormField label="摘要パターン（取引内容）" value={formConditions.transaction_pattern || ''} onChange={v => setFormConditions({...formConditions, transaction_pattern: v})} ph="摘要キーワード" />
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="金額下限" value={formConditions.amount_min || ''} onChange={v => setFormConditions({...formConditions, amount_min: v ? Number(v) : null})} ph="0" type="number" />
-                  <FormField label="金額上限" value={formConditions.amount_max || ''} onChange={v => setFormConditions({...formConditions, amount_max: v ? Number(v) : null})} ph="∞" type="number" />
+            <div className="grid grid-cols-2 gap-3">
+              {/* 条件 */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-600 mb-2 border-b border-gray-100 pb-1">条件</div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">取引先パターン</label>
+                    <ComboBox
+                      value={matchedSupplier?.id || ''}
+                      onChange={(id) => {
+                        const sup = suppliers.find(s => s.id === id);
+                        if (sup) setFormConditions({ ...formConditions, supplier_pattern: sup.name });
+                      }}
+                      options={suppliers.map(s => ({ id: s.id, name: s.name, code: s.code || undefined, name_kana: s.name_kana }))}
+                      placeholder="取引先を選択..."
+                      textValue={formConditions.supplier_pattern || ''}
+                      onNewText={(text) => setFormConditions({ ...formConditions, supplier_pattern: text })}
+                      allowCreate
+                      onCreateNew={async (name) => {
+                        if (onSupplierCreate) await onSupplierCreate(name);
+                        setFormConditions({ ...formConditions, supplier_pattern: name });
+                      }}
+                    />
+                  </div>
+                  <FormField label="摘要パターン（取引内容）" value={formConditions.transaction_pattern || ''} onChange={v => setFormConditions({...formConditions, transaction_pattern: v})} ph="摘要キーワード" />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="金額下限" value={formConditions.amount_min || ''} onChange={v => setFormConditions({...formConditions, amount_min: v ? Number(v) : null})} ph="0" type="number" />
+                    <FormField label="金額上限" value={formConditions.amount_max || ''} onChange={v => setFormConditions({...formConditions, amount_max: v ? Number(v) : null})} ph="∞" type="number" />
+                  </div>
+                  <FormField label="品目パターン" value={formConditions.item_pattern || ''} onChange={v => setFormConditions({...formConditions, item_pattern: v})} ph="品目キーワード" />
+                  <FormField label="支払方法" value={formConditions.payment_method || ''} onChange={v => setFormConditions({...formConditions, payment_method: v})} ph="cash / credit_card / bank_transfer" />
+                  <FormField label="証憑種別" value={formConditions.document_type || ''} onChange={v => setFormConditions({...formConditions, document_type: v})} ph="receipt / invoice" />
                 </div>
-                <FormField label="品目パターン" value={formConditions.item_pattern || ''} onChange={v => setFormConditions({...formConditions, item_pattern: v})} ph="品目キーワード" />
-                <FormField label="支払方法" value={formConditions.payment_method || ''} onChange={v => setFormConditions({...formConditions, payment_method: v})} ph="cash / credit_card / bank_transfer" />
-                <FormField label="証憑種別" value={formConditions.document_type || ''} onChange={v => setFormConditions({...formConditions, document_type: v})} ph="receipt / invoice" />
+              </div>
+              {/* アクション */}
+              <div>
+                <div className="text-[10px] font-bold text-gray-600 mb-2 border-b border-gray-100 pb-1">アクション</div>
+                <div className="space-y-2">
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">種別</label>
+                    <select value={formRuleType} onChange={e => setFormRuleType(e.target.value)}
+                      className="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
+                      <option value="支出">支出</option>
+                      <option value="収入">収入</option>
+                      <option value="複合仕訳">複合仕訳</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">勘定科目</label>
+                    <select value={formActions.account_item_id || ''} onChange={e => setFormActions({...formActions, account_item_id: e.target.value})}
+                      className="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
+                      <option value="">-- 選択 --</option>
+                      {accountItems.map(a => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">税区分</label>
+                    <select value={formActions.tax_category_id || ''} onChange={e => setFormActions({...formActions, tax_category_id: e.target.value})}
+                      className="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
+                      <option value="">-- 選択 --</option>
+                      {taxCategories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    </select>
+                  </div>
+                  <FormField label="摘要テンプレート" value={formActions.description_template || ''} onChange={v => setFormActions({...formActions, description_template: v})} ph="{supplier} ガソリン代" />
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <FormField label="家事按分率(%)" value={formActions.business_ratio ? Math.round(Number(formActions.business_ratio) * 100) : ''} onChange={v => setFormActions({...formActions, business_ratio: v ? Number(v) / 100 : null})} ph="100" type="number" />
+                    <FormField label="按分根拠" value={formActions.business_ratio_note || ''} onChange={v => setFormActions({...formActions, business_ratio_note: v})} ph="理由" />
+                  </div>
+                  <FormField label="優先度" value={formPriority} onChange={v => setFormPriority(Number(v))} type="number" />
+                </div>
+                <div className="flex gap-1.5 mt-4 justify-end">
+                  {onDelete && <button onClick={onDelete} className="px-3 py-1.5 text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">削除</button>}
+                  <button onClick={() => onSave?.({ conditions: formConditions, actions: formActions, priority: formPriority, rule_type: formRuleType })}
+                    className="px-4 py-1.5 text-[11px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
+                </div>
               </div>
             </div>
-            {/* アクション */}
-            <div>
-              <div className="text-[10px] font-bold text-gray-600 mb-2 border-b border-gray-100 pb-1">アクション</div>
-              <div className="space-y-2">
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">勘定科目</label>
-                  <select value={formActions.account_item_id || ''} onChange={e => setFormActions({...formActions, account_item_id: e.target.value})}
-                    className="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-                    <option value="">-- 選択 --</option>
-                    {accountItems.map(a => <option key={a.id} value={a.id}>{a.code} {a.name}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[10px] font-semibold text-gray-500 block mb-0.5">税区分</label>
-                  <select value={formActions.tax_category_id || ''} onChange={e => setFormActions({...formActions, tax_category_id: e.target.value})}
-                    className="w-full p-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 outline-none">
-                    <option value="">-- 選択 --</option>
-                    {taxCategories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                  </select>
-                </div>
-                <FormField label="摘要テンプレート" value={formActions.description_template || ''} onChange={v => setFormActions({...formActions, description_template: v})} ph="{supplier} ガソリン代" />
-                <div className="grid grid-cols-2 gap-1.5">
-                  <FormField label="家事按分率(%)" value={formActions.business_ratio ? Math.round(Number(formActions.business_ratio) * 100) : ''} onChange={v => setFormActions({...formActions, business_ratio: v ? Number(v) / 100 : null})} ph="100" type="number" />
-                  <FormField label="按分根拠" value={formActions.business_ratio_note || ''} onChange={v => setFormActions({...formActions, business_ratio_note: v})} ph="理由" />
-                </div>
-                <FormField label="優先度" value={formPriority} onChange={v => setFormPriority(Number(v))} type="number" />
-              </div>
-              <div className="flex gap-1.5 mt-4 justify-end">
-                {onDelete && <button onClick={onDelete} className="px-3 py-1.5 text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">削除</button>}
-                <button onClick={() => onSave?.({ conditions: formConditions, actions: formActions, priority: formPriority })}
-                  className="px-4 py-1.5 text-[11px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
-              </div>
-            </div>
-          </div>
-        </div>
+          </td>
+        </tr>
       )}
-    </div>
+    </>
   );
 }
 
@@ -249,6 +301,7 @@ function SharedRulesTab() {
   const [rules, setRules] = useState<any[]>([]);
   const [accountItems, setAccountItems] = useState<AccountItem[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; code?: string; name_kana?: string | null }>>([]);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -257,14 +310,16 @@ function SharedRulesTab() {
 
   const loadData = async () => {
     setLoading(true);
-    const [rulesRes, acctRes, taxRes] = await Promise.all([
+    const [rulesRes, acctRes, taxRes, supRes] = await Promise.all([
       rulesApi.getAll({ scope: 'shared', is_active: 'true' }),
       accountItemsApi.getAll({ is_active: 'true' }),
       taxCategoriesApi.getAll(),
+      suppliersApi.getAll({ is_active: 'true' }),
     ]);
     if (rulesRes.data) setRules(rulesRes.data);
     if (acctRes.data) setAccountItems(acctRes.data as AccountItem[]);
     if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
+    if (supRes.data) setSuppliers(supRes.data as any[]);
     setLoading(false);
   };
 
@@ -279,6 +334,7 @@ function SharedRulesTab() {
       conditions: data.conditions,
       actions: data.actions,
       priority: data.priority,
+      rule_type: data.rule_type,
     });
     if (error) alert('保存に失敗: ' + error);
     else loadData();
@@ -289,6 +345,19 @@ function SharedRulesTab() {
     const { error } = await rulesApi.delete(rule.id);
     if (error) { alert('削除に失敗しました: ' + error); return; }
     loadData();
+  };
+
+  const handleToggleActive = async (ruleId: string, isActive: boolean) => {
+    const { error } = await rulesApi.update(ruleId, { is_active: isActive });
+    if (error) alert('状態の更新に失敗: ' + error);
+    else loadData();
+  };
+
+  const handleSupplierCreate = async (name: string) => {
+    const orgId = userProfile?.organization_id;
+    if (!orgId) return;
+    const { data } = await suppliersApi.create({ organization_id: orgId, name, is_active: true });
+    if (data) setSuppliers(prev => [...prev, data as any]);
   };
 
   const filtered = rules.filter(r => {
@@ -318,15 +387,22 @@ function SharedRulesTab() {
         )}
       </div>
 
-      <div className="space-y-px">
-        {filtered.map(rule => (
-          <RuleRow key={rule.id} rule={rule} scope="shared" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
-            editable={canEdit}
-            onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
-            accountItems={accountItems} taxCategories={taxCategories} />
-        ))}
+      <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+        <table className="w-full text-sm">
+          <RuleTableHeader />
+          <tbody>
+            {filtered.map(rule => (
+              <RuleRow key={rule.id} rule={rule} scope="shared" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
+                editable={canEdit}
+                onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
+                onToggleActive={handleToggleActive}
+                accountItems={accountItems} taxCategories={taxCategories}
+                suppliers={suppliers} onSupplierCreate={handleSupplierCreate} />
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <div className="text-center py-12 text-gray-400 text-sm">{search ? '検索結果なし' : '汎用ルールがありません'}</div>}
       </div>
-      {filtered.length === 0 && <div className="text-center py-12 text-gray-400 text-sm">{search ? '検索結果なし' : '汎用ルールがありません'}</div>}
     </div>
   );
 }

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Plus, ChevronRight, Users } from 'lucide-react';
-import { rulesApi, industriesApi, clientsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
+import { rulesApi, industriesApi, clientsApi, accountItemsApi, taxCategoriesApi, suppliersApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';
-import { RuleRow } from './RulesIndexPage';
+import { RuleRow, RuleTableHeader } from './RulesIndexPage';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 
 export default function IndustryDetailPage() {
@@ -23,19 +23,21 @@ export default function IndustryDetailPage() {
   const [derivingRule, setDerivingRule] = useState<any>(null);
   const [deriveAccountId, setDeriveAccountId] = useState('');
   const [deriveTaxCatId, setDeriveTaxCatId] = useState('');
+  const [suppliers, setSuppliers] = useState<Array<{ id: string; name: string; code?: string; name_kana?: string | null }>>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => { if (industryId) loadData(); }, [industryId]);
 
   const loadData = async () => {
     setLoading(true);
-    const [indRes, indRulesRes, sharedRes, acctRes, taxRes, clientRes] = await Promise.all([
+    const [indRes, indRulesRes, sharedRes, acctRes, taxRes, clientRes, supRes] = await Promise.all([
       industriesApi.getAll({ is_active: 'true' }),
       rulesApi.getAll({ scope: 'industry', industry_id: industryId, is_active: 'true' }),
       rulesApi.getAll({ scope: 'shared', is_active: 'true' }),
       accountItemsApi.getAll({ is_active: 'true' }),
       taxCategoriesApi.getAll(),
       clientsApi.getAll(),
+      suppliersApi.getAll({ is_active: 'true' }),
     ]);
     const foundIndustry = indRes.data?.find((i: any) => i.id === industryId) || null;
     if (foundIndustry) setIndustry(foundIndustry);
@@ -43,6 +45,7 @@ export default function IndustryDetailPage() {
     if (sharedRes.data) setSharedRules(sharedRes.data);
     if (acctRes.data) setAccountItems(acctRes.data as AccountItem[]);
     if (taxRes.data) setTaxCategories(taxRes.data as TaxCategory[]);
+    if (supRes.data) setSuppliers(supRes.data as any[]);
     setClientCount(clientRes.data?.filter((c: any) => c.industry_id === industryId).length || 0);
     setLoading(false);
   };
@@ -61,10 +64,23 @@ export default function IndustryDetailPage() {
 
   const handleSave = async (ruleId: string, data: any) => {
     const { error } = await rulesApi.update(ruleId, {
-      conditions: data.conditions, actions: data.actions, priority: data.priority,
+      conditions: data.conditions, actions: data.actions, priority: data.priority, rule_type: data.rule_type,
     });
     if (error) alert('保存失敗: ' + error);
     else loadData();
+  };
+
+  const handleToggleActive = async (ruleId: string, isActive: boolean) => {
+    const { error } = await rulesApi.update(ruleId, { is_active: isActive });
+    if (error) alert('状態の更新に失敗: ' + error);
+    else loadData();
+  };
+
+  const handleSupplierCreate = async (name: string) => {
+    const orgId = userProfile?.organization_id;
+    if (!orgId) return;
+    const { data } = await suppliersApi.create({ organization_id: orgId, name, is_active: true });
+    if (data) setSuppliers(prev => [...prev, data as any]);
   };
 
   const handleDelete = async (rule: any) => {
@@ -198,19 +214,26 @@ export default function IndustryDetailPage() {
         )}
 
         {/* ルール一覧 */}
-        <div className="space-y-px">
-          {industryRules.map(rule => (
-            <RuleRow key={rule.id} rule={rule} scope="industry" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
-              editable={canEdit}
-              onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
-              parentRule={getParentRule(rule.derived_from_rule_id)}
-              accountItems={accountItems} taxCategories={taxCategories} />
-          ))}
-          {showShared && filteredShared.map(rule => (
-            <RuleRow key={`s-${rule.id}`} rule={rule} scope="shared" expanded={false} onToggle={() => {}} editable={false}
-              onCopyDerive={() => { setDerivingRule(rule); setDeriveAccountId(''); setDeriveTaxCatId(rule.actions?.tax_category_id || ''); }}
-              accountItems={accountItems} taxCategories={taxCategories} />
-          ))}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-x-auto">
+          <table className="w-full text-sm">
+            <RuleTableHeader />
+            <tbody>
+              {industryRules.map(rule => (
+                <RuleRow key={rule.id} rule={rule} scope="industry" expanded={expandedIds.has(rule.id)} onToggle={() => toggle(rule.id)}
+                  editable={canEdit}
+                  onDelete={() => handleDelete(rule)} onSave={(data) => handleSave(rule.id, data)}
+                  onToggleActive={handleToggleActive}
+                  parentRule={getParentRule(rule.derived_from_rule_id)}
+                  accountItems={accountItems} taxCategories={taxCategories}
+                  suppliers={suppliers} onSupplierCreate={handleSupplierCreate} />
+              ))}
+              {showShared && filteredShared.map(rule => (
+                <RuleRow key={`s-${rule.id}`} rule={rule} scope="shared" expanded={false} onToggle={() => {}} editable={false}
+                  onCopyDerive={() => { setDerivingRule(rule); setDeriveAccountId(''); setDeriveTaxCatId(rule.actions?.tax_category_id || ''); }}
+                  accountItems={accountItems} taxCategories={taxCategories} />
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
