@@ -3,7 +3,7 @@ import { useReview } from '../context/ReviewContext';
 
 export default function BusinessToggleRow() {
   const {
-    ci, form, accountItems, taxCategories, suppliers, industries,
+    ci, form, accountItems, taxCategories, industries,
     businessRatio, addRule, setAddRule, ruleScope, setRuleScope,
     ruleIndustryId, setRuleIndustryId, ruleSuggestion, setRuleSuggestion,
     supplierText, setBusiness,

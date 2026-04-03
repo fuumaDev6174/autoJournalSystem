@@ -299,7 +299,7 @@ export function ReviewProvider({ children }: { children: React.ReactNode }) {
     accountItems, taxCategories, taxRates, suppliers, itemsMaster, clientRatios,
     businessRatio, setBusinessRatio, saving: false, setSaving, setSavedAt,
     addRule, setAddRule, ruleScope, ruleIndustryId, ruleSuggestion, setRuleSuggestion,
-    supplierText, setSupplierText, itemText, setItemText,
+    setSupplierText, setItemText,
     aiOriginalForm, setAiOriginalForm, setRotation,
     setViewMode, setRuleIndustryId, setExpandedDocs,
     loadAllData,

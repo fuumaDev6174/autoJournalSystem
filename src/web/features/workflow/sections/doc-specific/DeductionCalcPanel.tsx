@@ -13,7 +13,7 @@ export default function DeductionCalcPanel() {
           <div className="mt-0.5 text-[10px] text-gray-400">抽出金額に基づいて自動計算</div>
         </div>
         <div className="text-right">
-          <div className="text-2xl font-bold text-emerald-700">{fmt(ci.amount)}</div>
+          <div className="text-2xl font-bold text-emerald-700">{fmt(ci.amount ?? undefined)}</div>
           <div className="text-[10px] text-emerald-600">所得から控除</div>
         </div>
       </div>

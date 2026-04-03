@@ -12,7 +12,7 @@ const IncomeCalcPanel = lazy(() => import('./IncomeCalcPanel'));
 const ReconciliationPanel = lazy(() => import('./ReconciliationPanel'));
 const MetadataFieldsPanel = lazy(() => import('./MetadataFieldsPanel'));
 
-const SECTION_MAP: Record<string, React.LazyExoticComponent<() => JSX.Element | null>> = {
+const SECTION_MAP: Record<string, React.LazyExoticComponent<() => React.ReactElement | null>> = {
   receipt_items: ReceiptItemList,
   invoice_panel: InvoicePanel,
   withholding: WithholdingPanel,

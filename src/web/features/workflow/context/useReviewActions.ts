@@ -46,9 +46,7 @@ interface UseReviewActionsParams {
   ruleIndustryId: string;
   ruleSuggestion: string;
   setRuleSuggestion: React.Dispatch<React.SetStateAction<string>>;
-  supplierText: string;
   setSupplierText: React.Dispatch<React.SetStateAction<string>>;
-  itemText: string;
   setItemText: React.Dispatch<React.SetStateAction<string>>;
 
   aiOriginalForm: Partial<DocumentWithEntry>;
@@ -69,7 +67,7 @@ export function useReviewActions(params: UseReviewActionsParams) {
     accountItems, taxCategories, taxRates, suppliers, itemsMaster, clientRatios,
     businessRatio, setBusinessRatio, setSaving, setSavedAt,
     addRule, setAddRule, ruleScope, ruleIndustryId, setRuleSuggestion,
-    supplierText, setSupplierText, itemText, setItemText,
+    setSupplierText, setItemText,
     aiOriginalForm, setAiOriginalForm, setRotation,
     setViewMode, setRuleIndustryId, setExpandedDocs,
     loadAllData,

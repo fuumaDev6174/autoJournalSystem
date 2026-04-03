@@ -15,7 +15,6 @@ import {
   Building2,
   ChevronDown,
   ChevronRight,
-  ChevronLeft,
   LogOut,
   User,
   Store,

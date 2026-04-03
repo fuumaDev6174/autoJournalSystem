@@ -8,7 +8,7 @@ export default function ReconciliationPanel() {
     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
       <div className="text-xs font-semibold text-amber-800 mb-2">🔍 売上突合チェック</div>
       <div className="space-y-1.5 text-xs">
-        <div className="flex justify-between"><span>書類の金額</span><span className="font-bold">{fmt(ci.amount)}</span></div>
+        <div className="flex justify-between"><span>書類の金額</span><span className="font-bold">{fmt(ci.amount ?? undefined)}</span></div>
         <div className="flex justify-between"><span>計上済み売上合計</span><span className="font-bold">-</span></div>
         <div className="flex justify-between text-amber-600 border-t border-amber-200 pt-1"><span className="font-medium">差額</span><span className="font-bold">-</span></div>
       </div>
