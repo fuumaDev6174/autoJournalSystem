@@ -53,6 +53,9 @@ router.post('/workflows', async (req: Request, res: Response) => {
       if (!owned) return res.status(403).json({ error: 'このクライアントへのアクセス権がありません' });
     }
 
+    // 認証ユーザーの organization_id を自動注入
+    body.organization_id = authUser.organization_id;
+
     const { data, error } = await supabaseAdmin.from('workflows').insert(body).select().single();
     if (error) return res.status(400).json({ error: error.message });
     res.status(201).json({ data });

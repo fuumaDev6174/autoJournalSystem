@@ -42,7 +42,7 @@ interface WorkflowProviderProps {
 export function WorkflowProvider({ children }: WorkflowProviderProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, userProfile } = useAuth();
+  const { user } = useAuth();
 
   // パスパラメータから client_id を取得
   const params = useParams<{ id?: string }>();
@@ -95,17 +95,12 @@ export function WorkflowProvider({ children }: WorkflowProviderProps) {
   // 新規ワークフロー開始
   // ============================================
   const startWorkflow = useCallback(async (clientId: string, clientName: string) => {
-    const organizationId = userProfile?.organization_id;
-    if (!organizationId) {
-      console.error('Failed to start workflow: organization_id is missing from user profile');
-      return;
-    }
-    const workflow = await workflowsApi.create(clientId, clientName, organizationId);
+    const workflow = await workflowsApi.create(clientId, clientName);
     if (!workflow) return;
 
     setCurrentWorkflow(workflow);
     navigate(`/clients/${clientId}/upload`);
-  }, [navigate, userProfile]);
+  }, [navigate]);
 
   // ============================================
   // 既存ワークフロー再開
