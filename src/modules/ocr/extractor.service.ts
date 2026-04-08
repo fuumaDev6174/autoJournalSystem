@@ -2,22 +2,29 @@ import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini
 import { EXTRACT_OCR_PROMPT } from './extractor.prompt.js';
 import type { OCRTransaction, OCRResult } from './ocr.types.js';
 
-export async function processOCR(imageUrl: string): Promise<OCRResult> {
+export async function processOCR(imageUrl: string, preloaded?: { base64: string; mimeType: string }): Promise<OCRResult> {
   try {
-    const fetchRes = await fetch(imageUrl);
-    if (!fetchRes.ok) {
-      throw new Error(`画像の取得に失敗しました: ${fetchRes.status}`);
-    }
-    const arrayBuffer = await fetchRes.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString('base64');
-    const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
+    let base64Image: string;
+    let mimeType: string;
 
-    const ext = imageUrl.split('?')[0].split('.').pop()?.toLowerCase();
-    const mimeType =
-      ext === 'pdf' || contentType.includes('pdf') ? 'application/pdf'
-      : ext === 'png' || contentType.includes('png') ? 'image/png'
-      : ext === 'webp' || contentType.includes('webp') ? 'image/webp'
-      : 'image/jpeg';
+    if (preloaded) {
+      base64Image = preloaded.base64;
+      mimeType = preloaded.mimeType;
+    } else {
+      const fetchRes = await fetch(imageUrl);
+      if (!fetchRes.ok) {
+        throw new Error(`画像の取得に失敗しました: ${fetchRes.status}`);
+      }
+      const arrayBuffer = await fetchRes.arrayBuffer();
+      base64Image = Buffer.from(arrayBuffer).toString('base64');
+      const contentType = fetchRes.headers.get('content-type') || 'image/jpeg';
+      const ext = imageUrl.split('?')[0].split('.').pop()?.toLowerCase();
+      mimeType =
+        ext === 'pdf' || contentType.includes('pdf') ? 'application/pdf'
+        : ext === 'png' || contentType.includes('png') ? 'image/png'
+        : ext === 'webp' || contentType.includes('webp') ? 'image/webp'
+        : 'image/jpeg';
+    }
 
     const result = await callGeminiWithRetry(() => ai.models.generateContent({
       model: GEMINI_MODEL_OCR,

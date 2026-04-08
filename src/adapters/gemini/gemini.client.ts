@@ -10,10 +10,21 @@ export const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 export const GEMINI_MODEL_OCR = GEMINI_CONFIG.modelOcr;
 export const GEMINI_MODEL_JOURNAL = GEMINI_CONFIG.modelJournal;
 
-let lastGeminiCallTime = 0;
-
 export async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 並列リクエストでも正しく順序制御するキュー
+let geminiQueue: Promise<void> = Promise.resolve();
+
+function acquireSlot(): Promise<void> {
+  const prev = geminiQueue;
+  let release: () => void;
+  geminiQueue = new Promise<void>(r => { release = r; });
+  return prev.then(() => {
+    // minInterval 待機後にスロットを返す
+    return sleep(GEMINI_CONFIG.minIntervalMs).then(() => release!());
+  });
 }
 
 /**
@@ -21,12 +32,7 @@ export async function sleep(ms: number): Promise<void> {
  */
 export async function callGeminiWithRetry<T>(fn: () => Promise<T>, label: string = 'Gemini'): Promise<T> {
   for (let attempt = 0; attempt <= GEMINI_CONFIG.maxRetries; attempt++) {
-    const now = Date.now();
-    const elapsed = now - lastGeminiCallTime;
-    if (elapsed < GEMINI_CONFIG.minIntervalMs) {
-      await sleep(GEMINI_CONFIG.minIntervalMs - elapsed);
-    }
-    lastGeminiCallTime = Date.now();
+    await acquireSlot();
 
     try {
       const result = await fn();

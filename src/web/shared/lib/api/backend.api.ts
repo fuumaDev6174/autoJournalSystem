@@ -30,7 +30,14 @@ async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ data:
     });
     if (res.status === 204) return { data: null, error: null };
     if (res.status === 401) return { data: null, error: '認証が必要です。再ログインしてください。' };
-    const json = await res.json();
+    // 502/503 等でJSON以外が返る場合に備える
+    const text = await res.text();
+    let json: any;
+    try {
+      json = JSON.parse(text);
+    } catch {
+      return { data: null, error: `サーバーエラー (HTTP ${res.status})` };
+    }
     if (!res.ok) return { data: null, error: json.error || `HTTP ${res.status}` };
     return { data: json.data ?? json, error: null };
   } catch (e: any) {

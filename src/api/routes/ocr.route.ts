@@ -84,7 +84,7 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
     // Step 2: フルOCR（既存のprocessOCR処理）に進む
     await supabaseAdmin.from('documents').update({ ocr_step: 'step2' }).eq('id', document_id);
 
-    const ocrResult = await processOCR(targetUrl);
+    const ocrResult = await processOCR(targetUrl, { base64: imageBase64, mimeType });
     console.log(`[OCR] ✅ 完了: supplier="${ocrResult.extracted_supplier}", amount=${ocrResult.extracted_amount}, confidence=${ocrResult.confidence_score}`);
 
     // 5-4(a): ハッシュベース重複チェック

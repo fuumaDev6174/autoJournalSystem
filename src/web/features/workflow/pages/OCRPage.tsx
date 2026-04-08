@@ -220,7 +220,7 @@ export default function OCRPage() {
   // ============================================
   // セマフォ付き並列実行
   // ============================================
-  const CONCURRENCY = 100;
+  const CONCURRENCY = 2;
 
   const runBatch = async (targets: OCRResultItem[]) => {
     if (targets.length === 0) return;
