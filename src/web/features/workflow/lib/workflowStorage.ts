@@ -45,7 +45,7 @@ export const workflowsApi = {
   },
 
   /** 新規作成 */
-  create: async (clientId: string, clientName: string): Promise<WorkflowState | null> => {
+  create: async (clientId: string, clientName: string, organizationId: string): Promise<WorkflowState | null> => {
     // 既存の進行中ワークフローをキャンセル
     const { data: existing } = await backendWorkflowsApi.getAll({ client_id: clientId, status: 'in_progress' });
     if (existing) {
@@ -56,6 +56,7 @@ export const workflowsApi = {
 
     const { data, error } = await backendWorkflowsApi.create({
       client_id: clientId,
+      organization_id: organizationId,
       current_step: 1,
       completed_steps: [],
       status: 'in_progress',
