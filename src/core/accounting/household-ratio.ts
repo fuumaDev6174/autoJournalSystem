@@ -1,7 +1,9 @@
 /**
- * 家事按分の金額分割計算。
- * 外部依存ゼロ。
+ * @module 家事按分計算
+ * @description 総額を事業用と私用に按分する。端数は事業用側で丸め、私用側は差額で算出。
  */
+
+/** 家事按分の分割結果 */
 export interface HouseholdSplitResult {
   businessAmount: number;
   personalAmount: number;
@@ -9,6 +11,7 @@ export interface HouseholdSplitResult {
   personalTax: number | null;
 }
 
+/** 総額と税額を事業割合で按分する */
 export function splitByHouseholdRatio(
   totalAmount: number,
   taxAmount: number | null,

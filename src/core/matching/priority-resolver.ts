@@ -1,8 +1,8 @@
 /**
- * ルールの優先順位を解決する。
- * scope: client(最優先) > industry > shared(最低優先)
- * 同一scope内は priority 数値が小さいほど優先。
+ * @module ルール優先順位解決
+ * @description scope（client > industry > shared）→ priority 数値の順でソート。
  */
+
 export type RuleScope = 'client' | 'industry' | 'shared';
 
 const SCOPE_ORDER: Record<RuleScope, number> = {
@@ -18,6 +18,7 @@ export interface SortableRule {
   industry_id: string | null;
 }
 
+/** ルールを scope → priority の順でソートし、対象外のルールを除外する */
 export function sortByPriority<T extends SortableRule>(
   rules: T[],
   targetClientId: string,

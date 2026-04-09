@@ -1,4 +1,31 @@
-/** OCR で抽出する各取引の型 */
+// ============================================
+// OCR モジュール 型定義（一元管理）
+//
+// OCR 関連のすべての型をここに集約する。
+// 各サービスはここから import すること。
+//
+// 【更新時の注意】
+// - プロンプトの JSON スキーマを変えたら対応する型も合わせる
+// - DB カラムを追加したら models.ts の Document 型にも反映する
+// ============================================
+
+// ============================================
+// 1. 証憑分類（classifier.service.ts の戻り値）
+// ============================================
+
+/** classifyDocument() の戻り値 */
+export interface ClassificationResult {
+  document_type_code: string;   // VALID_DOC_CODES のいずれか
+  confidence: number;           // 0.0〜1.0
+  estimated_lines: number;      // 1以上の整数
+  description: string;          // 日本語の簡潔な説明
+}
+
+// ============================================
+// 2. OCR データ抽出（extractor.service.ts の戻り値）
+// ============================================
+
+/** 1つの取引行（レシート=1行、通帳=複数行） */
 export interface OCRTransaction {
   date: string | null;
   supplier: string | null;
@@ -30,10 +57,13 @@ export interface OCRTransaction {
   transfer_fee_bearer: 'sender' | 'receiver' | null;
 }
 
+/** processOCR() の戻り値。先頭取引の主要フィールドをフラットに展開している */
 export interface OCRResult {
   raw_text: string;
-  document_type: 'receipt' | 'invoice' | 'bank_statement' | 'credit_card' | 'other';
+  document_type: string;
   transactions: OCRTransaction[];
+
+  // 先頭取引から展開（後段の仕訳生成で使う）
   extracted_date: string | null;
   extracted_supplier: string | null;
   extracted_amount: number | null;
@@ -54,4 +84,20 @@ export interface OCRResult {
   extracted_transaction_type: string | null;
   extracted_transfer_fee_bearer: string | null;
   confidence_score: number;
+}
+
+// ============================================
+// 3. 明細分割（multi-extractor.service.ts の戻り値）
+// ============================================
+
+/** extractMultipleEntries() が返す1取引行 */
+export interface ExtractedLine {
+  date: string;
+  description: string;
+  amount: number;
+  counterparty: string | null;
+  is_income: boolean;
+  suggested_account_name: string | null;
+  tax_rate: number | null;
+  confidence: number;
 }

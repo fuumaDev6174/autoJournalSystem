@@ -1,7 +1,9 @@
 /**
- * 仕訳明細行の貸借バランスを検証する。
- * 外部依存ゼロ。引数 → 結果のみ。
+ * @module 貸借バランス検証
+ * @description 仕訳明細行の借方合計と貸方合計が一致するか検証する。
  */
+
+/** 貸借バランス検証の結果 */
 export interface BalanceCheckResult {
   isBalanced: boolean;
   debitTotal: number;
@@ -9,6 +11,7 @@ export interface BalanceCheckResult {
   difference: number;
 }
 
+/** 借方合計と貸方合計を比較し、差額1円未満なら balanced と判定 */
 export function checkDebitCreditBalance(
   lines: ReadonlyArray<{ debit_credit: string; amount: number }>
 ): BalanceCheckResult {

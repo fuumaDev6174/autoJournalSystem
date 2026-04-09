@@ -1,113 +1,100 @@
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# タスク: workflowStorage.ts の supabase.from() をバックエンドAPI経由に変更
-# ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-# 重要度: 中
-# 理由: workflowStorage.ts がフロントから supabase.from('workflows') を
-#       直接呼んでいる最後のファイル。
-#       backend.api.ts に workflowsApi が既に定義済みなので、そちらに切替可能。
-#       これが完了すれば、フロントの supabase 使用は認証（auth）のみになる。
+# コメントリファクタリング実装計画
 
-## ファイル: src/web/features/workflow/hooks/workflowStorage.ts
-## （または src/client/lib/workflowStorage.ts — 実際の配置場所に応じて）
+JSDoc ドキュメンテーション方式への統一。JSDoc + 複雑処理の why 以外のコメントは全削除。
 
-### 変更内容:
+## Batch 1: `modules/journal/` + `modules/rule-engine/`（11ファイル）
+- [ ] `journal/ai-generator.service.ts` — `@module`、JSDoc、JSON修復の why
+- [ ] `journal/ai-generator.prompt.ts` — `@module`、JSDoc
+- [ ] `journal/rule-generator.service.ts` — `@module`、JSDoc
+- [ ] `journal/line-mapper.service.ts` — `@module`、JSDoc、名寄せの why
+- [ ] `journal/generator.strategy.ts` — `@module`、JSDoc
+- [ ] `journal/journal.types.ts` — 各インターフェースに1行 JSDoc
+- [ ] `rule-engine/matcher.service.ts` — `@module`、JSDoc、priority の why
+- [ ] `rule-engine/matcher-with-candidates.ts` — `@module`、JSDoc
+- [ ] `rule-engine/rule-engine.types.ts` — 各インターフェースに1行 JSDoc
+- [ ] `rule-engine/rule-name-generator.ts` — `@module`、JSDoc
+- [ ] `rule-engine/conflict-detector.ts` — `@module`
 
-変更前（import部分）:
-```typescript
-import { supabase } from './supabase';
-```
+## Batch 2: `core/`（8ファイル）
+- [ ] `accounting/double-entry.ts` — `@module`、JSDoc 補完
+- [ ] `accounting/household-ratio.ts` — `@module`、JSDoc
+- [ ] `accounting/tax-calculation.ts` — `@module`、JSDoc
+- [ ] `accounting/withholding-tax.ts` — `@module`、JSDoc、100万円閾値の why
+- [ ] `matching/condition-evaluator.ts` — `@module`、JSDoc、AND評価の why
+- [ ] `matching/priority-resolver.ts` — `@module`、JSDoc
+- [ ] `validation/amount-validator.ts` — `@module`、JSDoc
+- [ ] `validation/date-validator.ts` — `@module`、JSDoc
 
-変更後:
-```typescript
-import { workflowsApi } from '@/web/shared/lib/api/backend.api';
-```
+## Batch 3: `modules/ocr/` + `document/` + `export/` + `identity/`（14ファイル）
+- [ ] `ocr/ocr.types.ts` — `@module`、各インターフェースに1行 JSDoc、不要コメント削除
+- [ ] `ocr/classifier.service.ts` — `@module`、不要コメント削除、JSDoc
+- [ ] `ocr/extractor.service.ts` — `@module`、不要コメント削除、JSDoc
+- [ ] `ocr/multi-extractor.service.ts` — `@module`、不要コメント削除、JSDoc
+- [ ] `ocr/classifier.prompt.ts` — `@module`、JSDoc
+- [ ] `ocr/extractor.prompt.ts` — `@module`、不要コメント削除、JSDoc
+- [ ] `ocr/multi-extractor.prompt.ts` — `@module`、不要コメント削除、JSDoc
+- [ ] `document/duplicate-checker.ts` — `@module`、JSDoc、ファジーマッチの why
+- [ ] `document/supplier-matcher.ts` — `@module`、JSDoc
+- [ ] `document/document.types.ts` — `@module`
+- [ ] `export/freee-csv.builder.ts` — `@module`、JSDoc
+- [ ] `export/simple-csv.builder.ts` — `@module`、JSDoc
+- [ ] `identity/role.types.ts` — `@module`、JSDoc
+- [ ] `identity/tenant.types.ts` — `@module`、JSDoc
 
-### 各関数の置換パターン:
+## Batch 4: `api/routes/`（非CRUD）+ `middleware/` + `helpers/`（13ファイル）
+- [ ] `routes/journals.route.ts` — `@module`、明細分割の why、不要コメント削除
+- [ ] `routes/ocr.route.ts` — `@module`、2段階パイプラインの why
+- [ ] `routes/batch.route.ts` — `@module`
+- [ ] `routes/documents.route.ts` — `@module`
+- [ ] `routes/freee.route.ts` — `@module`、OAuth の why
+- [ ] `routes/health.route.ts` — `@module`
+- [ ] `routes/validation.route.ts` — `@module`
+- [ ] `middleware/auth.middleware.ts` — `@module`、PUBLIC_PATHS の why
+- [ ] `middleware/error-handler.middleware.ts` — `@module`
+- [ ] `middleware/logging.middleware.ts` — `@module`
+- [ ] `middleware/rate-limit.middleware.ts` — `@module`
+- [ ] `helpers/master-data.ts` — `@module`、各ヘルパーに JSDoc
+- [ ] `api/server.ts` — `@module`
 
-#### getByClient:
-変更前:
-```typescript
-const { data, error } = await supabase
-  .from('workflows')
-  .select('*')
-  .eq('client_id', clientId)
-  .eq('status', 'in_progress')
-  .order('created_at', { ascending: false })
-  .limit(1)
-  .maybeSingle();
-```
-変更後:
-```typescript
-const { data: list, error } = await workflowsApi.getAll({ client_id: clientId, status: 'in_progress' });
-const data = list && list.length > 0 ? list[0] : null;
-```
+## Batch 5: `api/routes/crud/`（15ファイル）
+各ファイルに `@module` ヘッダーのみ。不要コメント削除。複雑クエリには why。
+- [ ] `account-items.crud.ts`
+- [ ] `client-ratios.crud.ts`
+- [ ] `clients.crud.ts`
+- [ ] `documents.crud.ts`
+- [ ] `industries.crud.ts`
+- [ ] `items.crud.ts`
+- [ ] `journal-corrections.crud.ts`
+- [ ] `journal-entries.crud.ts` — 複雑クエリに why
+- [ ] `notifications.crud.ts`
+- [ ] `rules.crud.ts`
+- [ ] `storage.crud.ts`
+- [ ] `suppliers.crud.ts` — 複雑クエリに why
+- [ ] `tax-categories.crud.ts`
+- [ ] `users.crud.ts`
+- [ ] `workflows.crud.ts`
 
-#### getById:
-変更前:
-```typescript
-const { data, error } = await supabase
-  .from('workflows')
-  .select('*')
-  .eq('id', id)
-  .single();
-```
-変更後:
-```typescript
-const { data, error } = await workflowsApi.getAll({ client_id: undefined });
-const found = (data || []).find((w: any) => w.id === id) || null;
-```
-※ workflows_crud.ts にGET /api/workflows/:id がない場合は追加するか、
-  上記のようにフィルタで代用。
+## Batch 6: `adapters/` + `server/` + `shared/`（14ファイル）
+- [ ] `adapters/gemini/gemini.client.ts` — `@module`、キューの why
+- [ ] `adapters/gemini/gemini.config.ts` — `@module`
+- [ ] `adapters/freee/freee.api-client.ts` — `@module`、JSDoc
+- [ ] `adapters/freee/freee.oauth.ts` — `@module`
+- [ ] `adapters/supabase/supabase.client.ts` — `@module`
+- [ ] `adapters/supabase/supabase-admin.client.ts` — `@module`、admin の why
+- [ ] `adapters/supabase/supabase.debug.ts` — `@module`
+- [ ] `server/index.ts` — `@module`
+- [ ] `server/services/validation.service.ts` — `@module`、JSDoc
+- [ ] `server/services/freee.service.ts` — `@module`、JSDoc
+- [ ] `shared/types/models.ts` — `@module`、全インターフェースに1行 JSDoc
+- [ ] `shared/types/enums.ts` — `@module`
+- [ ] `shared/utils/normalize-japanese.ts` — `@module`、正規化の why
 
-#### create:
-変更前:
-```typescript
-await supabase.from('workflows').update({ status: 'cancelled' }).eq('client_id', clientId).eq('status', 'in_progress');
-const { data, error } = await supabase.from('workflows').insert({ ... }).select().single();
-```
-変更後:
-```typescript
-await workflowsApi.cancel(existingWorkflowId);  // 既存があればキャンセル
-const { data, error } = await workflowsApi.create({ client_id: clientId, current_step: 1, completed_steps: [], status: 'in_progress', data: {} });
-```
+## Batch 7: `web/`（フロントエンド）
+- [ ] 7a: `context/` + `providers/`（7ファイル）— `@module`、hooks に JSDoc、不要コメント削除
+- [ ] 7b: `shared/`（4ファイル）— `@module`、`backend.api.ts` の API に JSDoc
+- [ ] 7c: `doc-types/`（2ファイル）— `@module`
+- [ ] 7d: `pages/` + `layouts/` + `sections/`（~35ファイル）— `@module` のみ、不要コメント削除
 
-#### update:
-変更前:
-```typescript
-const { data, error } = await supabase.from('workflows').update(dbUpdates).eq('id', id).select().single();
-```
-変更後:
-```typescript
-const { data, error } = await workflowsApi.update(id, dbUpdates);
-```
-
-#### complete:
-変更前:
-```typescript
-const { error } = await supabase.from('workflows').update({ status: 'completed', ... }).eq('id', id);
-```
-変更後:
-```typescript
-const { error } = await workflowsApi.complete(id, completedBy);
-```
-
-#### cancel:
-変更前:
-```typescript
-const { error } = await supabase.from('workflows').update({ status: 'cancelled' }).eq('id', id);
-```
-変更後:
-```typescript
-const { error } = await workflowsApi.cancel(id);
-```
-
-### 変更後の確認:
-```bash
-grep -n "supabase" src/web/features/workflow/hooks/workflowStorage.ts
-# または
-grep -n "supabase" src/client/lib/workflowStorage.ts
-```
-何もヒットしなければ成功。
-```bash
-npm run build
-```
+## 検証（各バッチ後）
+- `npx tsc --noEmit` でエラーなし
+- 機能コードの変更なし

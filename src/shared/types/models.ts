@@ -191,22 +191,20 @@ export interface Document {
   ocr_completed_at?: string | null;
   is_excluded?: boolean;
   exclusion_reason?: string | null;
+
+  // OCR 分類・処理段階（ocr.route.ts で書き込まれる）
+  doc_classification?: import('../modules/ocr/ocr.types').ClassificationResult | null;
+  ocr_step1_type?: string | null;
+  ocr_step1_confidence?: number | null;
+  ocr_step?: 'step1' | 'step2' | null;
+
   created_at: string;
   updated_at: string;
 }
 
-export interface OCRResult {
-  id: string;
-  document_id: string;
-  raw_text: string | null;
-  extracted_date: string | null;
-  extracted_supplier: string | null;
-  extracted_amount: number | null;
-  extracted_tax_amount: number | null;
-  extracted_items: any | null;
-  confidence_score: number | null;
-  created_at: string;
-}
+// OCRResult は src/modules/ocr/ocr.types.ts に一元管理
+// ここでは re-export のみ行う
+export type { OCRResult, ClassificationResult, ExtractedLine } from '../modules/ocr/ocr.types';
 
 export interface JournalEntry {
   id: string;

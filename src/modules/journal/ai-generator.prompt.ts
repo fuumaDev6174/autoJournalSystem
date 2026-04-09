@@ -1,5 +1,17 @@
+/**
+ * @module AI 仕訳生成プロンプト
+ * @description Gemini に送る仕訳生成プロンプトを組み立てる。
+ *              取引情報 + 勘定科目/税区分マスタ → プロンプト文字列。
+ */
+
 import type { JournalEntryInput } from './journal.types.js';
 
+/**
+ * 取引情報とマスタデータから Gemini 仕訳生成プロンプトを構築する。
+ *
+ * @param input - OCR 抽出データ + 勘定科目・税区分マスタ
+ * @returns Gemini に送るプロンプト文字列
+ */
 export function buildJournalGenerationPrompt(input: JournalEntryInput): string {
   const accountList = input.account_items
     .map((a) => `${a.name}(${a.code}/${a.category})`)

@@ -1,5 +1,11 @@
+/**
+ * @module 仕訳生成 型定義
+ * @description AI/ルール仕訳生成で使用する入力・出力の型。
+ */
+
 import type { OCRTransaction } from '../ocr/ocr.types.js';
 
+/** 勘定科目マスタの参照用（名前解決に使用） */
 export interface AccountItemRef {
   id: string;
   code: string;
@@ -7,6 +13,7 @@ export interface AccountItemRef {
   category: string;
 }
 
+/** 税区分マスタの参照用 */
 export interface TaxCategoryRef {
   id: string;
   code: string;
@@ -14,6 +21,7 @@ export interface TaxCategoryRef {
   rate: number;
 }
 
+/** 仕訳生成 API への入力 */
 export interface JournalEntryInput {
   date: string;
   supplier: string;
@@ -34,6 +42,7 @@ export interface JournalEntryInput {
   correction_hints?: Array<{ supplier: string; original: string; corrected: string; count: number }>;
 }
 
+/** AI/ルールが生成した仕訳の1行 */
 export interface GeneratedJournalLine {
   line_number: number;
   debit_credit: 'debit' | 'credit';
@@ -47,6 +56,7 @@ export interface GeneratedJournalLine {
   item_name?: string | null;
 }
 
+/** AI/ルールが生成した仕訳全体 */
 export interface GeneratedJournalEntry {
   category: '事業用' | 'プライベート';
   notes: string;

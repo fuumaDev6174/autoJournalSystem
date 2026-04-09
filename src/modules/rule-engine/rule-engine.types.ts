@@ -1,3 +1,9 @@
+/**
+ * @module ルールエンジン 型定義
+ * @description ルールマッチングの入力・出力の型。
+ */
+
+/** ルールマッチングへの入力（OCR 抽出データから構築） */
 export interface RuleMatchInput {
   supplier: string;
   amount: number;
@@ -19,6 +25,7 @@ export interface RuleMatchInput {
   transfer_fee_bearer?: string | null;
 }
 
+/** ルールマッチの結果（仕訳生成に必要なアクション情報） */
 export interface MatchedRule {
   rule_id: string;
   rule_name: string;

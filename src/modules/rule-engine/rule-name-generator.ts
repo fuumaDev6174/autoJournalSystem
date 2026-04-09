@@ -1,3 +1,16 @@
+/**
+ * @module ルール名自動生成
+ * @description ルールの条件から人間が読みやすいルール名を自動生成する。
+ */
+
+/**
+ * ルール条件と勘定科目名から表示用ルール名を生成する。
+ * 例: "イオン (食品) ¥1,000以上 カード → 消耗品費"
+ *
+ * @param conditions - ルール条件
+ * @param accountItemName - マッチ先の勘定科目名
+ * @returns 生成されたルール名
+ */
 export function generateRuleName(
   conditions: {
     supplier_pattern?: string | null;

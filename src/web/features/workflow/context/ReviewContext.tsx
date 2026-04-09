@@ -68,10 +68,6 @@ export interface DocumentWithEntry {
     confidence?: number;
     estimated_lines?: number;
     description?: string;
-    tategaki?: string | null;
-    withholding_tax_amount?: number | null;
-    invoice_qualification?: string | null;
-    transaction_type?: string | null;
   } | null;
   unmatchedSupplierName: string | null;
   unmatchedItemName: string | null;

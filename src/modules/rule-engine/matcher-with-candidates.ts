@@ -1,7 +1,20 @@
+/**
+ * @module ルールマッチング（候補付き）
+ * @description matcher.service.ts の拡張版。最優先マッチに加え、他の候補も返す。
+ *              ReviewPage でユーザーに代替ルールを提示するために使用。
+ */
+
 import { evaluateConditions } from '../../core/matching/condition-evaluator.js';
 import { matchProcessingRules } from './matcher.service.js';
 import type { RuleMatchInput, MatchedRule } from './rule-engine.types.js';
 
+/**
+ * 全マッチルールを収集し、最優先の1件 + 残りの候補を返す。
+ *
+ * @param rules - 処理ルール配列
+ * @param input - マッチ入力
+ * @returns matched（最優先）と candidates（その他のマッチ）
+ */
 export function matchProcessingRulesWithCandidates(
   rules: Parameters<typeof matchProcessingRules>[0],
   input: RuleMatchInput

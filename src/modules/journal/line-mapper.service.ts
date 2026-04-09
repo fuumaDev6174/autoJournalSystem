@@ -1,6 +1,24 @@
+/**
+ * @module 仕訳行マッピングサービス
+ * @description AI/ルールが返した科目名・取引先名を DB の UUID にマッピングする。
+ *              完全一致 → 部分一致 → エイリアスの3段階で名寄せを行う。
+ */
+
 import { normalizeJapanese } from '../../shared/utils/normalize-japanese.js';
 import type { GeneratedJournalLine, AccountItemRef, TaxCategoryRef } from './journal.types.js';
 
+/**
+ * AI/ルールが生成した仕訳行を DB 保存用の UUID 形式に変換する。
+ * 科目名・取引先名・品目名をそれぞれマスタと照合し、UUID を解決する。
+ *
+ * @param lines - AI/ルールが生成した仕訳行（名前ベース）
+ * @param accountItems - 勘定科目マスタ
+ * @param taxCategories - 税区分マスタ
+ * @param fallbackAccountId - 科目が見つからない場合のフォールバック UUID（雑費）
+ * @param suppliers - 取引先マスタ
+ * @param supplierAliases - 取引先エイリアス
+ * @param items - 品目マスタ
+ */
 export function mapLinesToDBFormat(
   lines: GeneratedJournalLine[],
   accountItems: AccountItemRef[],
@@ -24,6 +42,7 @@ export function mapLinesToDBFormat(
   item_name_text: string | null;
 }> {
   return lines.map((line) => {
+    // AI が返す科目名は表記ゆれがあるため、完全一致 → 部分一致でフォールバック
     const account =
       accountItems.find((a) => a.name === line.account_item_name) ||
       accountItems.find((a) =>
@@ -37,6 +56,7 @@ export function mapLinesToDBFormat(
         )
       : null;
 
+    // 取引先名寄せ: 完全一致 → 部分一致 → エイリアスの3段階
     let supplierId: string | null = null;
     const sName = line.supplier_name;
     if (sName && suppliers) {

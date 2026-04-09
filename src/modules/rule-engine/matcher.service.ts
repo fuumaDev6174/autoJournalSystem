@@ -1,6 +1,21 @@
+/**
+ * @module ルールマッチングサービス
+ * @description OCR 結果をルール条件と照合し、最優先の1件を返す。
+ *              優先順位: client > industry > shared（スコープが狭いほど優先）。
+ */
+
 import { evaluateConditions } from '../../core/matching/condition-evaluator.js';
 import type { RuleMatchInput, MatchedRule } from './rule-engine.types.js';
 
+/**
+ * ルール配列を優先順に走査し、最初にマッチしたルールを返す。
+ * client スコープ → industry スコープ → shared スコープの順で評価するため、
+ * クライアント固有ルールが業種共通ルールより常に優先される。
+ *
+ * @param rules - 処理ルール配列
+ * @param input - OCR 抽出データから構築したマッチ入力
+ * @returns マッチしたルール。マッチなしなら null（AI 生成にフォールバック）
+ */
 export function matchProcessingRules(
   rules: Array<{
     id: string;
@@ -57,10 +72,12 @@ export function matchProcessingRules(
     .filter(r => r.scope === 'shared')
     .sort((a, b) => a.priority - b.priority);
 
+  // スコープ優先順: client(最優先) → industry → shared
   const orderedRules = [...clientRules, ...industryRules, ...sharedRules];
 
   for (const rule of orderedRules) {
     if (evaluateConditions(rule.conditions, input)) {
+      // account_item_id がないルールは仕訳を組めないためスキップ
       if (!rule.actions.account_item_id) continue;
 
       console.log(`[ルールマッチ] ✅ マッチ: "${rule.rule_name}" (priority=${rule.priority}, scope=${rule.scope})`);

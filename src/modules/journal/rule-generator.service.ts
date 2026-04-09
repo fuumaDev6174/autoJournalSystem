@@ -1,7 +1,23 @@
+/**
+ * @module ルールベース仕訳生成サービス
+ * @description マッチしたルールから仕訳を組み立てる。AI 不要で高速。
+ *              家事按分（事業/私用の分割）にも対応。
+ */
+
 import { splitByHouseholdRatio } from '../../core/accounting/household-ratio.js';
 import type { AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types.js';
 import type { MatchedRule } from '../rule-engine/rule-engine.types.js';
 
+/**
+ * マッチしたルールと取引情報から仕訳を生成する。
+ * business_ratio < 1 の場合は家事按分で借方を2行（事業用 + 事業主貸）に分割。
+ *
+ * @param matched - ルールエンジンがマッチしたルール
+ * @param input - 取引の基本情報（取引先・金額・税額・決済手段・日付）
+ * @param accountItems - 勘定科目マスタ
+ * @param taxCategories - 税区分マスタ
+ * @returns 生成された仕訳
+ */
 export function buildEntryFromRule(
   matched: MatchedRule,
   input: {

@@ -7,6 +7,21 @@ import { extractMultipleEntries } from '../../modules/ocr/multi-extractor.servic
 import { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.js';
 import { validateDebitCreditBalance } from '../../server/services/validation.service.js';
 import type { GeneratedJournalEntry } from '../../modules/journal/journal.types.js';
+
+// 明細分割対象の書類種別ごとのデフォルト決済手段
+const STATEMENT_PAYMENT_METHOD: Record<string, string | null> = {
+  bank_statement:    'bank_transfer',
+  credit_card:       'credit_card',
+  e_money_statement: 'e_money',
+  etc_statement:     'e_money',       // ETCカード = 電子マネー扱い
+  platform_csv:      'bank_transfer', // プラットフォーム売上は銀行振込入金
+  realestate_inc:    'bank_transfer', // 家賃入金は銀行振込
+  crypto_history:    'other',         // 暗号資産は独自決済
+  loan_schedule:     'bank_transfer', // 返済は口座引落
+  expense_report:    null,            // 経費精算書は行ごとに異なる
+  payroll:           null,            // 給与明細は行ごとに異なる
+  sales_report:      null,            // 売上集計は決済手段別に行が分かれる
+};
 import {
   supabaseAdmin,
   isValidUUID,
@@ -74,7 +89,17 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
     console.log(`[仕訳生成] マスタ: 勘定科目=${accountItems.length}件, 税区分=${taxCategories.length}件, 取引先=${suppliers.length}件, 品目=${itemsList.length}件`);
 
     // 2.5a statement_extract判定: 明細分割が必要な証憑種別か確認
-    const statementExtractTypes = ['bank_statement', 'credit_card', 'etc_statement', 'e_money_statement', 'expense_report'];
+    // registry.ts の supportsMultiLine: true と同期すること
+    const statementExtractTypes = [
+      // 収入系
+      'platform_csv', 'bank_statement', 'crypto_history', 'realestate_inc',
+      // 経費系
+      'credit_card', 'e_money_statement', 'etc_statement', 'expense_report',
+      // 資産系
+      'loan_schedule',
+      // 複合仕訳
+      'payroll', 'sales_report',
+    ];
     const docTypeCode = ocr_result.document_type || null;
 
     // document_type_id から processing_pattern を取得
@@ -127,7 +152,7 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
               tax_amount: null,
               tax_details: null,
               items: null,
-              payment_method: docTypeCode === 'credit_card' ? 'credit_card' : docTypeCode === 'bank_statement' ? 'bank_transfer' : null,
+              payment_method: STATEMENT_PAYMENT_METHOD[docTypeCode || ''] ?? null,
               invoice_number: null,
               industry,
               account_items: accountItems,
