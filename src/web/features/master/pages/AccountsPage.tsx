@@ -286,7 +286,7 @@ export default function AccountsPage() {
           <h1 className="text-2xl font-bold text-gray-900">勘定科目管理</h1>
           <p className="text-sm text-gray-500 mt-1">仕訳で使用する勘定科目を管理します</p>
         </div>
-        <button onClick={handleOpenNewModal} disabled={!canEdit}
+        <button type="button" onClick={handleOpenNewModal} disabled={!canEdit}
           className={`flex items-center gap-2 btn-primary ${!canEdit ? 'opacity-40 cursor-not-allowed' : ''}`}
           title={!canEdit ? '編集権限がありません' : ''}>
           <Plus size={18} />
@@ -428,7 +428,7 @@ export default function AccountsPage() {
                     <td className="px-4 py-3 text-xs font-mono text-gray-500">{item.short_name || '-'}</td>
                     <td className="px-4 py-3">
                       {item.description ? (
-                        <button onClick={() => setExpandedDescription(expandedDescription === item.id ? null : item.id)}
+                        <button type="button" onClick={() => setExpandedDescription(expandedDescription === item.id ? null : item.id)}
                           className="text-xs text-blue-600 hover:underline">
                           {expandedDescription === item.id ? '閉じる' : '表示'}
                         </button>

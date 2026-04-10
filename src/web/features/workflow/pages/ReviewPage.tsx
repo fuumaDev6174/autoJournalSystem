@@ -72,7 +72,7 @@ function ReviewPageContent() {
           { key: 'reviewed' as const, label: '承認待ち', count: reviewedCount },
           { key: 'excluded' as const, label: '対象外', count: excludedCount },
         ]).map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+          <button type="button" key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               activeTab === tab.key ? 'text-blue-600 border-blue-600 font-semibold' : 'text-gray-500 border-transparent hover:text-gray-700'
             }`}>
@@ -128,7 +128,7 @@ function ReviewPageContent() {
             {viewMode === 'list' && (
               <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
                 <h2 className="text-base font-semibold text-gray-900">仕訳一覧</h2>
-                <button onClick={openDetailFromTop}
+                <button type="button" onClick={openDetailFromTop}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors bg-red-500 hover:bg-red-600">
                   <Eye size={16} /> 個別チェックに切り替え
                 </button>
@@ -167,7 +167,7 @@ function ReviewPageContent() {
                       </tbody>
                     </table>
                   </div>
-                  <button onClick={() => { saveCurrentItem(false); setViewMode('list'); loadAllData(); }}
+                  <button type="button" onClick={() => { saveCurrentItem(false); setViewMode('list'); loadAllData(); }}
                     className="w-7 flex-shrink-0 bg-gray-100 hover:bg-gray-200 border-l border-gray-200 flex items-center justify-center transition-colors"
                     title="一覧に戻る">
                     <span className="text-[10px] font-medium text-gray-500" style={{ writingMode: 'vertical-rl' }}>一覧へ</span>
@@ -237,14 +237,14 @@ function ReviewPageContent() {
                               ) : entry.status === 'posted' ? (
                                 <div className="flex items-center justify-center gap-1.5">
                                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800"><CheckCircle size={10} />確定</span>
-                                  <button onClick={(e) => { e.stopPropagation(); handleRevert(entry.id, 'posted'); }}
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); handleRevert(entry.id, 'posted'); }}
                                     className="p-0.5 text-purple-500 hover:bg-purple-50 rounded" title="確定解除"><Undo2 size={12} /></button>
                                 </div>
                               ) : entry.status === 'reviewed' ? (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-700">
                                   <Clock size={10} />確認済み
                                   {isManagerOrAdmin && (
-                                    <button onClick={(e) => { e.stopPropagation(); handleApproveFromList(entry.id); }}
+                                    <button type="button" onClick={(e) => { e.stopPropagation(); handleApproveFromList(entry.id); }}
                                       className="ml-1 px-1.5 py-0.5 bg-green-500 text-white rounded text-[10px] hover:bg-green-600">
                                       承認
                                     </button>
@@ -253,7 +253,7 @@ function ReviewPageContent() {
                               ) : entry.status === 'approved' ? (
                                 <div className="flex items-center justify-center gap-1.5">
                                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800"><CheckCircle size={10} />承認済</span>
-                                  <button onClick={(e) => { e.stopPropagation(); handleRevert(entry.id, 'approved'); }}
+                                  <button type="button" onClick={(e) => { e.stopPropagation(); handleRevert(entry.id, 'approved'); }}
                                     className="p-0.5 text-green-500 hover:bg-green-50 rounded" title="差し戻し"><Undo2 size={12} /></button>
                                 </div>
                               ) : needsReview ? (

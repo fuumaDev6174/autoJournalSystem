@@ -216,7 +216,7 @@ export default function SuppliersPage() {
           <h1 className="text-2xl font-bold text-gray-900">取引先管理</h1>
           <p className="text-sm text-gray-500 mt-1">OCR・AI仕訳生成で使用する取引先マスタを管理します</p>
         </div>
-        <button onClick={handleOpenNewModal} disabled={!canEdit}
+        <button type="button" onClick={handleOpenNewModal} disabled={!canEdit}
           className={`flex items-center gap-2 btn-primary ${!canEdit ? 'opacity-40 cursor-not-allowed' : ''}`}>
           <Plus size={18} />新規取引先
         </button>
@@ -225,7 +225,7 @@ export default function SuppliersPage() {
       {/* カテゴリタブ */}
       <div className="flex flex-wrap gap-1.5">
         {CATEGORIES.map(cat => (
-          <button key={cat.key} onClick={() => { setActiveCategory(cat.key); setActiveKana(null); }}
+          <button type="button" key={cat.key} onClick={() => { setActiveCategory(cat.key); setActiveKana(null); }}
             className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
               activeCategory === cat.key
                 ? 'bg-blue-600 text-white border-blue-600'
@@ -249,7 +249,7 @@ export default function SuppliersPage() {
             {/* 50音インデックス */}
             <div className="flex gap-0.5 flex-shrink-0">
               {KANA_INDEX.map(k => (
-                <button key={k} onClick={() => setActiveKana(activeKana === k ? null : k)}
+                <button type="button" key={k} onClick={() => setActiveKana(activeKana === k ? null : k)}
                   className={`w-7 h-7 text-[10px] rounded transition-colors ${
                     activeKana === k ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                   }`}>{k}</button>
@@ -297,9 +297,9 @@ export default function SuppliersPage() {
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap text-right">
                       <div className="flex items-center justify-end gap-2">
-                        <button onClick={() => canEdit && handleOpenEditModal(supplier)} disabled={!canEdit}
+                        <button type="button" onClick={() => canEdit && handleOpenEditModal(supplier)} disabled={!canEdit}
                           className={`p-1 rounded ${canEdit ? 'text-gray-600 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`}><Edit size={18} /></button>
-                        <button onClick={() => canEdit && handleDelete(supplier)} disabled={!canEdit}
+                        <button type="button" onClick={() => canEdit && handleDelete(supplier)} disabled={!canEdit}
                           className={`p-1 rounded ${canEdit ? 'text-gray-600 hover:text-red-600 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`}><Trash2 size={18} /></button>
                       </div>
                     </td>
@@ -401,10 +401,10 @@ export default function SuppliersPage() {
                     </div>
                     <div className="flex items-center gap-2">
                       {alias.source === 'ai_suggested' && canEdit && (
-                        <button onClick={() => handleApproveAlias(alias)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">承認</button>
+                        <button type="button" onClick={() => handleApproveAlias(alias)} className="text-xs px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700">承認</button>
                       )}
                       {canEdit && (
-                        <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-gray-400 hover:text-red-600 rounded"><Trash2 size={16} /></button>
+                        <button type="button" onClick={() => handleDeleteAlias(alias)} className="p-1 text-gray-400 hover:text-red-600 rounded"><Trash2 size={16} /></button>
                       )}
                     </div>
                   </div>

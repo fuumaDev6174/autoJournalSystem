@@ -16,9 +16,9 @@ export default function BusinessToggleRow() {
     <div className="border border-gray-200 rounded-lg p-3 bg-gray-50 flex items-center justify-between flex-wrap gap-2">
       <div className="flex items-center gap-2">
         <div className="flex border border-gray-300 rounded-lg overflow-hidden">
-          <button onClick={() => setBusiness(true)}
+          <button type="button" onClick={() => setBusiness(true)}
             className={`px-4 py-1.5 text-xs font-medium transition-colors ${form.isBusiness && !form.isExcluded ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>事業用</button>
-          <button onClick={() => setBusiness(false)}
+          <button type="button" onClick={() => setBusiness(false)}
             className={`px-4 py-1.5 text-xs font-medium transition-colors ${!form.isBusiness && !form.isExcluded ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>プライベート</button>
         </div>
         <span className="text-[10px] px-1.5 py-0.5 border border-gray-300 rounded bg-gray-50 font-mono text-gray-500">P</span>

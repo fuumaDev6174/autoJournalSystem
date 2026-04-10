@@ -158,7 +158,7 @@ export default function SummaryPage() {
       <div className="flex flex-col items-center justify-center h-full text-center">
         <AlertCircle size={64} className="text-yellow-500 mx-auto mb-4" />
         <h2 className="text-2xl font-bold text-gray-900 mb-2">顧客が見つかりません</h2>
-        <button onClick={() => navigate('/clients')} className="btn-primary mt-4">顧客一覧へ戻る</button>
+        <button type="button" onClick={() => navigate('/clients')} className="btn-primary mt-4">顧客一覧へ戻る</button>
       </div>
     );
   }
@@ -167,7 +167,7 @@ export default function SummaryPage() {
     <div className="space-y-6 max-w-5xl mx-auto p-6">
       {/* ヘッダー */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate('/clients')} className="p-2 hover:bg-gray-100 rounded-lg">
+        <button type="button" onClick={() => navigate('/clients')} className="p-2 hover:bg-gray-100 rounded-lg">
           <ArrowLeft size={20} className="text-gray-700" />
         </button>
         <div className="flex-1">

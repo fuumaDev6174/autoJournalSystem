@@ -409,7 +409,7 @@ export default function OCRPage() {
                   <p className="text-sm text-gray-600">{pendingCount}件のファイルをOCR処理・仕訳生成します</p>
                   {industry && <p className="text-xs text-gray-500 mt-1">業種: {industry}</p>}
                 </div>
-                <button onClick={startOCRProcessing} className="btn-primary">処理開始</button>
+                <button type="button" onClick={startOCRProcessing} className="btn-primary">処理開始</button>
               </div>
             </div>
           )}
@@ -422,7 +422,7 @@ export default function OCRPage() {
                   <h3 className="font-semibold text-red-900 mb-1">エラーが{errorCount}件あります</h3>
                   <p className="text-sm text-red-700">再処理ボタンで個別に、または一括で再実行できます</p>
                 </div>
-                <button onClick={retryAllErrors} className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
+                <button type="button" onClick={retryAllErrors} className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">
                   <RotateCcw size={16} />エラー全件再処理
                 </button>
               </div>

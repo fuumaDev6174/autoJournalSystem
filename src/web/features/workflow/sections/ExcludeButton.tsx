@@ -7,7 +7,7 @@ import { useReview } from '../context/ReviewContext';
 export default function ExcludeButton() {
   const { form, toggleExclude } = useReview();
   return (
-    <button onClick={toggleExclude}
+    <button type="button" onClick={toggleExclude}
       className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-medium border transition-colors ${
         form.isExcluded ? 'bg-red-50 border-red-300 text-red-700' : 'border-gray-300 text-gray-500 bg-white hover:bg-gray-50'
       }`}>

@@ -223,7 +223,7 @@ export default function ExcludedPage() {
           {/* 大分類タブ */}
           <div className="flex gap-3">
             {MAIN_CATEGORIES.map(cat => (
-              <button key={cat} onClick={() => { setActiveMain(cat); setActiveSub(null); }}
+              <button type="button" key={cat} onClick={() => { setActiveMain(cat); setActiveSub(null); }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium border-2 transition-all ${
                   activeMain === cat
                     ? cat === '対象外証憑' ? 'bg-red-50 border-red-400 text-red-800'
@@ -242,7 +242,7 @@ export default function ExcludedPage() {
           {/* サブカテゴリフィルタ */}
           {visibleSubs && visibleSubs.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              <button onClick={() => setActiveSub(null)}
+              <button type="button" onClick={() => setActiveSub(null)}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${!activeSub ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'}`}>
                 全て ({mainCounts[activeMain]})
               </button>
@@ -251,7 +251,7 @@ export default function ExcludedPage() {
                 const count = subCounts[sub] || 0;
                 if (count === 0) return null;
                 return (
-                  <button key={sub} onClick={() => setActiveSub(sub)}
+                  <button type="button" key={sub} onClick={() => setActiveSub(sub)}
                     className={`flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
                       activeSub === sub ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-gray-400'
                     }`}>
@@ -294,7 +294,7 @@ export default function ExcludedPage() {
                       <div className="flex items-center gap-2 ml-4 flex-shrink-0">
                         <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${def.color}`}>{doc.subCategory}</span>
                         {doc.mainCategory === '対象外証憑' && (
-                          <button onClick={() => handleRestore(doc)} disabled={restoringId === doc.id}
+                          <button type="button" onClick={() => handleRestore(doc)} disabled={restoringId === doc.id}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50">
                             {restoringId === doc.id ? <Loader size={14} className="animate-spin" /> : <RotateCcw size={14} />}
                             対象内に戻す

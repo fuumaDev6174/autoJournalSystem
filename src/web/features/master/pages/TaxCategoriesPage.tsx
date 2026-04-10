@@ -218,11 +218,11 @@ export default function TaxCategoriesPage() {
 
       {/* セクション切り替え */}
       <div className="flex gap-2">
-        <button onClick={() => setActiveSection('categories')}
+        <button type="button" onClick={() => setActiveSection('categories')}
           className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors ${activeSection === 'categories' ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
           税区分一覧
         </button>
-        <button onClick={() => setActiveSection('rates')}
+        <button type="button" onClick={() => setActiveSection('rates')}
           className={`px-5 py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center gap-2 ${activeSection === 'rates' ? 'bg-gray-900 text-white' : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'}`}>
           <Percent size={16} /> 適用税率マスタ
         </button>
@@ -271,7 +271,7 @@ export default function TaxCategoriesPage() {
                   { key: 'income' as const, label: `収入 (${incomeCount})` },
                   { key: 'expense' as const, label: `支出 (${expenseCount})` },
                 ]).map(({ key, label }) => (
-                  <button key={key} onClick={() => setActiveTab(key)}
+                  <button type="button" key={key} onClick={() => setActiveTab(key)}
                     className={`px-4 py-2 text-sm font-medium rounded-lg ${activeTab === key ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}>
                     {label}
                   </button>
@@ -321,7 +321,7 @@ export default function TaxCategoriesPage() {
                             onChange={v => selectedClientId && handleQuickToggle(cat.id, 'use_for_expense', v)} />
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <button onClick={() => handleOpenDetail(cat)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded text-xs">
+                          <button type="button" onClick={() => handleOpenDetail(cat)} className="p-1.5 text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded text-xs">
                             詳細
                           </button>
                         </td>
@@ -346,7 +346,7 @@ export default function TaxCategoriesPage() {
               <h2 className="text-lg font-semibold text-gray-900">適用税率マスタ</h2>
               <p className="text-sm text-gray-500 mt-1">税区分に紐づく税率を管理します。仕訳確認画面の税率選択に反映されます。</p>
             </div>
-            <button onClick={handleOpenNewRate} disabled={!canEditTaxCat}
+            <button type="button" onClick={handleOpenNewRate} disabled={!canEditTaxCat}
               className={`flex items-center gap-2 btn-primary ${!canEditTaxCat ? 'opacity-40 cursor-not-allowed' : ''}`}>
               <Plus size={18} /> 税率を追加
             </button>
@@ -389,11 +389,11 @@ export default function TaxCategoriesPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-1">
-                          <button onClick={() => canEditTaxCat && handleOpenEditRate(rate)} disabled={!canEditTaxCat}
+                          <button type="button" onClick={() => canEditTaxCat && handleOpenEditRate(rate)} disabled={!canEditTaxCat}
                             className={`p-1.5 rounded ${canEditTaxCat ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`} title="編集">
                             <Edit size={16} />
                           </button>
-                          <button onClick={() => canEditTaxCat && handleDeleteRate(rate)} disabled={!canEditTaxCat}
+                          <button type="button" onClick={() => canEditTaxCat && handleDeleteRate(rate)} disabled={!canEditTaxCat}
                             className={`p-1.5 rounded ${canEditTaxCat ? 'text-red-600 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`} title="削除">
                             <Trash2 size={16} />
                           </button>

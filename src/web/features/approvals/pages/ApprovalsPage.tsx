@@ -203,7 +203,7 @@ export default function ApprovalsPage() {
           { key: 'amended' as TabFilter, label: '要修正', count: amendedCount, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200' },
           { key: 'all' as TabFilter, label: '全件', count: entries.length, color: 'text-gray-900', bg: 'bg-white', border: 'border-gray-200' },
         ]).map(({ key, label, count, color, bg, border }) => (
-          <button key={key} onClick={() => setActiveTab(key)}
+          <button type="button" key={key} onClick={() => setActiveTab(key)}
             className={`${bg} rounded-lg border p-4 text-left transition-all ${activeTab === key ? `${border} shadow-sm ring-1 ring-offset-0 ring-blue-300` : 'border-gray-200 hover:border-gray-300'}`}>
             <div className={`text-2xl font-bold ${color} mb-1`}>{count}</div>
             <div className="text-sm text-gray-600">{label}</div>
@@ -227,7 +227,7 @@ export default function ApprovalsPage() {
 
           {/* 一括承認ボタン */}
           {selectedCount > 0 && (
-            <button onClick={handleBulkApprove} disabled={processing}
+            <button type="button" onClick={handleBulkApprove} disabled={processing}
               className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 disabled:opacity-50">
               {processing ? <Loader size={16} className="animate-spin" /> : <CheckCircle size={16} />}
               {selectedCount}件を一括承認
@@ -322,24 +322,24 @@ export default function ApprovalsPage() {
                     <div className="flex items-center justify-center gap-1">
                       {entry.status === 'reviewed' && (
                         <>
-                          <button onClick={() => handleApprove(entry.id)}
+                          <button type="button" onClick={() => handleApprove(entry.id)}
                             className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="承認">
                             <CheckCircle size={16} />
                           </button>
-                          <button onClick={() => handleReject(entry.id)}
+                          <button type="button" onClick={() => handleReject(entry.id)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded" title="差し戻し">
                             <Undo2 size={16} />
                           </button>
                         </>
                       )}
                       {entry.status === 'approved' && (
-                        <button onClick={() => handleReject(entry.id)}
+                        <button type="button" onClick={() => handleReject(entry.id)}
                           className="p-1.5 text-gray-500 hover:bg-gray-100 rounded" title="差し戻し">
                           <Undo2 size={16} />
                         </button>
                       )}
                       {entry.status === 'amended' && (
-                        <button onClick={() => handleApprove(entry.id)}
+                        <button type="button" onClick={() => handleApprove(entry.id)}
                           className="p-1.5 text-green-600 hover:bg-green-50 rounded" title="再承認">
                           <CheckCircle size={16} />
                         </button>

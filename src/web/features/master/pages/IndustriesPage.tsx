@@ -90,7 +90,7 @@ export default function IndustriesPage() {
   return (
     <div className="p-6 h-full flex flex-col">
       <div className="flex items-center gap-4 mb-4">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft size={20} className="text-gray-700" /></button>
+        <button type="button" onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg"><ArrowLeft size={20} className="text-gray-700" /></button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">顧客業種管理</h1>
           <p className="text-sm text-gray-500 mt-1">
@@ -103,7 +103,7 @@ export default function IndustriesPage() {
             placeholder="検索..." className="pl-8 pr-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 w-56" />
         </div>
         {canEdit && (
-          <button onClick={handleOpenNewModal} className="flex items-center gap-2 btn-primary"><Plus size={18} /> 新規追加</button>
+          <button type="button" onClick={handleOpenNewModal} className="flex items-center gap-2 btn-primary"><Plus size={18} /> 新規追加</button>
         )}
       </div>
 
@@ -130,11 +130,11 @@ export default function IndustriesPage() {
                 {canEdit && (
                   <td className="px-4 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
-                      <button onClick={() => handleOpenEditModal(ind)}
+                      <button type="button" onClick={() => handleOpenEditModal(ind)}
                         className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded transition-colors">
                         <Edit size={14} />
                       </button>
-                      <button onClick={() => handleDelete(ind)}
+                      <button type="button" onClick={() => handleDelete(ind)}
                         className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                         <Trash2 size={14} />
                       </button>

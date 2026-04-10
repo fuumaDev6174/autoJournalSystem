@@ -170,7 +170,7 @@ export default function IndustryDetailPage() {
             )}
           </div>
           {canEdit && (
-            <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
+            <button type="button" className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
               <Plus size={13} /> 業種ルール追加
             </button>
           )}
@@ -207,8 +207,8 @@ export default function IndustryDetailPage() {
               </div>
             </div>
             <div className="flex gap-1.5 mt-3 justify-end">
-              <button onClick={() => setDerivingRule(null)} className="px-3 py-1.5 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50">キャンセル</button>
-              <button onClick={handleDerive} className="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">派生ルールとして保存</button>
+              <button type="button" onClick={() => setDerivingRule(null)} className="px-3 py-1.5 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50">キャンセル</button>
+              <button type="button" onClick={handleDerive} className="px-4 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">派生ルールとして保存</button>
             </div>
           </div>
         )}

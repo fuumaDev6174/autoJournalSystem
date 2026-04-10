@@ -206,14 +206,14 @@ export default function ItemsPage() {
     <div className="space-y-6 p-6">
       {/* ヘッダー */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+        <button type="button" onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
           <ArrowLeft size={20} className="text-gray-700" />
         </button>
         <div className="flex-1">
           <h1 className="text-2xl font-bold text-gray-900">品目管理</h1>
           <p className="text-sm text-gray-500 mt-1">仕訳に使用する品目を管理します。別名（表記ゆれ）も登録できます。</p>
         </div>
-        <button onClick={handleOpenNewModal} disabled={!canEdit}
+        <button type="button" onClick={handleOpenNewModal} disabled={!canEdit}
           className={`flex items-center gap-2 btn-primary ${!canEdit ? 'opacity-40 cursor-not-allowed' : ''}`}>
           <Plus size={18} />
           新規品目登録
@@ -292,11 +292,11 @@ export default function ItemsPage() {
                   <td className="px-4 py-3 text-sm text-gray-600">{getAccountName(item.default_account_item_id)}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <button onClick={() => canEdit && handleOpenEditModal(item)} disabled={!canEdit}
+                      <button type="button" onClick={() => canEdit && handleOpenEditModal(item)} disabled={!canEdit}
                         className={`p-1.5 rounded ${canEdit ? 'text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'}`} title="編集">
                         <Edit size={16} />
                       </button>
-                      <button onClick={() => canEdit && handleDelete(item)} disabled={!canEdit}
+                      <button type="button" onClick={() => canEdit && handleDelete(item)} disabled={!canEdit}
                         className={`p-1.5 rounded ${canEdit ? 'text-red-600 hover:bg-red-50' : 'text-gray-300 cursor-not-allowed'}`} title="削除">
                         <Trash2 size={16} />
                       </button>
@@ -316,11 +316,11 @@ export default function ItemsPage() {
         {/* モーダルタブ */}
         {editingItem && (
           <div className="flex gap-0 border-b border-gray-200 mb-4">
-            <button onClick={() => setActiveModalTab('info')}
+            <button type="button" onClick={() => setActiveModalTab('info')}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeModalTab === 'info' ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent'}`}>
               基本情報
             </button>
-            <button onClick={() => setActiveModalTab('aliases')}
+            <button type="button" onClick={() => setActiveModalTab('aliases')}
               className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${activeModalTab === 'aliases' ? 'text-blue-600 border-blue-600' : 'text-gray-500 border-transparent'}`}>
               別名（表記ゆれ）
             </button>
@@ -412,7 +412,7 @@ export default function ItemsPage() {
               <input type="text" value={newAliasName} onChange={e => setNewAliasName(e.target.value)}
                 placeholder="別名を入力" className="input flex-1" disabled={!canEdit}
                 onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleAddAlias(); } }} />
-              <button onClick={handleAddAlias} disabled={!canEdit || !newAliasName.trim()}
+              <button type="button" onClick={handleAddAlias} disabled={!canEdit || !newAliasName.trim()}
                 className="btn-primary disabled:opacity-40">
                 <Plus size={16} /> 追加
               </button>
@@ -437,7 +437,7 @@ export default function ItemsPage() {
                       </span>
                     </div>
                     {canEdit && (
-                      <button onClick={() => handleDeleteAlias(alias)} className="p-1 text-red-500 hover:bg-red-50 rounded">
+                      <button type="button" onClick={() => handleDeleteAlias(alias)} className="p-1 text-red-500 hover:bg-red-50 rounded">
                         <Trash2 size={14} />
                       </button>
                     )}

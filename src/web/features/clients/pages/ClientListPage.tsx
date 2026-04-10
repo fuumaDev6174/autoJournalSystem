@@ -248,7 +248,7 @@ export default function ClientsPage() {
         {!editingClient && (
           <div className="flex gap-1 bg-gray-100 p-1 rounded-lg mb-6">
             {(['single', 'bulk'] as const).map(tab => (
-              <button key={tab} type="button" onClick={() => setModalTab(tab)}
+              <button type="button" key={tab} type="button" onClick={() => setModalTab(tab)}
                 className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${modalTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'}`}>
                 {tab === 'single' ? '1名登録' : '一括登録'}
               </button>

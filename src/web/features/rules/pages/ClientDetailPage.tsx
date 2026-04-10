@@ -215,7 +215,7 @@ export default function ClientDetailPage() {
             </label>
           </div>
           {canEdit && (
-            <button className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-md hover:bg-red-700">
+            <button type="button" className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold bg-red-600 text-white rounded-md hover:bg-red-700">
               <Plus size={13} /> 顧客ルール追加
             </button>
           )}
@@ -276,9 +276,9 @@ export default function ClientDetailPage() {
               </div>
             </div>
             <div className="flex gap-1.5 mt-3 justify-end">
-              <button onClick={() => setDerivingRule(null)}
+              <button type="button" onClick={() => setDerivingRule(null)}
                 className="px-3 py-1.5 text-xs bg-white border border-gray-300 rounded hover:bg-gray-50">キャンセル</button>
-              <button onClick={handleDerive}
+              <button type="button" onClick={handleDerive}
                 className="px-4 py-1.5 text-xs font-semibold bg-red-600 text-white rounded hover:bg-red-700">顧客別ルールとして保存</button>
             </div>
           </div>

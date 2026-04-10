@@ -120,7 +120,7 @@ export default function UploadOnlyPage() {
           <h1 className="text-xl font-bold text-gray-900">証憑アップロード</h1>
           <p className="text-sm text-gray-500">証憑をアップロードしてください。担当者が仕訳処理を行います。</p>
         </div>
-        <button onClick={handleLogout}
+        <button type="button" onClick={handleLogout}
           className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50">
           <LogOut size={16} /> ログアウト
         </button>

@@ -47,7 +47,7 @@ export default function WorkflowHeader({ onBeforeNext, nextLabel = '次へ', sho
     <div className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 left-0 right-0 z-30">
       <div className="flex items-center px-3 py-1.5 gap-2">
         {/* 左: 前へ */}
-        <button onClick={handlePrev} disabled={!canGoToPreviousStep()}
+        <button type="button" onClick={handlePrev} disabled={!canGoToPreviousStep()}
           className={`flex items-center gap-1 px-2 py-1 text-xs border rounded-md transition-all flex-shrink-0 ${canGoToPreviousStep() ? 'border-gray-300 text-gray-600 hover:bg-gray-50' : 'border-gray-200 text-gray-300 cursor-not-allowed'}`}>
           <ArrowLeft size={13} /><span>前へ</span>
         </button>
@@ -61,7 +61,7 @@ export default function WorkflowHeader({ onBeforeNext, nextLabel = '次へ', sho
             const isClickable = isPast || isComplete;
             return (
               <div key={step} className="flex items-center flex-1 min-w-0">
-                <button onClick={() => isClickable && goToStep(step)} disabled={!isClickable && !isCurrent}
+                <button type="button" onClick={() => isClickable && goToStep(step)} disabled={!isClickable && !isCurrent}
                   className="flex items-center gap-1 flex-shrink-0" title={getStepName(step)}>
                   <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold transition-all
                     ${isCurrent ? 'bg-blue-600 text-white ring-2 ring-blue-200' : isComplete ? 'bg-green-500 text-white' : isPast ? 'bg-gray-300 text-white' : 'bg-gray-100 text-gray-400 border border-gray-200'}
@@ -84,17 +84,17 @@ export default function WorkflowHeader({ onBeforeNext, nextLabel = '次へ', sho
 
         {/* 右: 中断 + 次へ/完了 */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button onClick={handleSaveAndExit}
+          <button type="button" onClick={handleSaveAndExit}
             className="flex items-center gap-1 px-2 py-1 text-[11px] text-gray-500 border border-gray-200 rounded-md hover:bg-gray-50 transition-colors" title="保存して中断">
             <Save size={12} /><span>中断</span>
           </button>
           {showComplete ? (
-            <button onClick={handleComplete}
+            <button type="button" onClick={handleComplete}
               className="flex items-center gap-1 px-3 py-1 text-xs bg-green-600 text-white rounded-md font-medium hover:bg-green-700 transition-colors">
               <CheckCircle size={13} /><span>完了</span>
             </button>
           ) : (
-            <button onClick={handleNext} disabled={!canGoToNextStep()}
+            <button type="button" onClick={handleNext} disabled={!canGoToNextStep()}
               className={`flex items-center gap-1 px-3 py-1 text-xs rounded-md font-medium transition-all ${canGoToNextStep() ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}>
               <span>{nextLabel}</span><ArrowRight size={13} />
             </button>

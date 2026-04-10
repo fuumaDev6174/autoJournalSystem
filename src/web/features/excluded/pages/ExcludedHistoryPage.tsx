@@ -90,7 +90,7 @@ export default function ExcludedHistoryPage() {
     <div className="space-y-6">
       {/* ヘッダー */}
       <div className="flex items-center gap-4">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
+        <button type="button" onClick={() => navigate(-1)} className="p-2 hover:bg-gray-100 rounded-lg">
           <ArrowLeft size={20} className="text-gray-700" />
         </button>
         <div className="flex-1">

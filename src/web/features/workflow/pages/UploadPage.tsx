@@ -176,7 +176,7 @@ export default function UploadPage() {
                 <>
                   <p className="text-lg font-medium text-gray-900 mb-2">ファイルをドラッグ&ドロップ</p>
                   <p className="text-sm text-gray-500 mb-4">または、クリックしてファイルを選択</p>
-                  <button className="btn-primary">ファイルを選択</button>
+                  <button type="button" className="btn-primary">ファイルを選択</button>
                   <p className="text-xs text-gray-400 mt-4">対応形式: PNG, JPG, PDF（最大10MB / 枚数制限なし）</p>
                 </>
               )}
@@ -215,7 +215,7 @@ export default function UploadPage() {
                       {file.status === 'error' && <AlertCircle size={24} className="text-red-500" />}
                       {file.status === 'uploading' && <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>}
                       {file.status !== 'uploading' && (
-                        <button onClick={() => removeFile(file.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
+                        <button type="button" onClick={() => removeFile(file.id)} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors">
                           <X size={20} />
                         </button>
                       )}

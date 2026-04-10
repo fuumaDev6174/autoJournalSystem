@@ -17,7 +17,7 @@ export default function ReceiptItemList() {
         <div className="text-xs text-orange-800">
           <div className="font-semibold mb-0.5">軽減税率(8%)品目を検出</div>
           <div>軽減税率8%対象の品目が含まれている可能性があります。税率混在の場合は分割仕訳を検討してください。</div>
-          <button className="mt-1.5 px-3 py-1 bg-orange-200 hover:bg-orange-300 rounded text-orange-800 font-medium text-[10px] transition-colors">
+          <button type="button" className="mt-1.5 px-3 py-1 bg-orange-200 hover:bg-orange-300 rounded text-orange-800 font-medium text-[10px] transition-colors">
             税率別に自動分割
           </button>
         </div>

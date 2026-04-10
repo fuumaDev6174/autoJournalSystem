@@ -428,7 +428,7 @@ export default function ExportPage() {
           <div className="border-b border-gray-200">
             <nav className="flex gap-4">
               {(['出力', '出力履歴'] as ActiveTab[]).map(tab => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
+                <button type="button" key={tab} onClick={() => setActiveTab(tab)}
                   className={`pb-3 px-1 text-sm font-medium border-b-2 transition-colors ${activeTab === tab ? 'border-blue-600 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'}`}>
                   {tab === '出力履歴' && <History size={14} className="inline mr-1 -mt-0.5" />}{tab}
                 </button>
@@ -457,7 +457,7 @@ export default function ExportPage() {
                     <span className="text-xs text-gray-500">基準:</span>
                     <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                       {(['取引日', '処理日'] as DateBasis[]).map(basis => (
-                        <button key={basis} onClick={() => setDateBasis(basis)}
+                        <button type="button" key={basis} onClick={() => setDateBasis(basis)}
                           className={`px-3 py-1 text-xs font-medium transition-colors ${dateBasis === basis ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                           {basis}
                         </button>
@@ -467,7 +467,7 @@ export default function ExportPage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {(['全期間', '本日', '今週', '今月', '先月', 'カスタム'] as PeriodFilter[]).map(p => (
-                    <button key={p} onClick={() => setPeriodFilter(p)}
+                    <button type="button" key={p} onClick={() => setPeriodFilter(p)}
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${periodFilter === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-300 hover:border-blue-400'}`}>
                       {p}
                     </button>
@@ -510,21 +510,21 @@ export default function ExportPage() {
                   <div className="flex items-center gap-2">
                     <div className="flex rounded-lg border border-gray-300 overflow-hidden">
                       {(['全て', '対象外除く'] as ExcludedFilter[]).map(f => (
-                        <button key={f} onClick={() => setExcludedFilter(f)}
+                        <button type="button" key={f} onClick={() => setExcludedFilter(f)}
                           className={`px-3 py-1.5 text-sm transition-colors ${excludedFilter === f ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}>
                           {f}
                         </button>
                       ))}
                     </div>
-                    <button onClick={handleSimpleCsvDownload} disabled={filteredEntries.length === 0}
+                    <button type="button" onClick={handleSimpleCsvDownload} disabled={filteredEntries.length === 0}
                       className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed">
                       <Download size={16} />CSV ダウンロード
                     </button>
-                    <button onClick={handleFreeeCsvDownload} disabled={filteredEntries.length === 0}
+                    <button type="button" onClick={handleFreeeCsvDownload} disabled={filteredEntries.length === 0}
                       className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed">
                       <Download size={16} />freee取込CSV
                     </button>
-                    <button onClick={handleFreeeApiExport} disabled={filteredEntries.length === 0 || freeeExporting}
+                    <button type="button" onClick={handleFreeeApiExport} disabled={filteredEntries.length === 0 || freeeExporting}
                       className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg text-sm font-medium hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed">
                       <FileText size={16} />{freeeExporting ? 'エクスポート中...' : 'freee API連携'}
                     </button>

@@ -131,7 +131,7 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
         <td className="px-2 py-2 text-center">
           {editable && <ChevronDown size={12} className={`text-gray-400 transition-transform ${expanded ? 'rotate-180' : ''}`} />}
           {!editable && onCopyDerive && (
-            <button onClick={(e) => { e.stopPropagation(); onCopyDerive(); }}
+            <button type="button" onClick={(e) => { e.stopPropagation(); onCopyDerive(); }}
               className="text-[10px] font-semibold px-2 py-1 rounded bg-blue-100 text-blue-700 border border-blue-200 hover:bg-blue-200 whitespace-nowrap">
               派生
             </button>
@@ -229,8 +229,8 @@ export function RuleRow({ rule, scope, expanded, onToggle, editable = true, onDe
                   <FormField label="優先度" value={formPriority} onChange={v => setFormPriority(Number(v))} type="number" />
                 </div>
                 <div className="flex gap-1.5 mt-4 justify-end">
-                  {onDelete && <button onClick={onDelete} className="px-3 py-1.5 text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">削除</button>}
-                  <button onClick={() => onSave?.({ conditions: formConditions, actions: formActions, priority: formPriority, rule_type: formRuleType })}
+                  {onDelete && <button type="button" onClick={onDelete} className="px-3 py-1.5 text-[11px] font-semibold bg-red-50 text-red-600 border border-red-200 rounded hover:bg-red-100">削除</button>}
+                  <button type="button" onClick={() => onSave?.({ conditions: formConditions, actions: formActions, priority: formPriority, rule_type: formRuleType })}
                     className="px-4 py-1.5 text-[11px] font-semibold bg-blue-600 text-white rounded hover:bg-blue-700">保存</button>
                 </div>
               </div>
@@ -277,7 +277,7 @@ export default function RulesIndexPage() {
           { key: 'shared', label: '🌐 汎用ルール' },
           { key: 'industry', label: '🏢 業種別テンプレート' },
         ].map(tab => (
-          <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+          <button type="button" key={tab.key} onClick={() => setActiveTab(tab.key)}
             className={`px-5 py-2.5 text-sm font-medium border-b-[3px] -mb-[2px] transition-colors ${
               activeTab === tab.key ? 'border-blue-600 text-blue-700 font-bold' : 'border-transparent text-gray-500 hover:text-gray-700'
             }`}>
@@ -381,7 +381,7 @@ function SharedRulesTab() {
           </div>
         </div>
         {canEdit && (
-          <button className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
+          <button type="button" className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded-md hover:bg-blue-700">
             <Plus size={14} /> 新規汎用ルール
           </button>
         )}

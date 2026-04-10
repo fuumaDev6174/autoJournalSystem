@@ -34,7 +34,7 @@ export default function MultiEntryPanel({
         <td className="px-4 py-3 text-sm text-right font-semibold tabular-nums">{fmt(group.totalAmount)}</td>
         <td className="px-4 py-3 text-center">
           {group.uncheckedCount > 0 && (
-            <button onClick={(e) => { e.stopPropagation(); onBulkReview(group.documentId); }}
+            <button type="button" onClick={(e) => { e.stopPropagation(); onBulkReview(group.documentId); }}
               className="px-2 py-1 bg-blue-500 text-white rounded text-[10px] hover:bg-blue-600 font-medium">
               全て確認済みに
             </button>
