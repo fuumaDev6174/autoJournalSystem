@@ -131,7 +131,7 @@ export default function SummaryPage() {
     return <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"><AlertCircle size={12} />{wf.status}</span>;
   };
 
-  const getDocumentCount = (wf: WorkflowLog) => wf.data?.uploaded_document_ids?.length ?? 0;
+  const getDocumentCount = (wf: WorkflowLog) => (wf.data?.uploaded_document_ids as string[] | undefined)?.length ?? 0;
 
   // -------------------------------------------------------
   // 取引日範囲をフォーマット

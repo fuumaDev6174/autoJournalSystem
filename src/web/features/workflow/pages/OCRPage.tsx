@@ -80,7 +80,8 @@ export default function OCRPage() {
   // ============================================
   useEffect(() => {
     if (!currentWorkflow) return;
-    const documentIds = currentWorkflow.data.documents || [];
+    const wfData = currentWorkflow.data as Record<string, unknown>;
+    const documentIds = (wfData.documents as string[] | undefined) || currentWorkflow.data.uploaded_document_ids || [];
     if (documentIds.length === 0) return;
 
     const init = async () => {

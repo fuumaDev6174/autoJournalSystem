@@ -319,6 +319,8 @@ export interface WorkflowData {
   ocr_pending_ids: string[];
   aicheck_status: 'pending' | 'completed';
   review_completed_at: string | null;
+  /** フロント側で追加されるフィールド（documents, ocrResults 等）を許容 */
+  [key: string]: unknown;
 }
 
 export interface Workflow {

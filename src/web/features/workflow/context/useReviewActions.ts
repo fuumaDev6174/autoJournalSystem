@@ -235,10 +235,13 @@ export function useReviewActions(params: UseReviewActionsParams) {
       });
       if (form.lineId) {
         await journalEntriesApi.updateLine(form.lineId, {
-          account_item_id: form.accountItemId || null, tax_category_id: form.taxCategoryId || null,
-          tax_rate: form.taxRate || null, amount: form.lineAmount,
-          supplier_id: form.supplierId || null, item_id: form.itemId || null,
-        });
+          account_item_id: form.accountItemId || '',
+          tax_category_id: form.taxCategoryId || null,
+          tax_rate: form.taxRate || null,
+          amount: form.lineAmount ?? 0,
+          supplier_id: form.supplierId || null,
+          item_id: form.itemId || null,
+        } as Record<string, unknown>);
       }
       if (markApproved && entryId && !form.isExcluded) {
         const currentUser = user;
