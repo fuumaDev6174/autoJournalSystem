@@ -66,7 +66,10 @@
       "Bash(cp src/modules/rule-engine/*.ts src/domain/rule-engine/)",
       "Bash(cp src/modules/export/*.ts src/domain/export/)",
       "Bash(git reset:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(sed -i '36s|\\(req as AuthenticatedRequest\\)|\\(req as unknown as AuthenticatedRequest\\)|' src/api/routes/client/workflow.crud.ts)",
+      "Bash(sed -i '86s|\\(req as AuthenticatedRequest\\)|\\(req as unknown as AuthenticatedRequest\\)|' src/api/routes/client/workflow.crud.ts)",
+      "Bash(sed -i '106s|\\(req as AuthenticatedRequest\\)|\\(req as unknown as AuthenticatedRequest\\)|' src/api/routes/client/workflow.crud.ts)"
     ]
   }
 }
