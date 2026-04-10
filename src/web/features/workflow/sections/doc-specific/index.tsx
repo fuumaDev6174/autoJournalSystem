@@ -1,6 +1,5 @@
-/**
- * @module 書類別パネルインデックス
- */
+// 書類別パネルの遅延読み込みとセクションキーへのマッピング
+
 import { lazy, Suspense } from 'react';
 
 const ReceiptItemList = lazy(() => import('./ReceiptItemList'));
@@ -14,6 +13,13 @@ const DeductionCalcPanel = lazy(() => import('./DeductionCalcPanel'));
 const IncomeCalcPanel = lazy(() => import('./IncomeCalcPanel'));
 const ReconciliationPanel = lazy(() => import('./ReconciliationPanel'));
 const MetadataFieldsPanel = lazy(() => import('./MetadataFieldsPanel'));
+const HousingLoanCalcPanel = lazy(() => import('./HousingLoanCalcPanel'));
+const LifeInsCalcPanel = lazy(() => import('./LifeInsCalcPanel'));
+const MedicalCalcPanel = lazy(() => import('./MedicalCalcPanel'));
+const FurusatoCalcPanel = lazy(() => import('./FurusatoCalcPanel'));
+const InventoryCalcPanel = lazy(() => import('./InventoryCalcPanel'));
+const DepreciationPanel = lazy(() => import('./DepreciationPanel'));
+const CarryoverPanel = lazy(() => import('./CarryoverPanel'));
 
 const SECTION_MAP: Record<string, React.LazyExoticComponent<() => React.ReactElement | null>> = {
   receipt_items: ReceiptItemList,
@@ -27,6 +33,13 @@ const SECTION_MAP: Record<string, React.LazyExoticComponent<() => React.ReactEle
   income_calc: IncomeCalcPanel,
   reconciliation: ReconciliationPanel,
   metadata_fields: MetadataFieldsPanel,
+  housing_loan_calc: HousingLoanCalcPanel,
+  life_ins_calc: LifeInsCalcPanel,
+  medical_calc: MedicalCalcPanel,
+  furusato_calc: FurusatoCalcPanel,
+  inventory_calc: InventoryCalcPanel,
+  depreciation: DepreciationPanel,
+  carryover: CarryoverPanel,
 };
 
 interface DocSpecificSectionsProps {

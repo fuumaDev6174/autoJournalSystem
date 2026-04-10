@@ -7,6 +7,7 @@ export const DOC_TYPE_REGISTRY: Record<string, DocTypeConfig> = {
   // ========== 収入系 ==========
   issued_invoice:    { code: 'issued_invoice',    layout: 'single', extraSections: ['reconciliation'] },
   payment_record:    { code: 'payment_record',    layout: 'single', extraSections: ['reconciliation', 'withholding'] },
+  payment_statement: { code: 'payment_statement', layout: 'single', extraSections: ['withholding'] },
   platform_csv:      { code: 'platform_csv',      layout: 'statement', supportsMultiLine: true },
   bank_statement:    { code: 'bank_statement',    layout: 'statement', supportsMultiLine: true },
   salary_cert:       { code: 'salary_cert',       layout: 'single', extraSections: ['income_calc'] },
@@ -26,6 +27,9 @@ export const DOC_TYPE_REGISTRY: Record<string, DocTypeConfig> = {
   inventory:         { code: 'inventory',         layout: 'single', extraSections: ['inventory_calc'] },
   recv_invoice:      { code: 'recv_invoice',      layout: 'single', extraSections: ['invoice_panel', 'withholding', 'transfer_fee'] },
   invoice:           { code: 'invoice',           layout: 'single', extraSections: ['invoice_panel', 'withholding', 'transfer_fee'] },
+  bank_transfer_receipt: { code: 'bank_transfer_receipt', layout: 'single' },
+  utility_bill:      { code: 'utility_bill',      layout: 'single' },
+  tax_receipt:       { code: 'tax_receipt',       layout: 'single' },
   tax_interim:       { code: 'tax_interim',       layout: 'single' },
   payment_notice:    { code: 'payment_notice',    layout: 'single', extraSections: ['withholding'] },
 

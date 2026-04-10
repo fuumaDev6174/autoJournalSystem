@@ -1,13 +1,13 @@
-/**
- * @module 源泉徴収パネル
- */
+// 源泉徴収パネル — OCR読取の源泉税額から差引支払額を自動計算
 import { useReview } from '../../context/ReviewContext';
 
 export default function WithholdingPanel() {
-  const { ci } = useReview();
+  const { ci, form } = useReview();
   if (!ci) return null;
   const classification = ci.docClassification as Record<string, unknown> | null;
   const withholdingAmount = classification?.withholding_tax_amount as number | undefined;
+  const totalAmount = form.lineAmount || ci.amount || 0;
+  const netPayment = withholdingAmount != null ? totalAmount - withholdingAmount : null;
 
   return (
     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
@@ -20,12 +20,12 @@ export default function WithholdingPanel() {
       <div className="grid grid-cols-2 gap-2 text-xs">
         <div>
           <label className="text-gray-500 block mb-0.5">源泉徴収税額</label>
-          <input type="number" defaultValue={withholdingAmount || ''}
-            className="w-full border border-red-300 rounded p-1.5 text-sm bg-white font-medium" placeholder="¥0" />
+          <input type="number" defaultValue={withholdingAmount ?? ''} placeholder="¥0"
+            className="w-full border border-red-300 rounded p-1.5 text-sm bg-white font-medium" />
         </div>
         <div>
           <label className="text-gray-500 block mb-0.5">差引支払額</label>
-          <input type="number" readOnly
+          <input type="number" value={netPayment ?? ''} readOnly
             className="w-full border border-green-300 rounded p-1.5 text-sm bg-green-50 font-bold text-green-800" placeholder="自動計算" />
         </div>
       </div>
