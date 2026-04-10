@@ -21,7 +21,7 @@ export default function SuppliersPage() {
   const {
     suppliers, loading, searchQuery, setSearchQuery,
     activeCategory, setActiveCategory, activeKana, setActiveKana,
-    canEdit, orgId, filteredSuppliers,
+    canEdit, filteredSuppliers,
     aliases, supplierRules, loadAliases, loadSupplierRules,
     createSupplier, updateSupplier, deleteSupplier, addAlias, deleteAlias,
   } = useSuppliersData();

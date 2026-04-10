@@ -15,7 +15,7 @@ export default function StatementLayout() {
   const siblingEntries = items.filter(it => it.docId === ci.docId);
 
   return (
-    <div className="grid grid-cols-5 gap-4" className="animate-fadeSlideUp">
+    <div className="grid grid-cols-5 gap-4 animate-fadeSlideUp">
       {/* Image: 2/5 */}
       <div className="col-span-2">
         <ImageViewer

@@ -22,7 +22,7 @@ export default function CompoundEntryLayout() {
   const config = getDocTypeConfig(ci.docClassification?.document_type_code);
 
   return (
-    <div className="grid grid-cols-2 gap-4" className="animate-fadeSlideUp">
+    <div className="grid grid-cols-2 gap-4 animate-fadeSlideUp">
       <ImageViewer
         fileName={ci.fileName}
         imageUrl={ci.imageUrl}
