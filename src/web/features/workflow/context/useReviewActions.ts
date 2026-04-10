@@ -2,7 +2,7 @@
  * @module レビューアクション hooks
  */
 import { useCallback, useRef } from 'react';
-import type { AccountItem, TaxCategory, Supplier } from '@/types';
+import type { AccountItem, TaxCategory, Supplier, JournalEntry } from '@/types';
 import {
   journalEntriesApi, clientsApi, rulesApi, suppliersApi, itemsApi,
   clientAccountRatiosApi, journalCorrectionsApi,
@@ -192,7 +192,7 @@ export function useReviewActions(params: UseReviewActionsParams) {
   const saveCurrentItem = useCallback(async (markApproved = false) => {
     const { items, currentIndex, form, isManagerOrAdmin, currentWorkflow, user,
       addRule, ruleScope, ruleIndustryId, businessRatio, suppliers, accountItems,
-      taxCategories, aiOriginalForm, compoundLines,
+      taxCategories, aiOriginalForm,
       setSaving, setSavedAt, setItems, setEntries, setForm, setAddRule, setRuleSuggestion,
     } = stateRef.current;
     const item = items[currentIndex];
@@ -230,8 +230,8 @@ export function useReviewActions(params: UseReviewActionsParams) {
       setForm(p => ({ ...p, entryId, lineId: nl?.id || null }));
     } else {
       await journalEntriesApi.update(entryId, {
-        entry_date: form.entryDate, description: form.description, notes: form.notes || null,
-        is_excluded: form.isExcluded, status: targetStatus,
+        entry_date: form.entryDate, description: form.description, notes: form.notes || undefined,
+        is_excluded: form.isExcluded, status: targetStatus as JournalEntry['status'],
       });
       if (form.lineId) {
         await journalEntriesApi.updateLine(form.lineId, {

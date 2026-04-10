@@ -453,8 +453,8 @@ export default function SuppliersPage() {
                       <span className="text-[10px] text-gray-400">優先度: {rule.priority}</span>
                     </div>
                     <div className="text-xs text-gray-500">
-                      {rule.conditions?.supplier_pattern && <span>取引先: {rule.conditions.supplier_pattern}</span>}
-                      {rule.actions?.account_item_id && <span className="ml-2">→ 勘定科目ID: {rule.actions.account_item_id.slice(0, 8)}...</span>}
+                      {rule.conditions?.supplier_pattern && <span>取引先: {String(rule.conditions.supplier_pattern)}</span>}
+                      {rule.actions?.account_item_id && <span className="ml-2">→ 勘定科目ID: {String(rule.actions.account_item_id).slice(0, 8)}...</span>}
                     </div>
                   </div>
                 ))}

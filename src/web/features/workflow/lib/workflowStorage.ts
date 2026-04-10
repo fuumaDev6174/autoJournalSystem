@@ -12,13 +12,7 @@ export interface WorkflowState {
   clientName: string;
   currentStep: number; // 1-4
   completedSteps: number[];
-  data: {
-    documents?: string[];      // アップロードしたドキュメントID
-    ocrResults?: string[];     // OCR完了したID
-    journalEntries?: string[]; // 生成された仕訳ID
-    reviewCompleted?: boolean;
-    exportCompleted?: boolean;
-  };
+  data: Record<string, unknown>;
   lastUpdated: string;
   createdAt: string;
 }
@@ -60,7 +54,13 @@ export const workflowsApi = {
       current_step: 1,
       completed_steps: [],
       status: 'in_progress',
-      data: {},
+      data: {
+        uploaded_document_ids: [],
+        ocr_completed_ids: [],
+        ocr_pending_ids: [],
+        aicheck_status: 'pending',
+        review_completed_at: null,
+      },
     });
 
     if (error || !data) {

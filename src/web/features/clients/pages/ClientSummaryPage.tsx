@@ -11,17 +11,9 @@ interface WorkflowLog {
   client_id: string;
   status: string;
   current_step: number;
-  data: {
-    uploaded_document_ids?: string[];
-    ocr_completed_ids?: string[];
-    aicheck_status?: boolean;
-    review_completed_at?: string;
-  };
+  data: Record<string, unknown>;
   created_at: string;
   updated_at: string;
-  // -------------------------------------------------------
-  // 追加: ワークフローごとの仕訳集計を保持
-  // -------------------------------------------------------
   entryStats?: {
     total: number;
     approved: number;
@@ -29,7 +21,6 @@ interface WorkflowLog {
     draft: number;
     totalAmount: number;
   };
-  // ドキュメントの日付範囲（取引日）
   dateRange?: {
     earliest: string | null;
     latest: string | null;

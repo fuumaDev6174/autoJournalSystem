@@ -3,7 +3,7 @@
  * @description 全テーブルの TypeScript 型・API レスポンス型・フォーム型。
  */
 
-import type { ClassificationResult as _ClassificationResult } from '../modules/ocr/ocr.types';
+import type { ClassificationResult as _ClassificationResult } from '../../modules/ocr/ocr.types.js';
 
 /** 組織 */
 export interface Organization {
@@ -205,7 +205,7 @@ export interface Document {
   updated_at: string;
 }
 
-export type { OCRResult, ClassificationResult, ExtractedLine } from '../modules/ocr/ocr.types';
+export type { OCRResult, ClassificationResult, ExtractedLine } from '../../modules/ocr/ocr.types.js';
 
 export interface JournalEntry {
   id: string;
@@ -273,6 +273,7 @@ export interface Supplier {
   is_invoice_registered: boolean;
   default_account_item_id: string | null;
   default_tax_category_id: string | null;
+  category: string | null;
   is_active: boolean;
   notes: string | null;
   created_at: string;
@@ -283,7 +284,7 @@ export interface SupplierAlias {
   id: string;
   supplier_id: string;
   alias_name: string;
-  source: 'manual' | 'ai_suggested' | 'imported';
+  source: 'manual' | 'ai_suggested' | 'imported' | 'ocr_learned';
   created_at: string;
 }
 

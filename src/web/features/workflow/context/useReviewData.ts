@@ -9,8 +9,6 @@ import {
   industriesApi, clientIndustriesApi,
 } from '@/web/shared/lib/api/backend.api';
 import { normalizeJapanese } from '@/shared/utils/normalize-japanese';
-import type { Document as DocRecord, JournalEntry, ClientWithIndustry } from '@/types';
-import type { JournalEntryWithLines, TaxRate, Item, ClientIndustry } from '@/web/shared/lib/api/backend.api';
 import type {
   EntryRow, DocumentWithEntry, TaxRateOption, MultiEntryGroup, ItemMaster,
 } from './ReviewContext';

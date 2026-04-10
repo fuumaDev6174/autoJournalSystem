@@ -18,11 +18,17 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 /** 品目 */
 export interface Item {
   id: string;
+  organization_id: string | null;
+  client_id: string | null;
   name: string;
   code: string | null;
+  unit: string | null;
+  unit_price: number | null;
+  category: string | null;
   default_account_item_id: string | null;
   default_tax_category_id: string | null;
   is_active: boolean;
+  description: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -32,6 +38,7 @@ export interface ItemAlias {
   id: string;
   item_id: string;
   alias_name: string;
+  source: 'manual' | 'ocr_learned' | 'ai_suggested';
   created_at: string;
 }
 

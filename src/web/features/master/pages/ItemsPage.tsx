@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import Modal from '@/web/shared/components/ui/Modal';
 import { itemsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
 import type { Item, ItemAlias } from '@/web/shared/lib/api/backend.api';
-import type { AccountItem, TaxCategory } from '@/types';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+
+interface AccountItemOption { id: string; code: string; name: string; }
+interface TaxCategoryOption { id: string; name: string; }
 
 // ============================================
 // カテゴリ定義（品目の分類）
