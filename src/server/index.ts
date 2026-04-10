@@ -13,28 +13,13 @@ import path from 'path';
 import { authMiddleware } from '../api/middleware/auth.middleware.js';
 import { apiLimiter, expensiveLimiter } from '../api/middleware/rate-limit.middleware.js';
 
-import documentsRoute from '../api/routes/documents.route.js';
-import ocrRoute from '../api/routes/ocr.route.js';
-import journalsRoute from '../api/routes/journals.route.js';
-import freeeRoute from '../api/routes/freee.route.js';
-import batchRoute from '../api/routes/batch.route.js';
-import validationRoute from '../api/routes/validation.route.js';
-import healthRoute from '../api/routes/health.route.js';
-import clientsCrud from '../api/routes/crud/clients.crud.js';
-import accountItemsCrud from '../api/routes/crud/account-items.crud.js';
-import taxCategoriesCrud from '../api/routes/crud/tax-categories.crud.js';
-import industriesCrud from '../api/routes/crud/industries.crud.js';
-import rulesCrud from '../api/routes/crud/rules.crud.js';
-import suppliersCrud from '../api/routes/crud/suppliers.crud.js';
-import itemsCrud from '../api/routes/crud/items.crud.js';
-import journalEntriesCrud from '../api/routes/crud/journal-entries.crud.js';
-import workflowsCrud from '../api/routes/crud/workflows.crud.js';
-import usersCrud from '../api/routes/crud/users.crud.js';
-import notificationsCrud from '../api/routes/crud/notifications.crud.js';
-import clientRatiosCrud from '../api/routes/crud/client-ratios.crud.js';
-import storageCrud from '../api/routes/crud/storage.crud.js';
-import documentsCrud from '../api/routes/crud/documents.crud.js';
-import journalCorrectionsCrud from '../api/routes/crud/journal-corrections.crud.js';
+import journalRoutes from '../api/routes/journal/index.js';
+import documentRoutes from '../api/routes/document/index.js';
+import masterRoutes from '../api/routes/master/index.js';
+import clientRoutes from '../api/routes/client/index.js';
+import userRoutes from '../api/routes/user/index.js';
+import exportRoutes from '../api/routes/export/index.js';
+import systemRoutes from '../api/routes/system/index.js';
 
 // 必須環境変数の起動時チェック
 const requiredEnvVars = ['GEMINI_API_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
@@ -95,36 +80,19 @@ app.use('/api/ocr/process', expensiveLimiter);
 app.use('/api/journal-entries/generate', expensiveLimiter);
 app.use('/api/process/batch', expensiveLimiter);
 
-// ヘルスチェック（/api/health — 認証不要）
-app.use('/api', healthRoute);
+// ヘルスチェック（認証不要）
+app.use('/api', systemRoutes);
 
 // 認証ミドルウェア（/api/health 以外の全 API に適用）
 app.use('/api', authMiddleware as any);
 
-// APIルートをマウント
-app.use('/api', documentsRoute);
-app.use('/api', ocrRoute);
-app.use('/api', journalsRoute);
-app.use('/api', freeeRoute);
-app.use('/api', batchRoute);
-app.use('/api', validationRoute);
-
-// CRUDルート
-app.use('/api', clientsCrud);
-app.use('/api', accountItemsCrud);
-app.use('/api', taxCategoriesCrud);
-app.use('/api', industriesCrud);
-app.use('/api', rulesCrud);
-app.use('/api', suppliersCrud);
-app.use('/api', itemsCrud);
-app.use('/api', journalEntriesCrud);
-app.use('/api', workflowsCrud);
-app.use('/api', usersCrud);
-app.use('/api', notificationsCrud);
-app.use('/api', clientRatiosCrud);
-app.use('/api', storageCrud);
-app.use('/api', documentsCrud);
-app.use('/api', journalCorrectionsCrud);
+// ドメイン別ルート
+app.use('/api', journalRoutes);
+app.use('/api', documentRoutes);
+app.use('/api', masterRoutes);
+app.use('/api', clientRoutes);
+app.use('/api', userRoutes);
+app.use('/api', exportRoutes);
 
 // ルートエンドポイント（開発環境のみ）
 if (process.env.NODE_ENV !== 'production') {

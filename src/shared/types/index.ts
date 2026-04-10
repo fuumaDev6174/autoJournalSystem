@@ -1,3 +1,3 @@
 export * from './models';
 export * from './enums';
-export * from './role.types';
+export * from '../../domain/auth/role.types';

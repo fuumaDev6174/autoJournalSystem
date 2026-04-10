@@ -18,9 +18,9 @@ interface MulterFile {
   buffer: Buffer;
 }
 import fs from 'fs';
-import { processOCR } from '../../modules/ocr/extractor.service.js';
-import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
-import { mapLinesToDBFormat } from '../../modules/journal/line-mapper.service.js';
+import { processOCR } from '../../domain/ocr/extractor.service.js';
+import { generateJournalEntry } from '../../domain/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../domain/journal/line-mapper.service.js';
 import {
   supabaseAdmin,
   getOrganizationId,

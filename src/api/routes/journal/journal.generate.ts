@@ -6,14 +6,14 @@
 import { Router, Request, Response } from 'express';
 import { validateBody } from '../middleware/validate.middleware.js';
 import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from '../../shared/constants/accounting.js';
-import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
-import { mapLinesToDBFormat } from '../../modules/journal/line-mapper.service.js';
-import { buildEntryFromRule } from '../../modules/journal/rule-generator.service.js';
-import { matchProcessingRulesWithCandidates } from '../../modules/rule-engine/matcher-with-candidates.js';
-import { extractMultipleEntries } from '../../modules/ocr/multi-extractor.service.js';
-import { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.js';
-import { validateDebitCreditBalance } from '../../core/validation/balance-validator.js';
-import type { GeneratedJournalEntry } from '../../modules/journal/journal.types.js';
+import { generateJournalEntry } from '../../domain/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../domain/journal/line-mapper.service.js';
+import { buildEntryFromRule } from '../../domain/journal/rule-generator.service.js';
+import { matchProcessingRulesWithCandidates } from '../../domain/rule-engine/matcher-with-candidates.js';
+import { extractMultipleEntries } from '../../domain/ocr/multi-extractor.service.js';
+import { findSupplierAliasMatch } from '../../domain/document/supplier-matcher.js';
+import { validateDebitCreditBalance } from '../../domain/accounting/balance-validator.js';
+import type { GeneratedJournalEntry } from '../../domain/journal/journal.types.js';
 
 import {
   supabaseAdmin,

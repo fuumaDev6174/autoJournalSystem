@@ -3,7 +3,7 @@
  * @description 全テーブルの TypeScript 型・API レスポンス型・フォーム型。
  */
 
-import type { ClassificationResult as _ClassificationResult } from '../../modules/ocr/ocr.types.js';
+import type { ClassificationResult as _ClassificationResult } from '../../domain/ocr/ocr.types.js';
 
 /** 組織 */
 export interface Organization {
@@ -205,7 +205,7 @@ export interface Document {
   updated_at: string;
 }
 
-export type { OCRResult, ClassificationResult, ExtractedLine } from '../../modules/ocr/ocr.types.js';
+export type { OCRResult, ClassificationResult, ExtractedLine } from '../../domain/ocr/ocr.types.js';
 
 export interface JournalEntry {
   id: string;

@@ -4,7 +4,7 @@
  *              家事按分（事業/私用の分割）にも対応。
  */
 
-import { splitByHouseholdRatio } from '../../core/accounting/household-ratio.js';
+import { splitByHouseholdRatio } from '../accounting/household-ratio.js';
 import type { AccountItemRef, TaxCategoryRef, GeneratedJournalEntry } from './journal.types.js';
 import type { MatchedRule } from '../rule-engine/rule-engine.types.js';
 

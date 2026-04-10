@@ -57,7 +57,16 @@
       "Bash(python:*)",
       "Bash(node:*)",
       "Bash(ls -la /c/Programing/beso/*.json /c/Programing/beso/*.ts /c/Programing/beso/*.html /c/Programing/beso/*.js)",
-      "Bash(git status:*)"
+      "Bash(git status:*)",
+      "Bash(awk '/requires_journal: true/,/requires_journal: false/' /c/Programing/beso/src/web/features/workflow/doc-types/registry.ts)",
+      "Bash(git rm:*)",
+      "Bash(cp src/core/accounting/*.ts src/domain/accounting/)",
+      "Bash(cp src/modules/ocr/*.ts src/domain/ocr/)",
+      "Bash(cp src/modules/journal/*.ts src/domain/journal/)",
+      "Bash(cp src/modules/rule-engine/*.ts src/domain/rule-engine/)",
+      "Bash(cp src/modules/export/*.ts src/domain/export/)",
+      "Bash(git reset:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }

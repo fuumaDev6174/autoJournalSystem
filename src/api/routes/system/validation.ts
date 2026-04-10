@@ -4,8 +4,8 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { checkDocumentDuplicate } from '../../modules/document/duplicate-checker.js';
-import { validateJournalBalance } from '../../core/validation/balance-validator.js';
+import { checkDocumentDuplicate } from '../../domain/document/duplicate-checker.js';
+import { validateJournalBalance } from '../../domain/accounting/balance-validator.js';
 import {
   supabaseAdmin,
   isValidUUID,

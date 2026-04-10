@@ -4,7 +4,7 @@
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { ROLE_PERMISSIONS, type UserRole } from '../../shared/types/role.types.js';
+import { ROLE_PERMISSIONS, type UserRole } from '../../domain/auth/role.types.js';
 import type { AuthenticatedRequest } from './auth.middleware.js';
 
 type Permission = keyof typeof ROLE_PERMISSIONS['admin'];

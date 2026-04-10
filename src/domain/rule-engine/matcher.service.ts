@@ -4,7 +4,7 @@
  *              優先順位: client > industry > shared（スコープが狭いほど優先）。
  */
 
-import { evaluateConditions } from '../../core/matching/condition-evaluator.js';
+import { evaluateConditions } from './condition-evaluator.js';
 import type { RuleMatchInput, MatchedRule } from './rule-engine.types.js';
 
 /** matcher / matcher-with-candidates が共通で受け取るルール型 */
