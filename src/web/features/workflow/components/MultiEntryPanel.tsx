@@ -1,4 +1,5 @@
 import { ChevronDown, StickyNote } from 'lucide-react';
+import { getStatusLabel, getStatusBadgeClass } from '@/web/shared/constants/statuses';
 import type { MultiEntryGroup } from '@/web/features/workflow/pages/ReviewPage';
 
 interface MultiEntryPanelProps {
@@ -56,16 +57,9 @@ export default function MultiEntryPanel({
             <td className="px-4 py-2 text-sm">{childEntry.taxCategoryName || '-'}</td>
             <td className="px-4 py-2 text-sm text-right tabular-nums">{fmt(childEntry.amount)}</td>
             <td className="px-4 py-2 text-center">
-              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                childEntry.status === 'approved' ? 'bg-green-100 text-green-800' :
-                childEntry.status === 'posted' ? 'bg-purple-100 text-purple-800' :
-                childEntry.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
-                'bg-gray-100 text-gray-600'
-              }`}>{
-                childEntry.status === 'approved' ? '承認済' :
-                childEntry.status === 'posted' ? '確定' :
-                childEntry.status === 'reviewed' ? '確認済み' : '未確認'
-              }</span>
+              <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusBadgeClass(childEntry.status)}`}>
+                {getStatusLabel(childEntry.status)}
+              </span>
             </td>
           </tr>
         );

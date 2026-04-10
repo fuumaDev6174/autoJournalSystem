@@ -7,6 +7,7 @@ import {
 import { journalEntriesApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
 import { useConfirm } from '@/web/shared/hooks/useConfirm';
+import { getStatusLabel, getStatusBadgeClass } from '@/web/shared/constants/statuses';
 import MultiEntryPanel from '@/web/features/workflow/components/MultiEntryPanel';
 import LayoutDispatcher from '@/web/features/workflow/layouts/LayoutDispatcher';
 import {
@@ -143,7 +144,8 @@ function ReviewPageContent() {
                       <tbody className="divide-y divide-gray-100">
                         {filteredEntries.map((entry, idx) => {
                           const isSelected = items[currentIndex]?.entryId === entry.id;
-                          const statusLabel = entry.is_excluded ? '外' : entry.status === 'approved' ? '承認' : entry.status === 'posted' ? '済' : entry.status === 'reviewed' ? '確認' : entry.status === 'amended' ? '修正' : '未';
+                          const statusLabel = entry.is_excluded ? '外' : getStatusLabel(entry.status);
+                          const badgeClass = entry.is_excluded ? 'bg-red-100 text-red-600' : getStatusBadgeClass(entry.status);
                           return (
                             <tr key={entry.id} ref={isSelected ? selectedRowRef : undefined}
                               onClick={() => openDetail(entry.id)}
@@ -153,13 +155,7 @@ function ReviewPageContent() {
                               <td className="px-1 py-1 text-gray-500 truncate max-w-[80px]">{entry.accountItemName || '-'}</td>
                               <td className="px-1 py-1 text-right tabular-nums">{fmt(entry.amount)}</td>
                               <td className="px-1 py-1 text-center">
-                                <span className={`text-[9px] px-1 py-0.5 rounded ${
-                                  entry.status === 'approved' ? 'bg-green-100 text-green-700' :
-                                  entry.status === 'posted' ? 'bg-purple-100 text-purple-700' :
-                                  entry.status === 'reviewed' ? 'bg-yellow-100 text-yellow-700' :
-                                  entry.status === 'amended' ? 'bg-orange-100 text-orange-700' :
-                                  entry.is_excluded ? 'bg-red-100 text-red-600' : 'bg-gray-100 text-gray-500'
-                                }`}>{statusLabel}</span>
+                                <span className={`text-[9px] px-1 py-0.5 rounded ${badgeClass}`}>{statusLabel}</span>
                               </td>
                             </tr>
                           );

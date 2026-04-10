@@ -74,7 +74,9 @@
       "Bash(sed -i \"s|import { sanitizeBody, verifyClientOwnership, verifyDocumentOwnership } from '../../helpers/master-data.js';|import { sanitizeBody } from '../../../shared/utils/request-helpers.js';\\\\nimport { verifyClientOwnership, verifyDocumentOwnership } from '../../../domain/auth/authorization.service.js';|\" src/api/routes/document/document.crud.ts)",
       "Bash(sed -i \"s|import { isValidStoragePath } from '../../helpers/master-data.js';|import { isValidStoragePath } from '../../../shared/utils/request-helpers.js';|\" src/api/routes/document/document.storage.ts)",
       "Bash(sed -i \"s|import { sanitizeBody, verifyClientOwnership, verifyJournalEntryOwnership } from '../../helpers/master-data.js';|import { sanitizeBody } from '../../../shared/utils/request-helpers.js';\\\\nimport { verifyClientOwnership, verifyJournalEntryOwnership } from '../../../domain/auth/authorization.service.js';|\" src/api/routes/journal/journal.crud.ts)",
-      "Bash(sed -i \"s|import { verifyClientOwnership, verifyJournalEntryOwnership } from '../../helpers/master-data.js';|import { verifyClientOwnership, verifyJournalEntryOwnership } from '../../../domain/auth/authorization.service.js';|\" src/api/routes/journal/journal.operations.ts)"
+      "Bash(sed -i \"s|import { verifyClientOwnership, verifyJournalEntryOwnership } from '../../helpers/master-data.js';|import { verifyClientOwnership, verifyJournalEntryOwnership } from '../../../domain/auth/authorization.service.js';|\" src/api/routes/journal/journal.operations.ts)",
+      "Bash(find src/web/features/ -name \"*.tsx\" -exec sed -i 's/<button\\\\b\\\\\\([^>]*\\\\\\)onClick/<button type=\"button\"\\\\1onClick/g' {} \\\\;)",
+      "Bash(find src/web/ -name \"*.tsx\" -exec sed -i 's/type=\"button\" type=\"button\"/type=\"button\"/g' {} \\\\;)"
     ]
   }
 }

@@ -1,7 +1,7 @@
 // 仕訳生成パイプライン: ルールマッチ → AI生成 → UUIDマッピング → バランスチェック → 取引先名寄せ
 
 import { supabaseAdmin } from '../../adapters/supabase/supabase-admin.client.js';
-import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from '../../shared/constants/accounting.js';
+import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from './accounting-constants.js';
 import { generateJournalEntry } from './ai-generator.service.js';
 import { mapLinesToDBFormat } from './line-mapper.service.js';
 import { buildEntryFromRule } from './rule-generator.service.js';

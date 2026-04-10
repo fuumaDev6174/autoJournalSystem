@@ -26,19 +26,19 @@
 - [ ] `Document` → `domain/document/document.types.ts` に統合検討
 - [ ] `models.ts` は共通型（Client, User, Organization 等）のみ残す
 
-### BE-7: shared/ のBE専用とBE/FE共用の分離（優先度：低）
+### BE-7: shared/ のBE専用とBE/FE共用の分離 ✅ 完了
 
-- [ ] BE専用の `shared/constants/accounting.ts` を `domain/` 配下に移動するか、明示的に分離
+- [x] `shared/constants/accounting.ts` → `domain/journal/accounting-constants.ts` に移動。`shared/constants/` ディレクトリ削除
 
 ### BE-8: db/ の整理（優先度：低）
 
 - [ ] `db/migrations/`, `db/seeds/` にサブフォルダ分け
 - [ ] タイムスタンプ付き命名規則の導入
 
-### BE-9: domain/rule-engine/ と domain/journal/ の境界整理（優先度：低）
+### BE-9: domain/rule-engine/ と domain/journal/ の境界整理 ✅ 完了
 
-- [ ] `journal-pipeline.service.ts` 作成済み。generator.strategy.ts を統合して削除
-- [ ] rule-engine/ は純粋なマッチングロジックのみに限定
+- [x] `generator.strategy.ts` 削除（参照0件。journal-pipeline.service.ts に統合済み）
+- [x] rule-engine/ は純粋なマッチングロジックのみに限定
 
 ### BE-将来課題
 
@@ -61,9 +61,11 @@
 - [ ] `SuppliersPage.tsx` — 同上
 - [ ] `ItemsPage.tsx` — 同上
 
-### FE-3: ステータス定数の全ページ適用（優先度：低）
+### FE-3: ステータス定数の全ページ適用 ✅ 完了
 
-- [ ] 全ページのステータスバッジ表示を定数参照に置換
+- [x] ReviewPage ミニテーブル — `getStatusLabel()` + `getStatusBadgeClass()` に置換
+- [x] MultiEntryPanel — 同上
+- [x] ReviewDataContext — `ENTRY_STATUS.DRAFT` 等の定数に置換
 
 ### FE-4: button type + label htmlFor の全ファイル適用（優先度：低）
 

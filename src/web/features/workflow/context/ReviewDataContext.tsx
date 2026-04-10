@@ -7,6 +7,7 @@ import type { AccountItem, TaxCategory, Supplier } from '@/types';
 import type {
   EntryRow, DocumentWithEntry, TaxRateOption, MultiEntryGroup, ItemMaster, TabFilter,
 } from './ReviewContext';
+import { ENTRY_STATUS } from '@/web/shared/constants/statuses';
 
 export interface ReviewDataContextType {
   loading: boolean;
@@ -94,15 +95,15 @@ export function ReviewDataProvider({ children }: { children: React.ReactNode }) 
   const siblingItems = isMultiEntry ? items.filter(it => it.docId === ci.docId) : [];
 
   const filteredEntries = useCallback((activeTab: TabFilter) => {
-    if (activeTab === 'unchecked') return entries.filter(e => e.status === 'draft');
+    if (activeTab === 'unchecked') return entries.filter(e => e.status === ENTRY_STATUS.DRAFT);
     if (activeTab === 'excluded') return entries.filter(e => e.is_excluded);
     return entries;
   }, [entries]);
 
   const allCount = entries.length;
-  const uncheckedCount = useMemo(() => entries.filter(e => e.status === 'draft').length, [entries]);
-  const reviewedCount = useMemo(() => entries.filter(e => e.status === 'reviewed').length, [entries]);
-  const approvedCount = useMemo(() => entries.filter(e => e.status === 'approved' || e.status === 'posted').length, [entries]);
+  const uncheckedCount = useMemo(() => entries.filter(e => e.status === ENTRY_STATUS.DRAFT).length, [entries]);
+  const reviewedCount = useMemo(() => entries.filter(e => e.status === ENTRY_STATUS.REVIEWED).length, [entries]);
+  const approvedCount = useMemo(() => entries.filter(e => e.status === ENTRY_STATUS.APPROVED || e.status === ENTRY_STATUS.POSTED).length, [entries]);
   const excludedCount = useMemo(() => entries.filter(e => e.is_excluded).length, [entries]);
   const reviewCount = useMemo(() => entries.filter(e => e.requires_review || (e.ai_confidence != null && e.ai_confidence < 0.7)).length, [entries]);
 
