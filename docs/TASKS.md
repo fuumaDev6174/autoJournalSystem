@@ -49,13 +49,11 @@
 
 ## フロントエンド残タスク
 
-### FE-1: window.alert/confirm → useConfirm/Toast 置換（優先度：中）— 進行中
+### FE-1: window.alert/confirm → useConfirm/Toast 置換 ✅ 完了
 
-基盤（ConfirmDialog, Toast, useConfirm）は作成済み。12ファイルの window.confirm 置換を実行中。
+12ファイル21箇所の window.confirm を useConfirm に置換完了。
 
-- [x] `ClientListPage.tsx`（linter反映済み）
-- [ ] `ApprovalsPage.tsx`, `AccountsPage.tsx`, `IndustriesPage.tsx`, `ItemsPage.tsx`, `SuppliersPage.tsx`, `TaxCategoriesPage.tsx`, `UserManagement.tsx`, `ExportPage.tsx`, `OCRPage.tsx`, `ReviewPage.tsx`, `UploadPage.tsx`
-- [ ] `useReviewActions.ts` — hook内のため useConfirm 不可。別途対応
+- [ ] `useReviewActions.ts` の2箇所 — hook内のため useConfirm 不可。将来対応
 
 ### FE-2: マスタ系ページへの共通hooks適用（優先度：中）
 
@@ -72,10 +70,12 @@
 - [ ] 残りの `<button>` への `type="button"` 追加
 - [ ] 全フォームの `<label htmlFor>` と `<input id>` 紐づけ
 
-### FE-5: インラインスタイル + デザイントークン適用（優先度：低）
+### FE-5: インラインスタイル + デザイントークン適用 ✅ 完了
 
-- [ ] `index.css` の `.btn-primary` 等をトークン参照に更新
-- [ ] 全コンポーネントの `style={{ }}` インラインスタイル22箇所を Tailwind クラスに置換
+- [x] fadeSlideUp アニメーションを CSS クラス化（5レイアウト）
+- [x] minHeight/minWidth/background の固定値を Tailwind クラスに置換（15箇所）
+- [ ] 動的値（width: ${%}）と writingMode は Tailwind 不可のため残存（7箇所）
+- [ ] `index.css` の `.btn-primary` 等をデザイントークン参照に更新（後続対応）
 
 ### FE-6: workflow/ feature の肥大化対策（優先度：低）
 
