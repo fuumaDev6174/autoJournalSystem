@@ -27,7 +27,7 @@ import {
   PanelLeftOpen,
 } from 'lucide-react';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-import { auth } from '@/adapters/supabase/supabase.client';
+import { auth } from '@/web/shared/lib/supabase';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 
 // ────────────────────────────────────────────────

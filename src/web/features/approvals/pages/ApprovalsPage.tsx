@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { CheckCircle, AlertCircle, Filter, ChevronDown, Loader, Clock, Undo2 } from 'lucide-react';
-import { supabase } from '@/adapters/supabase/supabase.client';
+import { supabase } from '@/web/shared/lib/supabase';
 import { journalEntriesApi, clientsApi } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 

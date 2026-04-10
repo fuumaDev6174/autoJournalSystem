@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, Eye, EyeOff, AlertCircle, Loader } from 'lucide-react';
-import { auth } from '@/adapters/supabase/supabase.client';
+import { auth } from '@/web/shared/lib/supabase';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 
 // ============================================================

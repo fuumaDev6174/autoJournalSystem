@@ -1,15 +1,9 @@
 /**
- * @module バリデーションサービス
- * @description 貸借バランスチェック。重複チェック・取引先名寄せは各モジュールから re-export。
+ * @module 貸借バランスチェック
+ * @description 仕訳明細行の借方/貸方合計を比較し、バランスを検証する。
  */
 
 import type { SupabaseClient } from '@supabase/supabase-js';
-
-// 各モジュールの型・関数を re-export（重複定義を排除）
-export type { DuplicateCheckResult, ReceiptDuplicateResult } from '../../modules/document/duplicate-checker.js';
-export { checkDocumentDuplicate, checkReceiptDuplicate } from '../../modules/document/duplicate-checker.js';
-export type { SupplierMatchResult } from '../../modules/document/supplier-matcher.js';
-export { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.js';
 
 /** 貸借バランスチェック結果 */
 export interface BalanceCheckResult {

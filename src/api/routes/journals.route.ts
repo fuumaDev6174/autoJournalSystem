@@ -12,7 +12,7 @@ import { buildEntryFromRule } from '../../modules/journal/rule-generator.service
 import { matchProcessingRulesWithCandidates } from '../../modules/rule-engine/matcher-with-candidates.js';
 import { extractMultipleEntries } from '../../modules/ocr/multi-extractor.service.js';
 import { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.js';
-import { validateDebitCreditBalance } from '../../server/services/validation.service.js';
+import { validateDebitCreditBalance } from '../../core/validation/balance-validator.js';
 import type { GeneratedJournalEntry } from '../../modules/journal/journal.types.js';
 
 import {

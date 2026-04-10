@@ -1,7 +1,7 @@
 /**
  * @module バックエンド API クライアント
  */
-import { supabase } from '@/adapters/supabase/supabase.client';
+import { supabase } from '@/web/shared/lib/supabase';
 import type {
   Client, ClientWithIndustry, AccountItem, AccountCategory, TaxCategory,
   Industry, Rule, Supplier, SupplierAlias, Document,

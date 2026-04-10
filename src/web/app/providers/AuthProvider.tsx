@@ -3,7 +3,7 @@
  */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { supabase } from '@/adapters/supabase/supabase.client';
+import { supabase } from '@/web/shared/lib/supabase';
 import { usersApi } from '@/web/shared/lib/api/backend.api';
 
 interface UserProfile {
