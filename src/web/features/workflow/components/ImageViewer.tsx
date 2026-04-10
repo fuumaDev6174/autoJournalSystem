@@ -11,7 +11,7 @@ interface ImageViewerProps {
 
 export default function ImageViewer({ fileName, imageUrl, zoom, setZoom, rotation, setRotation }: ImageViewerProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+    <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
       <div className="p-3 border-b border-gray-100 flex justify-between items-center flex-shrink-0">
         <div>
           <div className="font-semibold text-sm">証憑画像</div>
@@ -25,7 +25,7 @@ export default function ImageViewer({ fileName, imageUrl, zoom, setZoom, rotatio
           <button onClick={() => setRotation(r => (r + 90) % 360)} className="p-1.5 hover:bg-gray-100 rounded text-gray-600" title="90度回転"><RotateCcw size={14} /></button>
         </div>
       </div>
-      <div className="flex-1 overflow-auto bg-slate-100 flex items-start justify-center p-2" style={{ minHeight: 500 }}>
+      <div className="flex-1 overflow-auto bg-slate-100 flex items-start justify-center p-2 min-h-[500px]">
         {imageUrl ? (
           fileName?.toLowerCase().endsWith('.pdf') ? (
             <iframe src={`${imageUrl}#toolbar=0&view=FitH`}

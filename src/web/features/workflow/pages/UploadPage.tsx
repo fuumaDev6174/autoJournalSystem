@@ -8,6 +8,7 @@ import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 import { documentsApi, storageApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 interface UploadedFile {
   id: string;
@@ -23,6 +24,7 @@ interface UploadedFile {
 export default function UploadPage() {
   const { currentWorkflow, updateWorkflowData } = useWorkflow();
   const { user, userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
 
   const uploadToSupabase = async (uploadFile: UploadedFile) => {
@@ -100,7 +102,7 @@ export default function UploadPage() {
     const hasUploading = uploadedFiles.some((f) => f.status === 'uploading');
     if (hasUploading) { alert('アップロード中のファイルがあります。完了までお待ちください。'); return false; }
     const hasError = uploadedFiles.some((f) => f.status === 'error');
-    if (hasError) { if (!window.confirm('エラーのあるファイルがあります。このまま進みますか？')) return false; }
+    if (hasError) { if (!await confirm('エラーのあるファイルがあります。このまま進みますか？')) return false; }
     const documentIds = uploadedFiles.filter((f) => f.status === 'success' && f.documentId).map((f) => f.documentId as string);
     // NOTE: updateWorkflowData 失敗時に孤立ドキュメントが残る可能性がある。
     // 孤立ドキュメントは定期バッチ（バックエンド側）で検出・クリーンアップする設計。
@@ -225,6 +227,7 @@ export default function UploadPage() {
           )}
         </div>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import Modal from '@/web/shared/components/ui/Modal';
 import { suppliersApi, rulesApi } from '@/web/shared/lib/api/backend.api';
 import type { SupplierAlias } from '@/types';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 import type { Supplier } from '@/types';
 
 // カテゴリ定義
@@ -35,6 +36,7 @@ function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (
 
 export default function SuppliersPage() {
   const { userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState('all');
@@ -147,7 +149,7 @@ export default function SuppliersPage() {
   };
 
   const handleDelete = async (supplier: Supplier) => {
-    if (!window.confirm(`「${supplier.name}」を削除しますか？\n\nこの操作は取り消せません。`)) return;
+    if (!await confirm(`「${supplier.name}」を削除しますか？\n\nこの操作は取り消せません。`, { variant: 'danger' })) return;
     const { error } = await suppliersApi.delete(supplier.id);
     if (error) { alert('削除に失敗しました: ' + error); }
     else { alert('取引先を削除しました'); loadSuppliers(); }
@@ -165,7 +167,7 @@ export default function SuppliersPage() {
   };
 
   const handleDeleteAlias = async (alias: SupplierAlias) => {
-    if (!window.confirm(`別名「${alias.alias_name}」を削除しますか？`)) return;
+    if (!await confirm(`別名「${alias.alias_name}」を削除しますか？`, { variant: 'danger' })) return;
     const { error } = await suppliersApi.deleteAlias(alias.id);
     if (error) { alert('削除に失敗しました: ' + error); }
     else loadAliases(editingSupplier!.id);
@@ -466,6 +468,7 @@ export default function SuppliersPage() {
           </div>
         )}
       </Modal>
+      {ConfirmDialogElement}
     </div>
   );
 }

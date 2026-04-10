@@ -4,6 +4,7 @@ import type { AccountItem, AccountCategory, TaxCategory } from '@/types';
 import Modal from '@/web/shared/components/ui/Modal';
 import { accountItemsApi, accountCategoriesApi, taxCategoriesApi, industriesApi } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 
 // 不動産賃貸業のIDはDBから動的取得
@@ -21,6 +22,7 @@ type CategoryFilterType = 'all' | 'income' | 'expense' | 'asset' | 'liability' |
 
 export default function AccountsPage() {
   const { userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [accountItems, setAccountItems] = useState<AccountItem[]>([]);
   const [accountCategories, setAccountCategories] = useState<AccountCategory[]>([]);
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
@@ -208,7 +210,7 @@ export default function AccountsPage() {
       alert('システム科目は削除できません');
       return;
     }
-    if (!window.confirm(`勘定科目「${item.name}」を削除しますか？\n\nこの操作は取り消せません。`)) return;
+    if (!await confirm(`勘定科目「${item.name}」を削除しますか？\n\nこの操作は取り消せません。`, { variant: 'danger' })) return;
 
     const { error } = await accountItemsApi.delete(item.id);
 
@@ -622,6 +624,7 @@ export default function AccountsPage() {
           </div>
         </form>
       </Modal>
+      {ConfirmDialogElement}
     </div>
   );
 }

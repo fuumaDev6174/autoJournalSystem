@@ -66,7 +66,7 @@ export default function EntryCard(_props: EntryCardProps) {
   // All sections read from ReviewContext internally.
   // Props are kept for backward compatibility with ReviewPage's prop passing.
   return (
-    <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+    <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
       <MultiEntrySiblingTabs />
       <OcrSummaryBadges />
       <RuleCandidatesBar />

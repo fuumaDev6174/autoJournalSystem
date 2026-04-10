@@ -8,6 +8,7 @@ import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import type { ClientWithIndustry } from '@/types';
 import Modal from '@/web/shared/components/ui/Modal';
 import { clientsApi, workflowsApi as backendWorkflowsApi } from '@/web/shared/lib/api/backend.api';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 import { useClientData, useClientRules } from '../hooks/useClientData';
 import type { ActiveWorkflow } from '../hooks/useClientData';
 import ClientForm, { type ClientFormData } from '../components/ClientForm';
@@ -22,6 +23,7 @@ export default function ClientsPage() {
   const { resumeWorkflow, startWorkflow } = useWorkflow();
   const { clients, industries, activeWorkflows, loading, loadClients, loadActiveWorkflows, getWorkflowForClient } = useClientData();
   const { clientRules, clientAccountItems, clientRatios, loadRules } = useClientRules();
+  const { confirm, ConfirmDialogElement } = useConfirm();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -49,7 +51,7 @@ export default function ClientsPage() {
   const handleRestartWorkflow = async (client: ClientWithIndustry) => {
     const wf = getWorkflowForClient(client.id);
     if (wf) {
-      const ok = window.confirm(`「${client.name}」の進行中ワークフローを破棄してやり直しますか？\n\n現在のステップ: ${wf.current_step}/4\n\n※ アップロード済みの証憑データは保持されますが、仕訳データはリセットされます。`);
+      const ok = await confirm(`「${client.name}」の進行中ワークフローを破棄してやり直しますか？\n\n現在のステップ: ${wf.current_step}/4\n\n※ アップロード済みの証憑データは保持されますが、仕訳データはリセットされます。`, { variant: 'danger' });
       if (!ok) return;
       await backendWorkflowsApi.cancel(wf.id);
     }
@@ -105,7 +107,7 @@ export default function ClientsPage() {
   };
 
   const handleDelete = async (client: ClientWithIndustry) => {
-    if (!window.confirm(`「${client.name}」を削除しますか？\n\nこの操作は取り消せません。`)) return;
+    if (!await confirm(`「${client.name}」を削除しますか？\n\nこの操作は取り消せません。`, { variant: 'danger' })) return;
     const { error } = await clientsApi.delete(client.id);
     if (!error) loadClients();
     else alert('削除に失敗しました: ' + error);
@@ -263,6 +265,7 @@ export default function ClientsPage() {
 
       {/* ルール設定モーダル */}
       <ClientRulesModal isOpen={showRulesModal} onClose={() => setShowRulesModal(false)} client={selectedClient} rules={clientRules} accountItems={clientAccountItems} ratios={clientRatios} />
+      {ConfirmDialogElement}
     </div>
   );
 }

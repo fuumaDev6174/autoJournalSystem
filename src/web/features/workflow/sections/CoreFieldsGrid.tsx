@@ -54,7 +54,7 @@ export default function CoreFieldsGrid() {
         <div className="bg-yellow-50 border-[1.5px] border-yellow-200 rounded-lg p-3">
           <label className="text-xs font-semibold flex items-center gap-1.5 mb-1.5"><span className="w-2 h-2 rounded-full bg-yellow-500" />税率</label>
           <select value={form.taxRate?.toString() || ''} onChange={e => setForm(p => ({ ...p, taxRate: e.target.value ? Number(e.target.value) : null }))}
-            className="border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500" style={{ minWidth: 130 }}>
+            className="border border-gray-300 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 min-w-[130px]">
             <option value="">--</option>
             {taxRates.map(r => {
               const pct = Math.round(r.rate * 100);

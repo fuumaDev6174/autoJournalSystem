@@ -3,6 +3,7 @@ import { CheckCircle, AlertCircle, Filter, ChevronDown, Loader, Clock, Undo2 } f
 import { supabase } from '@/web/shared/lib/supabase';
 import { journalEntriesApi, clientsApi } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 // 仕訳承認の行データ
 interface ApprovalEntry {
@@ -26,6 +27,7 @@ type TabFilter = 'reviewed' | 'approved' | 'amended' | 'all';
 
 export default function ApprovalsPage() {
   const { userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [entries, setEntries] = useState<ApprovalEntry[]>([]);
   const [clients, setClients] = useState<Array<{ id: string; name: string }>>([]);
   const [loading, setLoading] = useState(true);
@@ -118,7 +120,7 @@ export default function ApprovalsPage() {
   // 一括承認
   const handleBulkApprove = async () => {
     if (selectedCount === 0) return;
-    if (!window.confirm(`${selectedCount}件の仕訳を一括承認しますか？`)) return;
+    if (!await confirm(`${selectedCount}件の仕訳を一括承認しますか？`)) return;
     setProcessing(true);
 
     const { data: { user: currentUser } } = await supabase.auth.getUser();
@@ -158,7 +160,7 @@ export default function ApprovalsPage() {
 
   // 差し戻し
   const handleReject = async (entryId: string) => {
-    if (!window.confirm('この仕訳を差し戻しますか？')) return;
+    if (!await confirm('この仕訳を差し戻しますか？', { variant: 'danger' })) return;
     await journalEntriesApi.updateStatus(entryId, 'draft');
     await loadData();
   };
@@ -353,6 +355,7 @@ export default function ApprovalsPage() {
           {filteredEntries.length}件表示 / 全{entries.length}件
         </div>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { journalEntriesApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 import MultiEntryPanel from '@/web/features/workflow/components/MultiEntryPanel';
 import LayoutDispatcher from '@/web/features/workflow/layouts/LayoutDispatcher';
 import {
@@ -20,6 +21,7 @@ export type { EntryRow, LineRow, DocumentWithEntry, TaxRateOption, MultiEntryGro
 // Inner component (uses context)
 // ============================================
 function ReviewPageContent() {
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const {
     currentWorkflow, viewMode, setViewMode, activeTab, setActiveTab, loading,
     entries, multiEntryGroups, expandedDocs, items, currentIndex, ci,
@@ -104,7 +106,7 @@ function ReviewPageContent() {
           {viewMode === 'list' && isManagerOrAdmin && reviewedCount > 0 && (
             <button
               onClick={async () => {
-                if (!window.confirm(`確認済みの${reviewedCount}件を一括承認しますか？`)) return;
+                if (!await confirm(`確認済みの${reviewedCount}件を一括承認しますか？`)) return;
                 const reviewedEntries = entries.filter(e => e.status === 'reviewed');
                 const currentUser = user;
                 if (!currentUser) return;
@@ -127,8 +129,7 @@ function ReviewPageContent() {
               <div className="flex justify-between items-center px-4 py-3 border-b border-gray-200">
                 <h2 className="text-base font-semibold text-gray-900">仕訳一覧</h2>
                 <button onClick={openDetailFromTop}
-                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors"
-                  style={{ background: '#dc4a3a' }}>
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-colors bg-red-500 hover:bg-red-600">
                   <Eye size={16} /> 個別チェックに切り替え
                 </button>
               </div>
@@ -281,6 +282,7 @@ function ReviewPageContent() {
       <style>{`
         @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
+      {ConfirmDialogElement}
     </div>
   );
 }

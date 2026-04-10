@@ -15,7 +15,7 @@ export default function StatementLayout() {
   const siblingEntries = items.filter(it => it.docId === ci.docId);
 
   return (
-    <div className="grid grid-cols-5 gap-4" style={{ animation: 'fadeSlideUp .3s ease' }}>
+    <div className="grid grid-cols-5 gap-4" className="animate-fadeSlideUp">
       {/* Image: 2/5 */}
       <div className="col-span-2">
         <ImageViewer
@@ -29,7 +29,7 @@ export default function StatementLayout() {
       </div>
 
       {/* Statement table: 3/5 */}
-      <div className="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+      <div className="col-span-3 bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
         <OcrSummaryBadges />
 
         <div className="px-4 py-2 bg-emerald-50 border-b border-emerald-100 flex items-center justify-between text-xs">

@@ -22,7 +22,7 @@ export default function CompoundEntryLayout() {
   const config = getDocTypeConfig(ci.docClassification?.document_type_code);
 
   return (
-    <div className="grid grid-cols-2 gap-4" style={{ animation: 'fadeSlideUp .3s ease' }}>
+    <div className="grid grid-cols-2 gap-4" className="animate-fadeSlideUp">
       <ImageViewer
         fileName={ci.fileName}
         imageUrl={ci.imageUrl}
@@ -31,7 +31,7 @@ export default function CompoundEntryLayout() {
         rotation={rotation}
         setRotation={setRotation}
       />
-      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
         <MultiEntrySiblingTabs />
         <OcrSummaryBadges />
         <RuleCandidatesBar />

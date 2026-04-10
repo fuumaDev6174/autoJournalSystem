@@ -3,7 +3,7 @@
  * @description ブラウザコンソールから `debugAuth()` で認証・RLS の問題を診断。
  */
 
-import { supabase } from '../../web/shared/lib/supabase';
+import { supabase } from './supabase';
 
 export const debugAuth = async () => {
   console.group('🔍 Tax Copilot 認証診断');

@@ -8,6 +8,7 @@ import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useMasterData } from '@/web/app/providers/MasterDataProvider';
 import { journalEntriesApi, exportsApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 // ============================================
 // 型定義
@@ -214,6 +215,7 @@ function StatusBadge({ status }: { status: string }) {
 export default function ExportPage() {
   const { currentWorkflow } = useWorkflow();
   const { accountMap, taxCatMap } = useMasterData();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get('client_id') ?? currentWorkflow?.clientId ?? '';
 
@@ -247,7 +249,7 @@ export default function ExportPage() {
       return;
     }
 
-    if (!confirm(`${filteredEntries.length}件の仕訳をfreeeに送信しますか？`)) return;
+    if (!await confirm(`${filteredEntries.length}件の仕訳をfreeeに送信しますか？`)) return;
     setFreeeExporting(true);
     try {
       const res = await fetch('/api/freee/export', {
@@ -355,9 +357,9 @@ export default function ExportPage() {
     return { total: filteredByPeriod.length, active: active.length, excluded: excluded.length, totalAmount: total };
   }, [filteredByPeriod]);
 
-  const handleSimpleCsvDownload = () => {
+  const handleSimpleCsvDownload = async () => {
     if (draftCount > 0) {
-      const ok = window.confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
+      const ok = await confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
       if (!ok) return;
     }
     const csv = buildSimpleCsv(filteredEntries, accountMap, taxCatMap);
@@ -366,9 +368,9 @@ export default function ExportPage() {
     downloadCsv(csv, `仕訳データ_${name}_${dateStr}.csv`);
   };
 
-  const handleFreeeCsvDownload = () => {
+  const handleFreeeCsvDownload = async () => {
     if (draftCount > 0) {
-      const ok = window.confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
+      const ok = await confirm(`未承認の仕訳が${draftCount}件あり、出力対象から除外されています。\nこのままCSVをダウンロードしますか？`);
       if (!ok) return;
     }
     const csv = buildFreeeCsv(filteredEntries, accountMap, taxCatMap);
@@ -391,7 +393,7 @@ export default function ExportPage() {
   // ワークフロー完了前の検証
   const handleBeforeNext = async (): Promise<boolean> => {
     if (draftCount > 0) {
-      const ok = window.confirm(
+      const ok = await confirm(
         `未承認の仕訳が${draftCount}件あり、CSV出力対象から除外されています。\n\nこのままワークフローを完了しますか？\n「キャンセル」で戻って仕訳確認ページで承認できます。`
       );
       if (!ok) return false;
@@ -603,6 +605,7 @@ export default function ExportPage() {
           )}
         </div>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }

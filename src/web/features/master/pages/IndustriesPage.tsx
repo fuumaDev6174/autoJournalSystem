@@ -5,10 +5,12 @@ import { useNavigate } from 'react-router-dom';
 import Modal from '@/web/shared/components/ui/Modal';
 import { industriesApi, clientsApi } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 export default function IndustriesPage() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [industries, setIndustries] = useState<Industry[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -67,7 +69,7 @@ export default function IndustriesPage() {
   const handleDelete = async (industry: Industry) => {
     const clientCount = clients.filter(c => c.industry_id === industry.id).length;
     if (clientCount > 0) { alert(`この業種は${clientCount}件の顧客に紐付いています。\n先に顧客の業種を変更してください。`); return; }
-    if (!window.confirm(`「${industry.name}」を削除しますか？`)) return;
+    if (!await confirm(`「${industry.name}」を削除しますか？`, { variant: 'danger' })) return;
     const { error } = await industriesApi.delete(industry.id);
     if (error) alert('削除に失敗しました: ' + error); else loadData();
   };
@@ -173,6 +175,7 @@ export default function IndustriesPage() {
           </div>
         </form>
       </Modal>
+      {ConfirmDialogElement}
     </div>
   );
 }

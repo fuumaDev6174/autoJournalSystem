@@ -10,7 +10,7 @@ export default function ArchiveLayout() {
   if (!ci) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-4" style={{ animation: 'fadeSlideUp .3s ease' }}>
+    <div className="grid grid-cols-2 gap-4" className="animate-fadeSlideUp">
       <ImageViewer
         fileName={ci.fileName}
         imageUrl={ci.imageUrl}
@@ -19,7 +19,7 @@ export default function ArchiveLayout() {
         rotation={rotation}
         setRotation={setRotation}
       />
-      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
         <div className="px-4 py-3 border-b border-gray-100 flex items-center gap-2">
           <span className="font-bold text-sm">保管書類</span>
           <span className="ml-auto text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">処理不要</span>

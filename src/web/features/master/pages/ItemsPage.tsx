@@ -5,6 +5,7 @@ import Modal from '@/web/shared/components/ui/Modal';
 import { itemsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
 import type { Item, ItemAlias } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 interface AccountItemOption { id: string; code: string; name: string; }
 interface TaxCategoryOption { id: string; name: string; }
@@ -23,6 +24,7 @@ const ITEM_CATEGORIES = [
 export default function ItemsPage() {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [items, setItems] = useState<Item[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
@@ -136,7 +138,7 @@ export default function ItemsPage() {
   };
 
   const handleDelete = async (item: Item) => {
-    if (!window.confirm(`「${item.name}」を削除しますか？`)) return;
+    if (!await confirm(`「${item.name}」を削除しますか？`, { variant: 'danger' })) return;
     const { error } = await itemsApi.delete(item.id);
     if (error) alert('削除に失敗しました: ' + error);
     else loadItems();
@@ -157,7 +159,7 @@ export default function ItemsPage() {
   };
 
   const handleDeleteAlias = async (alias: ItemAlias) => {
-    if (!window.confirm(`別名「${alias.alias_name}」を削除しますか？`)) return;
+    if (!await confirm(`別名「${alias.alias_name}」を削除しますか？`, { variant: 'danger' })) return;
     const { error } = await itemsApi.deleteAlias(alias.id);
     if (error) alert('削除に失敗しました: ' + error);
     else if (editingItem) loadAliases(editingItem.id);
@@ -446,6 +448,7 @@ export default function ItemsPage() {
           </div>
         )}
       </Modal>
+      {ConfirmDialogElement}
     </div>
   );
 }

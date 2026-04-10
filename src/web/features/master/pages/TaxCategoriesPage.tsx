@@ -5,6 +5,7 @@ import Modal from '@/web/shared/components/ui/Modal';
 import { taxCategoriesApi, taxRatesApi, clientTaxSettingsApi, clientsApi } from '@/web/shared/lib/api/backend.api';
 import type { TaxRate } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 interface ClientTaxSetting {
   tax_category_id: string;
@@ -26,6 +27,7 @@ function Switch({ checked, onChange, disabled }: { checked: boolean; onChange?: 
 // メインコンポーネント
 // ============================================
 export default function TaxCategoriesPage() {
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
   const [taxRates, setTaxRates] = useState<TaxRate[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
@@ -155,7 +157,7 @@ export default function TaxCategoriesPage() {
   };
 
   const handleDeleteRate = async (rate: TaxRate) => {
-    if (!window.confirm(`税率「${rate.name}」を削除しますか？\n\n関連する税区分の紐づけが外れます。`)) return;
+    if (!await confirm(`税率「${rate.name}」を削除しますか？\n\n関連する税区分の紐づけが外れます。`, { variant: 'danger' })) return;
     const { error } = await taxRatesApi.delete(rate.id);
     if (error) alert('削除に失敗しました: ' + error);
     else loadData();
@@ -495,6 +497,7 @@ export default function TaxCategoriesPage() {
           </div>
         </form>
       </Modal>
+      {ConfirmDialogElement}
     </div>
   );
 }

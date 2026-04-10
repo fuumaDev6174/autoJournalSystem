@@ -6,6 +6,7 @@ import { Plus, Edit, Trash2, Search, User as UserIcon, Shield, UserCog } from 'l
 import { usersApi } from '@/web/shared/lib/api/backend.api';
 import type { User } from '@/types';
 import Modal from '@/web/shared/components/ui/Modal';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 const ROLE_CONFIG = {
   admin:    { label: '管理者',       badgeClass: 'bg-red-100 text-red-800',   icon: <Shield size={16} className="text-red-600" />,   iconLg: <Shield size={18} className="text-red-600" />,   cardIcon: <Shield size={20} className="text-red-600" />,   desc: 'ユーザー管理+全機能' },
@@ -22,6 +23,7 @@ function formatDateTime(dateStr: string | null): string {
 }
 
 export default function UserManagement() {
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [users, setUsers] = useState<User[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
@@ -65,7 +67,7 @@ export default function UserManagement() {
 
   const handleDelete = async (user: User) => {
     if (user.role === 'admin') { alert('管理者ユーザーは削除できません'); return; }
-    if (!window.confirm(`ユーザー「${user.name}」を削除しますか？\n\nこの操作は取り消せません。`)) return;
+    if (!await confirm(`ユーザー「${user.name}」を削除しますか？\n\nこの操作は取り消せません。`, { variant: 'danger' })) return;
     const { error } = await usersApi.delete(user.id);
     if (error) alert(`削除に失敗しました: ${error}`);
     else { alert('ユーザーを削除しました'); loadUsers(); }
@@ -189,6 +191,7 @@ export default function UserManagement() {
           </div>
         </form>
       </Modal>
+      {ConfirmDialogElement}
     </>
   );
 }

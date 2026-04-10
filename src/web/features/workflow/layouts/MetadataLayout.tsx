@@ -12,7 +12,7 @@ export default function MetadataLayout() {
   if (!ci) return null;
 
   return (
-    <div className="grid grid-cols-2 gap-4" style={{ animation: 'fadeSlideUp .3s ease' }}>
+    <div className="grid grid-cols-2 gap-4" className="animate-fadeSlideUp">
       <ImageViewer
         fileName={ci.fileName}
         imageUrl={ci.imageUrl}
@@ -21,7 +21,7 @@ export default function MetadataLayout() {
         rotation={rotation}
         setRotation={setRotation}
       />
-      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden" style={{ minHeight: 480 }}>
+      <div className="bg-white rounded-xl border border-gray-200 flex flex-col overflow-hidden min-h-[480px]">
         <OcrSummaryBadges />
         <div className="px-4 py-2 bg-purple-50 border-b border-purple-100 flex items-center gap-2 text-xs">
           <span className="font-medium text-purple-800">メタデータ抽出</span>

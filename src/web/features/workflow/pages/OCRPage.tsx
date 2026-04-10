@@ -6,6 +6,7 @@ import { CheckCircle, AlertCircle, Loader, RotateCcw } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { documentsApi, clientsApi, journalEntriesApi, storageApi, ocrApi, journalGenerateApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
+import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
 // ============================================
 // 型定義
@@ -71,6 +72,7 @@ const ERROR_STEP_LABELS: Record<ErrorStep, string> = {
 
 export default function OCRPage() {
   const { currentWorkflow, updateWorkflowData } = useWorkflow();
+  const { confirm, ConfirmDialogElement } = useConfirm();
   const [ocrResults, setOcrResults] = useState<OCRResultItem[]>([]);
   const [processing, setProcessing] = useState(false);
   const [industry, setIndustry] = useState<string>('');
@@ -295,18 +297,18 @@ export default function OCRPage() {
   }, [startOCRProcessing]);
 
   // 1件再処理
-  const retryOne = (result: OCRResultItem) => {
+  const retryOne = async (result: OCRResultItem) => {
     if (result.retryCount >= MAX_RETRY) {
-      if (!window.confirm(`この証憑は${result.retryCount}回再処理しています。\nもう一度試しますか？`)) return;
+      if (!await confirm(`この証憑は${result.retryCount}回再処理しています。\nもう一度試しますか？`)) return;
     }
     runBatch([result]);
   };
 
   // エラー全件再処理
-  const retryAllErrors = () => {
+  const retryAllErrors = async () => {
     const errors = ocrResults.filter(r => r.status === 'error');
     if (errors.length === 0) return;
-    if (!window.confirm(`エラーの${errors.length}件を再処理しますか？`)) return;
+    if (!await confirm(`エラーの${errors.length}件を再処理しますか？`)) return;
     runBatch(errors);
   };
 
@@ -320,7 +322,7 @@ export default function OCRPage() {
     }
     const errorItems = ocrResults.filter(r => r.status === 'error');
     if (errorItems.length > 0) {
-      const proceed = window.confirm(
+      const proceed = await confirm(
         `エラーの証憑が${errorItems.length}件あります。\n\n` +
         errorItems.map(e => `・${e.fileName}: ${ERROR_STEP_LABELS[e.errorStep || 'unknown']}で失敗`).join('\n') +
         '\n\nこのまま次へ進みますか？（エラー件は除外されます）'
@@ -522,6 +524,7 @@ export default function OCRPage() {
           )}
         </div>
       </div>
+      {ConfirmDialogElement}
     </div>
   );
 }
