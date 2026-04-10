@@ -1,88 +1,54 @@
 # タスク管理
 
-> 未完了タスクのみ記載。完了済みバッチは削除済み。
+> 完了タスクは1行サマリーのみ。未完了は詳細記載。
 
 ---
 
-## バックエンド残タスク
+## 完了済み
 
-### BE-1: master-data.ts re-export ラッパーの解体 ✅ 完了
-
-### BE-2: journal.generate.ts のパイプラインサービス抽出 ✅ 完了
-
-### BE-3: journal.crud.ts の分割 ✅ 完了
-
-### BE-4: document.ocr.ts のパイプラインサービス抽出 ✅ 完了
-
-### BE-5: supabase.debug.ts のレイヤー違反修正 ✅ 完了
-
-`adapters/supabase/supabase.debug.ts` → `web/shared/lib/supabase.debug.ts` に移動。
-
-### BE-6: shared/types/models.ts の分散（優先度：低）
-
-474行のモノリス。domain/ にドメイン分割したなら型もドメインごとに配置する方が一貫性がある。
-
-- [ ] `JournalEntry`, `JournalEntryLine` → `domain/journal/journal.types.ts` に統合検討
-- [ ] `Document` → `domain/document/document.types.ts` に統合検討
-- [ ] `models.ts` は共通型（Client, User, Organization 等）のみ残す
-
-### BE-7: shared/ のBE専用とBE/FE共用の分離 ✅ 完了
-
-- [x] `shared/constants/accounting.ts` → `domain/journal/accounting-constants.ts` に移動。`shared/constants/` ディレクトリ削除
-
-### BE-8: db/ の整理（優先度：低）
-
-- [ ] `db/migrations/`, `db/seeds/` にサブフォルダ分け
-- [ ] タイムスタンプ付き命名規則の導入
-
-### BE-9: domain/rule-engine/ と domain/journal/ の境界整理 ✅ 完了
-
-- [x] `generator.strategy.ts` 削除（参照0件。journal-pipeline.service.ts に統合済み）
-- [x] rule-engine/ は純粋なマッチングロジックのみに限定
-
-### BE-将来課題
-
-- [ ] correction hints の SQL GROUP BY 最適化（Supabase RPC 関数の DB マイグレーション要）
-- [ ] 6つのルートファイルの残り try-catch を asyncHandler に移行
+- ✅ BE-1: master-data.ts 解体（19ファイル直接import化）
+- ✅ BE-2: journal.generate.ts → パイプラインサービス抽出（380行→50行）
+- ✅ BE-3: journal.crud.ts 分割（252行→3ファイル）
+- ✅ BE-4: document.ocr.ts → パイプラインサービス抽出（143行→31行）
+- ✅ BE-5: supabase.debug.ts をweb/に移動
+- ✅ BE-7: shared/constants/accounting.ts → domain/journal/ に移動
+- ✅ BE-8: db/ をmigrations/seeds/に整理
+- ✅ BE-9: generator.strategy.ts 削除（pipeline に統合済み）
+- ✅ FE-1: window.confirm → useConfirm（12ファイル21箇所）
+- ✅ FE-3: ステータス定数適用（ReviewPage, MultiEntryPanel, ReviewDataContext）
+- ✅ FE-4: 全94 button に type="button" 追加
+- ✅ FE-5: インラインスタイル15箇所 → Tailwind + fadeSlideUp CSS化
 
 ---
 
-## フロントエンド残タスク
+## 意図的にスキップ
 
-### FE-1: window.alert/confirm → useConfirm/Toast 置換 ✅ 完了
+### BE-6: models.ts の分散
 
-12ファイル21箇所の window.confirm を useConfirm に置換完了。
+`@/types` が全ファイルから参照されるバレルファイルとして機能している。分散しても re-export が必要になり、ファイル数が増えるだけで実質的なメリットがない。現状維持。
 
-- [ ] `useReviewActions.ts` の2箇所 — hook内のため useConfirm 不可。将来対応
+### FE-6: workflow/ feature の分離
+
+44ファイルが1つの feature に集中しているが、context/sections/layouts/doc-specific の内部構造は整理済み。無理に分離するとimportパスが深くなるだけ。現状維持。
+
+---
+
+## 未完了（低〜中優先）
 
 ### FE-2: マスタ系ページへの共通hooks適用（優先度：中）
 
-- [ ] `AccountsPage.tsx` — useCrud + useModal に置換
+useCrud, useModal, useSearchFilter は作成済み。適用すると各ページを300行程度に削減可能。
+
+- [ ] `AccountsPage.tsx` (626行) — useCrud + useModal に置換
 - [ ] `SuppliersPage.tsx` — 同上
 - [ ] `ItemsPage.tsx` — 同上
 
-### FE-3: ステータス定数の全ページ適用 ✅ 完了
+### 将来課題
 
-- [x] ReviewPage ミニテーブル — `getStatusLabel()` + `getStatusBadgeClass()` に置換
-- [x] MultiEntryPanel — 同上
-- [x] ReviewDataContext — `ENTRY_STATUS.DRAFT` 等の定数に置換
-
-### FE-4: button type + label htmlFor の全ファイル適用（優先度：低）
-
-- [ ] 残りの `<button>` への `type="button"` 追加
-- [ ] 全フォームの `<label htmlFor>` と `<input id>` 紐づけ
-
-### FE-5: インラインスタイル + デザイントークン適用 ✅ 完了
-
-- [x] fadeSlideUp アニメーションを CSS クラス化（5レイアウト）
-- [x] minHeight/minWidth/background の固定値を Tailwind クラスに置換（15箇所）
-- [ ] 動的値（width: ${%}）と writingMode は Tailwind 不可のため残存（7箇所）
-- [ ] `index.css` の `.btn-primary` 等をデザイントークン参照に更新（後続対応）
-
-### FE-6: workflow/ feature の肥大化対策（優先度：低）
-
-- [ ] review/ をサブ feature として分離検討
-- [ ] または現状維持で、ファイル名規則で管理
+- [ ] correction hints の SQL GROUP BY 最適化（DB マイグレーション要）
+- [ ] 6つのルートファイルの残り try-catch を asyncHandler に移行
+- [ ] useReviewActions.ts の2箇所の window.confirm（hook内のため useConfirm 不可）
+- [ ] index.css の .btn-primary 等をデザイントークン参照に更新
 
 ---
 
