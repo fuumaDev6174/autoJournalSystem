@@ -1,3 +1,6 @@
+/**
+ * @module 書類種別型定義
+ */
 export type LayoutType = 'single' | 'statement' | 'compound' | 'metadata' | 'archive';
 
 export interface DocTypeConfig {

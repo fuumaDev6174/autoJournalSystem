@@ -1,3 +1,8 @@
+/**
+ * @module 一括処理 API
+ * @description 複数ファイルをまとめて OCR → 仕訳生成するバッチエンドポイント。
+ */
+
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 
@@ -29,10 +34,6 @@ import { upload } from './documents.route.js';
 
 const router = Router();
 
-// ============================================
-// 一括処理API
-// ============================================
-
 router.post('/process/batch', upload.array('files', 20), async (req: Request, res: Response) => {
   try {
     const files = req.files as MulterFile[];
@@ -44,7 +45,6 @@ router.post('/process/batch', upload.array('files', 20), async (req: Request, re
       return res.status(400).json({ error: 'client_idとuploaded_byは必須です' });
     }
 
-    // クライアント所有権の確認
     const authUser = (req as AuthenticatedRequest).user;
     if (!(await verifyClientOwnership(client_id, authUser.organization_id))) {
       return res.status(403).json({ error: '指定されたクライアントへのアクセス権限がありません' });
@@ -101,7 +101,6 @@ router.post('/process/batch', upload.array('files', 20), async (req: Request, re
         console.error(`[バッチ] ❌ エラー (${file.originalname}):`, error.message);
         results.push({ file_name: file.originalname, success: false, error: error.message });
       } finally {
-        // tempファイルをディスクから削除
         try { fs.unlinkSync(file.path); } catch { /* already cleaned */ }
       }
     }

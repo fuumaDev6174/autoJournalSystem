@@ -1,3 +1,6 @@
+/**
+ * @module 取引先フィールド
+ */
 import ComboBox from '@/web/shared/components/ui/ComboBox';
 import { useReview } from '../context/ReviewContext';
 

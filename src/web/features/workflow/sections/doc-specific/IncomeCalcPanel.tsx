@@ -1,3 +1,6 @@
+/**
+ * @module 収入計算パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function IncomeCalcPanel() {

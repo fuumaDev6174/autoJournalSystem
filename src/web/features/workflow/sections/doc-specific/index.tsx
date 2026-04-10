@@ -1,3 +1,6 @@
+/**
+ * @module 書類別パネルインデックス
+ */
 import { lazy, Suspense } from 'react';
 
 const ReceiptItemList = lazy(() => import('./ReceiptItemList'));

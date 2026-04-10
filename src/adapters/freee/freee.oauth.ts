@@ -1,6 +1,6 @@
-// TODO: freee OAuth 2.0 認証フローの実装
-// 必要なエンドポイント:
-//   - /api/freee/auth: 認可コードリクエスト
-//   - /api/freee/callback: コールバック処理
-//   - トークンリフレッシュ
+/**
+ * @module freee OAuth
+ * @description freee OAuth 2.0 認証フロー（実装は freee.route.ts に移行済み）。
+ */
+
 export const FREEE_OAUTH_NOT_IMPLEMENTED = true;

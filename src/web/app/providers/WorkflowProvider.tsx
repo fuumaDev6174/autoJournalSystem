@@ -1,3 +1,6 @@
+/**
+ * @module ワークフロープロバイダー
+ */
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { workflowsApi, getStepPath } from '@/web/features/workflow/lib/workflowStorage';

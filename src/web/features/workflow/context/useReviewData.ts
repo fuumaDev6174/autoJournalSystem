@@ -1,3 +1,6 @@
+/**
+ * @module レビューデータ hooks
+ */
 import { useCallback } from 'react';
 import type { AccountItem, TaxCategory, Supplier } from '@/types';
 import {
@@ -27,7 +30,7 @@ interface UseReviewDataParams {
   setClientRatios: React.Dispatch<React.SetStateAction<Array<{ account_item_id: string; business_ratio: number }>>>;
 }
 
-export function useReviewData(params: UseReviewDataParams) {
+export function useReviewDataLoader(params: UseReviewDataParams) {
   const {
     currentWorkflow, setLoading, setEntries, setMultiEntryGroups, setItems, setCurrentIndex, setForm,
     setAccountItems, setTaxCategories, setTaxRates, setSuppliers, setItemsMaster, setIndustries, setClientRatios,
@@ -109,23 +112,28 @@ export function useReviewData(params: UseReviewDataParams) {
       } as DocumentWithEntry;
     }));
 
-    // Master data
-    const [aRes, tRes] = await Promise.all([accountItemsApi.getAll(), taxCategoriesApi.getAll()]);
-    if (aRes.data) setAccountItems(aRes.data);
-    if (tRes.data) setTaxCategories(tRes.data);
-    const { data: rates } = await taxRatesApi.getAll();
-    if (rates) setTaxRates(rates.map((r: any) => ({ id: r.id, rate: Number(r.rate), name: r.name, is_current: r.is_current })));
-    const { data: sData } = await suppliersApi.getAll({ is_active: 'true' });
-    if (sData) setSuppliers(sData);
-    const { data: inds } = await industriesApi.getAll({ is_active: 'true' });
-    if (inds) setIndustries(inds);
-    const { data: itemsData } = await itemsApi.getAll({ is_active: 'true' });
-    if (itemsData) setItemsMaster(itemsData);
+    // Master data — 全て並列取得
+    const [aRes, tRes, ratesRes, sRes, indsRes, itemsRes, ratiosRes] = await Promise.allSettled([
+      accountItemsApi.getAll(),
+      taxCategoriesApi.getAll(),
+      taxRatesApi.getAll(),
+      suppliersApi.getAll({ is_active: 'true' }),
+      industriesApi.getAll({ is_active: 'true' }),
+      itemsApi.getAll({ is_active: 'true' }),
+      currentWorkflow?.clientId ? clientAccountRatiosApi.getByClient(currentWorkflow.clientId) : Promise.resolve({ data: null, error: null }),
+    ]);
 
-    if (currentWorkflow?.clientId) {
-      const { data: ratios } = await clientAccountRatiosApi.getByClient(currentWorkflow.clientId);
-      if (ratios) setClientRatios(ratios);
-    }
+    if (aRes.status === 'fulfilled' && aRes.value.data) setAccountItems(aRes.value.data);
+    if (tRes.status === 'fulfilled' && tRes.value.data) setTaxCategories(tRes.value.data);
+    const rates = ratesRes.status === 'fulfilled' ? ratesRes.value.data : null;
+    if (rates) setTaxRates(rates.map((r: any) => ({ id: r.id, rate: Number(r.rate), name: r.name, is_current: r.is_current })));
+    const sData = sRes.status === 'fulfilled' ? sRes.value.data : null;
+    if (sData) setSuppliers(sData);
+    const inds = indsRes.status === 'fulfilled' ? indsRes.value.data : null;
+    if (inds) setIndustries(inds);
+    const itemsData = itemsRes.status === 'fulfilled' ? itemsRes.value.data : null;
+    if (itemsData) setItemsMaster(itemsData);
+    if (ratiosRes.status === 'fulfilled' && ratiosRes.value.data) setClientRatios(ratiosRes.value.data);
 
     const { data: clientIndustryData } = await clientIndustriesApi.getAll({ client_id: clientId });
     const { data: clientRow } = await clientsApi.getById(clientId);

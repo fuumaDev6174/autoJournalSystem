@@ -39,7 +39,25 @@
       "Bash(grep -rn \"from ''''\\\\.\\\\.\" src/web/ src/adapters/ --include=\"*.tsx\" --include=\"*.ts\")",
       "Bash(ls src/api/routes/*.route.ts)",
       "Bash(find /f/3.programing/beso -type f -iname *review* ! -path */node_modules/*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(find /c/Programing/beso -type f \\\\\\( -name \"*.ts\" -o -name \"*.sql\" \\\\\\) -exec grep -l \"documents.*table\\\\|CREATE TABLE.*documents\" {} \\\\;)",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git push:*)",
+      "Bash(ls *.config.*)",
+      "Bash(ls vite.config.* tsconfig.*)",
+      "Bash(git commit:*)",
+      "Bash(find /c/Programing/beso/src -type f -name \"*.ts\" -exec grep -l \"localhost\\\\|http://\\\\|hardcoded\\\\|TODO\\\\|FIXME\" {} \\\\;)",
+      "Bash(find /c/Programing/beso/src/web -type f \\\\\\( -name \"*.ts\" -o -name \"*.tsx\" \\\\\\) -exec wc -l {} +)",
+      "Bash(sort -k2)",
+      "Bash(ls -la /c/Programing/beso/*.js /c/Programing/beso/*.json)",
+      "Bash(find /c/Programing/beso/src/web -name \"*.tsx\" -exec grep -l \"responsive\\\\|mobile\\\\|viewport\" {} \\\\;)",
+      "Bash(find /c/Programing/beso/src/web -name \"*.tsx\" -exec wc -l {} \\\\;)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(node:*)",
+      "Bash(ls -la /c/Programing/beso/*.json /c/Programing/beso/*.ts /c/Programing/beso/*.html /c/Programing/beso/*.js)",
+      "Bash(git status:*)"
     ]
   }
 }

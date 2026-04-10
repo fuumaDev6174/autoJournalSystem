@@ -1,3 +1,6 @@
+/**
+ * @module 単一仕訳レイアウト
+ */
 import ImageViewer from '@/web/features/workflow/components/ImageViewer';
 import { useReview } from '../context/ReviewContext';
 import { getDocTypeConfig } from '../doc-types/registry';

@@ -1,23 +1,9 @@
-// ============================================
-// 明細分割プロンプト
-//
-// 通帳・クレカ明細など「1枚に複数取引がある書類」から
-// 各取引行を個別に切り出して JSON 配列で返させる。
-//
-// 【呼び出し元】
-//   journals.route.ts → extractMultipleEntries()
-//
-// 【更新時の注意】
-//   - 対応書類種別を追加したら TYPE_HINTS にも追加すること
-//   - JSON スキーマを変更したら multi-extractor.service.ts の型も合わせること
-// ============================================
-
 /**
- * 書類種別ごとの抽出ヒント。
- * Gemini に「何を読み取ればいいか」を具体的に伝える。
- *
- * ※ registry.ts で supportsMultiLine: true な種別をすべて網羅すること
+ * @module 明細分割プロンプト
+ * @description 複数取引書類から各行を個別に切り出す Gemini プロンプト。
  */
+
+/** 書類種別ごとの抽出ヒント */
 export const MULTI_EXTRACT_TYPE_HINTS: Record<string, string> = {
   // --- 収入系 ---
   bank_statement:

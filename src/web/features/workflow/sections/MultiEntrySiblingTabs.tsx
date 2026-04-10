@@ -1,3 +1,6 @@
+/**
+ * @module 明細タブ
+ */
 import { useReview } from '../context/ReviewContext';
 
 export default function MultiEntrySiblingTabs() {

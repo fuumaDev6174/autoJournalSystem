@@ -1,3 +1,6 @@
+/**
+ * @module コアフィールドグリッド
+ */
 import { StickyNote } from 'lucide-react';
 import ComboBox from '@/web/shared/components/ui/ComboBox';
 import { useReview } from '../context/ReviewContext';
@@ -8,7 +11,7 @@ export default function CoreFieldsGrid() {
   return (
     <>
       {/* Date / Amount */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="bg-blue-50 border-[1.5px] border-blue-200 rounded-lg p-3">
           <label className="text-xs font-semibold flex items-center gap-1.5 mb-1.5"><span className="w-2 h-2 rounded-full bg-blue-500" />取引日</label>
           <input type="date" value={form.entryDate || ''} onChange={e => setForm(p => ({ ...p, entryDate: e.target.value }))}

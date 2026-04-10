@@ -1,30 +1,13 @@
-// ============================================
-// 明細分割サービス
-//
-// 通帳・クレカ明細など「1枚に複数取引がある書類」から
-// 各取引行を個別に抽出して返す。
-//
-// 処理フロー:
-//   1. 入力チェック（画像データ・書類種別）
-//   2. プロンプト組み立て
-//   3. Gemini API 呼び出し（リトライ付き）
-//   4. JSON 抽出・パース（壊れていれば修復）
-//   5. 各行を型安全に正規化
-//
-// 【呼び出し元】
-//   journals.route.ts の明細分割モード
-// ============================================
+/**
+ * @module 明細分割サービス
+ * @description 通帳・クレカ明細など複数取引がある書類から各行を個別に抽出する。
+ */
 
 import { ai, GEMINI_MODEL_JOURNAL, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
 import { buildMultiExtractPrompt } from './multi-extractor.prompt.js';
 import type { ExtractedLine } from './ocr.types.js';
 
-// ExtractedLine は ocr.types.ts から import
 export type { ExtractedLine } from './ocr.types.js';
-
-// ============================================
-// メイン関数
-// ============================================
 
 /**
  * 明細書類の画像から各取引行を抽出する。
@@ -42,7 +25,6 @@ export async function extractMultipleEntries(
   industryPath?: string,
 ): Promise<ExtractedLine[]> {
 
-  // --- 1. 入力チェック ---
   if (!imageBase64) {
     console.error('[明細分割] 画像データが空です');
     return [];
@@ -51,10 +33,8 @@ export async function extractMultipleEntries(
     console.warn('[明細分割] documentType が未指定 → デフォルトヒントで処理');
   }
 
-  // --- 2. プロンプト組み立て ---
   const prompt = buildMultiExtractPrompt(documentType, industryPath);
 
-  // --- 3. Gemini API 呼び出し ---
   let rawText: string;
   try {
     const response = await callGeminiWithRetry(
@@ -88,33 +68,23 @@ export async function extractMultipleEntries(
     return [];
   }
 
-  // --- 4. JSON 抽出・パース ---
   const parsed = safeParseArray(rawText);
   if (parsed.length === 0) {
     console.warn('[明細分割] 取引行が0件。応答:', rawText.slice(0, 300));
     return [];
   }
 
-  // --- 5. 各行を正規化 ---
   const lines = parsed.map(normalizeLine).filter(isValidLine);
 
   console.log(`[明細分割] ${documentType}: ${parsed.length}行抽出 → ${lines.length}行有効`);
   return lines;
 }
 
-// ============================================
-// JSON パース
-// ============================================
-
-/**
- * Gemini の応答テキストから JSON 配列を抽出してパースする。
- * コードブロック、裸の配列、壊れた JSON の修復に対応。
- */
+/** Gemini の応答テキストから JSON 配列を抽出してパースする */
 function safeParseArray(rawText: string): any[] {
   const jsonText = extractJSON(rawText);
   if (!jsonText) return [];
 
-  // そのままパース
   try {
     const result = JSON.parse(jsonText);
     return Array.isArray(result) ? result : [];
@@ -122,12 +92,11 @@ function safeParseArray(rawText: string): any[] {
     // 修復を試みる
   }
 
-  // よくある Gemini の壊れ方を修復して再試行
   try {
     const fixed = jsonText
-      .replace(/,\s*([}\]])/g, '$1')  // 末尾カンマ除去
-      .replace(/'/g, '"')              // シングルクォート → ダブルクォート
-      .replace(/(\w+)\s*:/g, '"$1":'); // クォートなしキー
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/'/g, '"')
+      .replace(/(\w+)\s*:/g, '"$1":');
     const result = JSON.parse(fixed);
     console.warn('[明細分割] JSON修復パースで成功');
     return Array.isArray(result) ? result : [];
@@ -139,24 +108,17 @@ function safeParseArray(rawText: string): any[] {
 
 /** 生テキストから JSON 部分を切り出す */
 function extractJSON(raw: string): string {
-  // パターン1: ```json ... ``` コードブロック
   const codeBlock = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
   if (codeBlock) return codeBlock[1].trim();
 
-  // パターン2: 裸の JSON 配列
   const bareArray = raw.match(/\[[\s\S]*\]/);
   if (bareArray) return bareArray[0].trim();
 
-  // パターン3: 裸の JSON オブジェクト（単一行の場合）
   const bareObj = raw.match(/\{[\s\S]*\}/);
   if (bareObj) return `[${bareObj[0].trim()}]`;
 
   return '';
 }
-
-// ============================================
-// 正規化
-// ============================================
 
 /** Gemini の出力を型安全な ExtractedLine に変換する */
 function normalizeLine(raw: any): ExtractedLine {
@@ -181,20 +143,13 @@ function isValidLine(line: ExtractedLine): boolean {
   return true;
 }
 
-/**
- * 日付を YYYY-MM-DD に正規化。
- * スラッシュ区切り、月日のみ（年なし）にも対応。
- */
+/** 日付を YYYY-MM-DD に正規化する */
 function normalizeDate(value: any): string {
   if (typeof value !== 'string' || !value.trim()) {
-    return new Date().toISOString().split('T')[0]; // 今日を仮設定
+    return new Date().toISOString().split('T')[0];
   }
   return value.trim().replace(/\//g, '-');
 }
-
-// ============================================
-// ユーティリティ
-// ============================================
 
 function asString(value: unknown, fallback: string): string {
   return (typeof value === 'string' && value.trim()) ? value.trim() : fallback;

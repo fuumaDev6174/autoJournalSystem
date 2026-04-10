@@ -1,15 +1,28 @@
-import { createContext, useContext, useState, useRef, useMemo, useEffect, useCallback } from 'react';
+/**
+ * @module レビューコンテキスト
+ *
+ * 3つのサブコンテキスト（View, Form, Data）を束ねるオーケストレーター。
+ * 後方互換の `useReview()` を提供し、既存の28コンポーネントを修正なしで動作させる。
+ * パフォーマンス最適化が必要なコンポーネントは個別のサブコンテキスト hooks を使うこと。
+ */
+import { useEffect, useCallback, useMemo } from 'react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
-import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/web/app/providers/AuthProvider';
 import type { AccountItem, TaxCategory, Supplier } from '@/types';
 import type { JournalEntryLineInput } from '@/web/shared/components/journal/CompoundJournalTable';
-import { useReviewData } from './useReviewData';
+
+import { ReviewViewProvider, useReviewView } from './ReviewViewContext';
+import { ReviewFormProvider, useReviewForm } from './ReviewFormContext';
+import { ReviewDataProvider, useReviewData as useReviewDataCtx } from './ReviewDataContext';
+import { useReviewDataLoader } from './useReviewData';
 import { useReviewActions } from './useReviewActions';
 import { useReviewKeyboard } from './useReviewKeyboard';
 
+// Re-export types
+export type { JournalEntryLineInput };
+
 // ============================================
-// 型定義（以前 ReviewPage.tsx にあったもの）
+// 型定義
 // ============================================
 export interface EntryRow {
   id: string;
@@ -92,25 +105,20 @@ export type TabFilter = 'all' | 'unchecked' | 'reviewed' | 'excluded';
 export type ItemMaster = { id: string; name: string; code: string | null; default_account_item_id: string | null; default_tax_category_id: string | null };
 
 // ============================================
-// Context 型
+// 統合型（後方互換）
 // ============================================
 export interface ReviewContextType {
-  // Workflow
   currentWorkflow: ReturnType<typeof useWorkflow>['currentWorkflow'];
   updateWorkflowData: ReturnType<typeof useWorkflow>['updateWorkflowData'];
-
-  // Auth
   user: ReturnType<typeof useAuth>['user'];
   isManagerOrAdmin: boolean;
 
-  // View state
   viewMode: ViewMode;
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
   activeTab: TabFilter;
   setActiveTab: React.Dispatch<React.SetStateAction<TabFilter>>;
   loading: boolean;
 
-  // List data
   entries: EntryRow[];
   setEntries: React.Dispatch<React.SetStateAction<EntryRow[]>>;
   multiEntryGroups: MultiEntryGroup[];
@@ -118,14 +126,12 @@ export interface ReviewContextType {
   expandedDocs: Set<string>;
   setExpandedDocs: React.Dispatch<React.SetStateAction<Set<string>>>;
 
-  // Detail data
   items: DocumentWithEntry[];
   setItems: React.Dispatch<React.SetStateAction<DocumentWithEntry[]>>;
   currentIndex: number;
   setCurrentIndex: React.Dispatch<React.SetStateAction<number>>;
   ci: DocumentWithEntry | undefined;
 
-  // Form
   form: Partial<DocumentWithEntry>;
   setForm: React.Dispatch<React.SetStateAction<Partial<DocumentWithEntry>>>;
   compoundLines: JournalEntryLineInput[];
@@ -133,7 +139,6 @@ export interface ReviewContextType {
   aiOriginalForm: Partial<DocumentWithEntry>;
   setAiOriginalForm: React.Dispatch<React.SetStateAction<Partial<DocumentWithEntry>>>;
 
-  // Master data
   accountItems: AccountItem[];
   taxCategories: TaxCategory[];
   taxRates: TaxRateOption[];
@@ -142,7 +147,6 @@ export interface ReviewContextType {
   industries: Array<{ id: string; name: string }>;
   clientRatios: Array<{ account_item_id: string; business_ratio: number }>;
 
-  // UI state
   saving: boolean;
   savedAt: string | null;
   businessRatio: number;
@@ -165,11 +169,9 @@ export interface ReviewContextType {
   setItemText: React.Dispatch<React.SetStateAction<string>>;
   selectedRowRef: React.RefObject<HTMLTableRowElement | null>;
 
-  // Multi-entry
   isMultiEntry: boolean;
   siblingItems: DocumentWithEntry[];
 
-  // Actions
   loadAllData: () => Promise<void>;
   saveCurrentItem: (markApproved?: boolean) => Promise<void>;
   goNext: () => Promise<void>;
@@ -191,7 +193,6 @@ export interface ReviewContextType {
   onSwitchSibling: (sib: DocumentWithEntry) => void;
   fmt: (n: number | undefined) => string;
 
-  // Computed
   filteredEntries: EntryRow[];
   allCount: number;
   uncheckedCount: number;
@@ -201,153 +202,184 @@ export interface ReviewContextType {
   reviewCount: number;
 }
 
-const ReviewContext = createContext<ReviewContextType | null>(null);
+// ============================================
+// 後方互換 hook
+// ============================================
 
+/**
+ * 後方互換の統合 hook。28 のコンシューマーが使用中。
+ * パフォーマンス最適化が必要な場合は useReviewView / useReviewForm / useReviewData を直接使うこと。
+ */
 export function useReview(): ReviewContextType {
-  const ctx = useContext(ReviewContext);
-  if (!ctx) throw new Error('useReview must be used within ReviewProvider');
-  return ctx;
-}
-
-// ============================================
-// Provider
-// ============================================
-export function ReviewProvider({ children }: { children: React.ReactNode }) {
+  const view = useReviewView();
+  const form = useReviewForm();
+  const data = useReviewDataCtx();
   const { currentWorkflow, updateWorkflowData } = useWorkflow();
-  const [searchParams] = useSearchParams();
-  const initialTab = searchParams.get('tab') === 'excluded' ? 'excluded' : 'all';
   const { user, userProfile } = useAuth();
   const userRole = userProfile?.role || 'viewer';
   const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
 
-  // View state
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [activeTab, setActiveTab] = useState<TabFilter>(initialTab);
-  const [loading, setLoading] = useState(true);
-
-  // List state
-  const [entries, setEntries] = useState<EntryRow[]>([]);
-  const [multiEntryGroups, setMultiEntryGroups] = useState<MultiEntryGroup[]>([]);
-  const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set());
-
-  // Detail state
-  const [items, setItems] = useState<DocumentWithEntry[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [form, setForm] = useState<Partial<DocumentWithEntry>>({});
-  const [compoundLines, setCompoundLines] = useState<JournalEntryLineInput[]>([]);
-  const [aiOriginalForm, setAiOriginalForm] = useState<Partial<DocumentWithEntry>>({});
-
-  // Master data
-  const [accountItems, setAccountItems] = useState<AccountItem[]>([]);
-  const [taxCategories, setTaxCategories] = useState<TaxCategory[]>([]);
-  const [taxRates, setTaxRates] = useState<TaxRateOption[]>([]);
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [itemsMaster, setItemsMaster] = useState<ItemMaster[]>([]);
-  const [industries, setIndustries] = useState<Array<{ id: string; name: string }>>([]);
-  const [clientRatios, setClientRatios] = useState<Array<{ account_item_id: string; business_ratio: number }>>([]);
-
-  // UI state
-  const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState<string | null>(null);
-  const [businessRatio, setBusinessRatio] = useState(100);
-  const [zoom, setZoom] = useState(100);
-  const [rotation, setRotation] = useState(0);
-  const [addRule, setAddRule] = useState(false);
-  const [ruleScope, setRuleScope] = useState<'shared' | 'industry' | 'client'>('shared');
-  const [ruleIndustryId, setRuleIndustryId] = useState('');
-  const [ruleSuggestion, setRuleSuggestion] = useState('');
-  const [supplierText, setSupplierText] = useState('');
-  const [itemText, setItemText] = useState('');
-  const selectedRowRef = useRef<HTMLTableRowElement>(null);
-
-  // Computed
-  const ci = items[currentIndex];
-  const multiGroup = ci ? multiEntryGroups.find(g => g.documentId === ci.docId) : null;
-  const isMultiEntry = !!(multiGroup && multiGroup.entries.length > 1);
-  const siblingItems = isMultiEntry ? items.filter(it => it.docId === ci.docId) : [];
-
-  const fmt = useCallback((n: number | undefined) => n == null ? '-' : `¥${Number(n).toLocaleString()}`, []);
-
-  const filteredEntries = useMemo(() => {
-    if (activeTab === 'unchecked') return entries.filter(e => e.status === 'draft');
-    if (activeTab === 'excluded') return entries.filter(e => e.is_excluded);
-    return entries;
-  }, [entries, activeTab]);
-
-  const allCount = entries.length;
-  const uncheckedCount = useMemo(() => entries.filter(e => e.status === 'draft').length, [entries]);
-  const reviewedCount = useMemo(() => entries.filter(e => e.status === 'reviewed').length, [entries]);
-  const approvedCount = useMemo(() => entries.filter(e => e.status === 'approved' || e.status === 'posted').length, [entries]);
-  const excludedCount = useMemo(() => entries.filter(e => e.is_excluded).length, [entries]);
-  const reviewCount = useMemo(() => entries.filter(e => e.requires_review || (e.ai_confidence != null && e.ai_confidence < 0.7)).length, [entries]);
-
-  // Data loading hook
-  const { loadAllData } = useReviewData({
-    currentWorkflow, setLoading, setEntries, setMultiEntryGroups, setItems, setCurrentIndex, setForm,
-    setAccountItems, setTaxCategories, setTaxRates, setSuppliers, setItemsMaster, setIndustries, setClientRatios,
+  const { loadAllData } = useReviewDataLoader({
+    currentWorkflow,
+    setLoading: data.setLoading,
+    setEntries: data.setEntries,
+    setMultiEntryGroups: data.setMultiEntryGroups,
+    setItems: data.setItems,
+    setCurrentIndex: data.setCurrentIndex,
+    setForm: form.setForm,
+    setAccountItems: data.setAccountItems,
+    setTaxCategories: data.setTaxCategories,
+    setTaxRates: data.setTaxRates,
+    setSuppliers: data.setSuppliers,
+    setItemsMaster: data.setItemsMaster,
+    setIndustries: data.setIndustries,
+    setClientRatios: data.setClientRatios,
   });
 
-  // Action handlers hook
   const actions = useReviewActions({
     currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
-    items, setItems, currentIndex, setCurrentIndex, form, setForm, compoundLines,
-    entries, setEntries, multiEntryGroups,
-    accountItems, taxCategories, taxRates, suppliers, itemsMaster, clientRatios,
-    businessRatio, setBusinessRatio, saving: false, setSaving, setSavedAt,
-    addRule, setAddRule, ruleScope, ruleIndustryId, ruleSuggestion, setRuleSuggestion,
-    setSupplierText, setItemText,
-    aiOriginalForm, setAiOriginalForm, setRotation,
-    setViewMode, setRuleIndustryId, setExpandedDocs,
+    items: data.items, setItems: data.setItems, currentIndex: data.currentIndex, setCurrentIndex: data.setCurrentIndex,
+    form: form.form, setForm: form.setForm, compoundLines: form.compoundLines,
+    entries: data.entries, setEntries: data.setEntries, multiEntryGroups: data.multiEntryGroups,
+    accountItems: data.accountItems, taxCategories: data.taxCategories, taxRates: data.taxRates,
+    suppliers: data.suppliers, itemsMaster: data.itemsMaster, clientRatios: data.clientRatios,
+    businessRatio: form.businessRatio, setBusinessRatio: form.setBusinessRatio,
+    saving: form.saving, setSaving: form.setSaving, setSavedAt: form.setSavedAt,
+    addRule: form.addRule, setAddRule: form.setAddRule, ruleScope: form.ruleScope,
+    ruleIndustryId: form.ruleIndustryId, ruleSuggestion: form.ruleSuggestion, setRuleSuggestion: form.setRuleSuggestion,
+    setSupplierText: form.setSupplierText, setItemText: form.setItemText,
+    aiOriginalForm: form.aiOriginalForm, setAiOriginalForm: form.setAiOriginalForm,
+    setRotation: view.setRotation, setViewMode: view.setViewMode,
+    setRuleIndustryId: form.setRuleIndustryId, setExpandedDocs: data.setExpandedDocs,
     loadAllData,
   });
 
-  // Keyboard shortcut hook
+  const onSwitchSibling = useCallback((sib: DocumentWithEntry) => {
+    const i = data.items.indexOf(sib);
+    data.setCurrentIndex(i);
+    form.setForm({ ...sib });
+    form.setAiOriginalForm({ ...sib });
+    form.setSupplierText(sib.unmatchedSupplierName || '');
+    form.setItemText(sib.unmatchedItemName || '');
+  }, [data.items]);
+
+  const filteredEntries = useMemo(() => data.filteredEntries(view.activeTab), [data.filteredEntries, view.activeTab]);
+
+  return {
+    currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
+    viewMode: view.viewMode, setViewMode: view.setViewMode,
+    activeTab: view.activeTab, setActiveTab: view.setActiveTab,
+    loading: data.loading,
+    entries: data.entries, setEntries: data.setEntries,
+    multiEntryGroups: data.multiEntryGroups, setMultiEntryGroups: data.setMultiEntryGroups,
+    expandedDocs: data.expandedDocs, setExpandedDocs: data.setExpandedDocs,
+    items: data.items, setItems: data.setItems,
+    currentIndex: data.currentIndex, setCurrentIndex: data.setCurrentIndex, ci: data.ci,
+    form: form.form, setForm: form.setForm,
+    compoundLines: form.compoundLines, setCompoundLines: form.setCompoundLines,
+    aiOriginalForm: form.aiOriginalForm, setAiOriginalForm: form.setAiOriginalForm,
+    accountItems: data.accountItems, taxCategories: data.taxCategories, taxRates: data.taxRates,
+    suppliers: data.suppliers, itemsMaster: data.itemsMaster, industries: data.industries, clientRatios: data.clientRatios,
+    saving: form.saving, savedAt: form.savedAt,
+    businessRatio: form.businessRatio, setBusinessRatio: form.setBusinessRatio,
+    zoom: view.zoom, setZoom: view.setZoom,
+    rotation: view.rotation, setRotation: view.setRotation,
+    addRule: form.addRule, setAddRule: form.setAddRule,
+    ruleScope: form.ruleScope, setRuleScope: form.setRuleScope,
+    ruleIndustryId: form.ruleIndustryId, setRuleIndustryId: form.setRuleIndustryId,
+    ruleSuggestion: form.ruleSuggestion, setRuleSuggestion: form.setRuleSuggestion,
+    supplierText: form.supplierText, setSupplierText: form.setSupplierText,
+    itemText: form.itemText, setItemText: form.setItemText,
+    selectedRowRef: view.selectedRowRef,
+    isMultiEntry: data.isMultiEntry, siblingItems: data.siblingItems,
+    loadAllData, fmt: data.fmt,
+    filteredEntries,
+    allCount: data.allCount, uncheckedCount: data.uncheckedCount,
+    reviewedCount: data.reviewedCount, approvedCount: data.approvedCount,
+    excludedCount: data.excludedCount, reviewCount: data.reviewCount,
+    onSwitchSibling,
+    ...actions,
+  };
+}
+
+// ============================================
+// Provider (3つのサブコンテキストを束ねる)
+// ============================================
+function ReviewProviderInner({ children }: { children: React.ReactNode }) {
+  const { currentWorkflow } = useWorkflow();
+  const view = useReviewView();
+  const formCtx = useReviewForm();
+  const dataCtx = useReviewDataCtx();
+
+  const { loadAllData } = useReviewDataLoader({
+    currentWorkflow,
+    setLoading: dataCtx.setLoading,
+    setEntries: dataCtx.setEntries,
+    setMultiEntryGroups: dataCtx.setMultiEntryGroups,
+    setItems: dataCtx.setItems,
+    setCurrentIndex: dataCtx.setCurrentIndex,
+    setForm: formCtx.setForm,
+    setAccountItems: dataCtx.setAccountItems,
+    setTaxCategories: dataCtx.setTaxCategories,
+    setTaxRates: dataCtx.setTaxRates,
+    setSuppliers: dataCtx.setSuppliers,
+    setItemsMaster: dataCtx.setItemsMaster,
+    setIndustries: dataCtx.setIndustries,
+    setClientRatios: dataCtx.setClientRatios,
+  });
+
+  const { user, userProfile } = useAuth();
+  const isManagerOrAdmin = (userProfile?.role || 'viewer') === 'admin' || (userProfile?.role || 'viewer') === 'manager';
+
+  const actions = useReviewActions({
+    currentWorkflow, updateWorkflowData: useWorkflow().updateWorkflowData, user, isManagerOrAdmin,
+    items: dataCtx.items, setItems: dataCtx.setItems, currentIndex: dataCtx.currentIndex, setCurrentIndex: dataCtx.setCurrentIndex,
+    form: formCtx.form, setForm: formCtx.setForm, compoundLines: formCtx.compoundLines,
+    entries: dataCtx.entries, setEntries: dataCtx.setEntries, multiEntryGroups: dataCtx.multiEntryGroups,
+    accountItems: dataCtx.accountItems, taxCategories: dataCtx.taxCategories, taxRates: dataCtx.taxRates,
+    suppliers: dataCtx.suppliers, itemsMaster: dataCtx.itemsMaster, clientRatios: dataCtx.clientRatios,
+    businessRatio: formCtx.businessRatio, setBusinessRatio: formCtx.setBusinessRatio,
+    saving: formCtx.saving, setSaving: formCtx.setSaving, setSavedAt: formCtx.setSavedAt,
+    addRule: formCtx.addRule, setAddRule: formCtx.setAddRule, ruleScope: formCtx.ruleScope,
+    ruleIndustryId: formCtx.ruleIndustryId, ruleSuggestion: formCtx.ruleSuggestion, setRuleSuggestion: formCtx.setRuleSuggestion,
+    setSupplierText: formCtx.setSupplierText, setItemText: formCtx.setItemText,
+    aiOriginalForm: formCtx.aiOriginalForm, setAiOriginalForm: formCtx.setAiOriginalForm,
+    setRotation: view.setRotation, setViewMode: view.setViewMode,
+    setRuleIndustryId: formCtx.setRuleIndustryId, setExpandedDocs: dataCtx.setExpandedDocs,
+    loadAllData,
+  });
+
+  // Keyboard shortcuts
   useReviewKeyboard({
-    viewMode, form, currentIndex, itemsLength: items.length,
-    setBusiness: actions.setBusiness, setAddRule, toggleExclude: actions.toggleExclude,
+    viewMode: view.viewMode, form: formCtx.form, currentIndex: dataCtx.currentIndex, itemsLength: dataCtx.items.length,
+    setBusiness: actions.setBusiness, setAddRule: formCtx.setAddRule, toggleExclude: actions.toggleExclude,
     goNext: actions.goNext, goPrev: actions.goPrev,
-    saveCurrentItem: actions.saveCurrentItem, setViewMode, loadAllData,
+    saveCurrentItem: actions.saveCurrentItem, setViewMode: view.setViewMode, loadAllData,
     openDetailFromTop: actions.openDetailFromTop,
-    setZoom,
+    setZoom: view.setZoom,
   });
 
   // Initial load
   useEffect(() => { if (currentWorkflow) loadAllData(); }, [currentWorkflow]);
 
-  // Scroll to selected row in mini table
+  // Scroll to selected row
   useEffect(() => {
-    if (viewMode === 'detail' && selectedRowRef.current) {
-      selectedRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    if (view.viewMode === 'detail' && view.selectedRowRef.current) {
+      view.selectedRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [currentIndex, viewMode]);
+  }, [dataCtx.currentIndex, view.viewMode]);
 
-  const onSwitchSibling = useCallback((sib: DocumentWithEntry) => {
-    const i = items.indexOf(sib);
-    setCurrentIndex(i);
-    setForm({ ...sib });
-    setAiOriginalForm({ ...sib });
-    setSupplierText(sib.unmatchedSupplierName || '');
-    setItemText(sib.unmatchedItemName || '');
-  }, [items]);
+  return <>{children}</>;
+}
 
-  const value: ReviewContextType = {
-    currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
-    viewMode, setViewMode, activeTab, setActiveTab, loading,
-    entries, setEntries, multiEntryGroups, setMultiEntryGroups, expandedDocs, setExpandedDocs,
-    items, setItems, currentIndex, setCurrentIndex, ci,
-    form, setForm, compoundLines, setCompoundLines, aiOriginalForm, setAiOriginalForm,
-    accountItems, taxCategories, taxRates, suppliers, itemsMaster, industries, clientRatios,
-    saving, savedAt, businessRatio, setBusinessRatio,
-    zoom, setZoom, rotation, setRotation,
-    addRule, setAddRule, ruleScope, setRuleScope, ruleIndustryId, setRuleIndustryId,
-    ruleSuggestion, setRuleSuggestion, supplierText, setSupplierText, itemText, setItemText,
-    selectedRowRef,
-    isMultiEntry, siblingItems,
-    loadAllData, fmt,
-    filteredEntries, allCount, uncheckedCount, reviewedCount, approvedCount, excludedCount, reviewCount,
-    onSwitchSibling,
-    ...actions,
-  };
-
-  return <ReviewContext.Provider value={value}>{children}</ReviewContext.Provider>;
+export function ReviewProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <ReviewDataProvider>
+      <ReviewFormProvider>
+        <ReviewViewProvider>
+          <ReviewProviderInner>{children}</ReviewProviderInner>
+        </ReviewViewProvider>
+      </ReviewFormProvider>
+    </ReviewDataProvider>
+  );
 }

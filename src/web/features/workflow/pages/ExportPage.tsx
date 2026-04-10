@@ -1,9 +1,12 @@
+/**
+ * @module エクスポートページ
+ */
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Download, FileText, AlertCircle, History, Calendar } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useMasterData } from '@/web/app/providers/MasterDataProvider';
-import { journalEntriesApi } from '@/web/shared/lib/api/backend.api';
+import { journalEntriesApi, exportsApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
 
 // ============================================
@@ -321,17 +324,9 @@ export default function ExportPage() {
 
   const loadHistory = async () => {
     setHistoryLoading(true);
-    // TODO: exports table has no backend API yet — using direct fetch as placeholder
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL || '';
-      const res = await fetch(`${API_BASE}/api/exports?client_id=${clientId}`);
-      if (res.ok) {
-        const json = await res.json();
-        setExportHistory((json.data ?? json) as ExportRecord[]);
-      }
-    } catch (e) {
-      console.error('出力履歴取得エラー:', e);
-    }
+    const { data, error } = await exportsApi.getByClient(clientId);
+    if (data) setExportHistory(data as unknown as ExportRecord[]);
+    if (error) console.error('出力履歴取得エラー:', error);
     setHistoryLoading(false);
   };
 

@@ -1,3 +1,8 @@
+/**
+ * @module バリデーション API
+ * @description 仕訳の貸借バランスチェック・証憑重複チェック。
+ */
+
 import { Router, Request, Response } from 'express';
 import { checkDocumentDuplicate } from '../../modules/document/duplicate-checker.js';
 import { validateJournalBalance } from '../../server/services/validation.service.js';
@@ -10,11 +15,6 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// ============================================
-// バリデーションAPI (Task 5-4)
-// ============================================
-
-// (m) 仕訳エントリの貸借バランスチェック
 router.post('/validate/journal-balance', async (req: Request, res: Response) => {
   try {
     const { journal_entry_id } = req.body;
@@ -28,7 +28,6 @@ router.post('/validate/journal-balance', async (req: Request, res: Response) => 
   }
 });
 
-// (a) 証憑重複チェック（hash_value ベース）
 router.post('/validate/document-duplicate', async (req: Request, res: Response) => {
   try {
     const authUser = (req as AuthenticatedRequest).user;

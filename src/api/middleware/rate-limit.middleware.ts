@@ -1,6 +1,11 @@
+/**
+ * @module レート制限ミドルウェア
+ * @description IP ベースのレート制限（JWT デコードによるバイパスを防止）。
+ */
+
 import rateLimit from 'express-rate-limit';
 
-// IP ベースのレート制限（JWT デコードによるバイパスを防止）
+/** 一般 API 用レート制限 */
 export const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 5000,
@@ -11,6 +16,7 @@ export const apiLimiter = rateLimit({
   message: { error: 'リクエスト数が制限を超えました。しばらく待ってから再試行してください。' },
 });
 
+/** AI 処理（OCR / 仕訳生成）用の厳しめレート制限 */
 export const expensiveLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 200,

@@ -1,3 +1,6 @@
+/**
+ * @module 保存ステータスバー
+ */
 import { Loader } from 'lucide-react';
 import { useReview } from '../context/ReviewContext';
 

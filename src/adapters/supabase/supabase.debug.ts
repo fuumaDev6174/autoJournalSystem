@@ -1,3 +1,8 @@
+/**
+ * @module Supabase デバッグ
+ * @description ブラウザコンソールから `debugAuth()` で認証・RLS の問題を診断。
+ */
+
 import { supabase } from './supabase.client';
 
 export const debugAuth = async () => {

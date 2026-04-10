@@ -1,3 +1,6 @@
+/**
+ * @module アップロード専用ページ
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { Upload, CheckCircle, AlertCircle, FileText, LogOut } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';

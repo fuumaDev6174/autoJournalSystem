@@ -1,3 +1,8 @@
+/**
+ * @module Supabase クライアント（フロントエンド用）
+ * @description anon key を使った Supabase クライアント。RLS が有効。
+ */
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;

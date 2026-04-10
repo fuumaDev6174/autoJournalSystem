@@ -1,4 +1,6 @@
-// UIビュー専用型定義
+/**
+ * @module ビュー型定義
+ */
 import type { JournalEntry, JournalEntryLine, Supplier, Document } from '@/shared/types';
 
 export interface EntryWithJoin extends JournalEntry {

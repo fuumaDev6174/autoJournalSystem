@@ -1,3 +1,6 @@
+/**
+ * @module 書類種別レジストリ
+ */
 import type { DocTypeConfig } from './types';
 
 export const DOC_TYPE_REGISTRY: Record<string, DocTypeConfig> = {

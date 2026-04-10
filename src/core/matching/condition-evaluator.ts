@@ -44,110 +44,89 @@ export interface MatchInput {
   transfer_fee_bearer?: string | null;
 }
 
+// --- テーブル駆動の条件定義 ---
+
+type ConditionDef =
+  | { type: 'pattern'; condKey: keyof ConditionSet; inputKey: keyof MatchInput; altInputKey?: keyof MatchInput }
+  | { type: 'exact'; condKey: keyof ConditionSet; inputKey: keyof MatchInput }
+  | { type: 'boolean'; condKey: keyof ConditionSet; inputKey: keyof MatchInput }
+  | { type: 'range_min'; condKey: keyof ConditionSet; inputKey: keyof MatchInput }
+  | { type: 'range_max'; condKey: keyof ConditionSet; inputKey: keyof MatchInput }
+  | { type: 'float_eq'; condKey: keyof ConditionSet; inputKey: keyof MatchInput; tolerance: number };
+
 /**
- * 全条件を AND で評価する。パターン系は部分一致（大文字小文字無視）、
- * enum 系は完全一致、数値系は範囲チェック。
- *
- * @param conditions - ルール条件
- * @param input - OCR 抽出データ
- * @returns すべての条件にマッチすれば true
+ * 条件テーブル: 新しい条件を追加するにはここに1行追加するだけ。
+ * type の意味:
+ *   pattern   — 部分一致（大文字小文字無視）。altInputKey があれば OR で代替フィールドも検索
+ *   exact     — 文字列完全一致
+ *   boolean   — boolean 完全一致
+ *   range_min — input >= condition
+ *   range_max — input <= condition
+ *   float_eq  — 浮動小数点の近似一致（tolerance 以内）
+ */
+const CONDITIONS: ConditionDef[] = [
+  { type: 'pattern',   condKey: 'supplier_pattern',      inputKey: 'supplier' },
+  { type: 'pattern',   condKey: 'transaction_pattern',   inputKey: 'description', altInputKey: 'supplier' },
+  { type: 'range_min', condKey: 'amount_min',            inputKey: 'amount' },
+  { type: 'range_max', condKey: 'amount_max',            inputKey: 'amount' },
+  { type: 'pattern',   condKey: 'item_pattern',          inputKey: 'item_name' },
+  { type: 'exact',     condKey: 'payment_method',        inputKey: 'payment_method' },
+  { type: 'exact',     condKey: 'document_type',         inputKey: 'document_type' },
+  { type: 'boolean',   condKey: 'has_invoice_number',    inputKey: 'has_invoice_number' },
+  { type: 'float_eq',  condKey: 'tax_rate_hint',         inputKey: 'tax_rate_hint', tolerance: 0.001 },
+  { type: 'boolean',   condKey: 'is_internal_tax',       inputKey: 'is_internal_tax' },
+  { type: 'exact',     condKey: 'frequency_hint',        inputKey: 'frequency_hint' },
+  { type: 'pattern',   condKey: 'tategaki_pattern',      inputKey: 'tategaki' },
+  { type: 'exact',     condKey: 'invoice_qualification', inputKey: 'invoice_qualification' },
+  { type: 'pattern',   condKey: 'addressee_pattern',     inputKey: 'addressee' },
+  { type: 'exact',     condKey: 'transaction_type',      inputKey: 'transaction_type' },
+  { type: 'exact',     condKey: 'transfer_fee_bearer',   inputKey: 'transfer_fee_bearer' },
+];
+
+/**
+ * 全条件を AND で評価する。
  */
 export function evaluateConditions(conditions: ConditionSet, input: MatchInput): boolean {
   let hasAnyCondition = false;
 
-  if (conditions.supplier_pattern) {
+  for (const def of CONDITIONS) {
+    const condValue = conditions[def.condKey];
+    if (condValue == null) continue;
+
     hasAnyCondition = true;
-    const pattern = conditions.supplier_pattern.toLowerCase();
-    const supplier = input.supplier.toLowerCase();
-    if (!supplier.includes(pattern)) return false;
+
+    switch (def.type) {
+      case 'pattern': {
+        const pattern = String(condValue).toLowerCase();
+        const primary = String(input[def.inputKey] ?? '').toLowerCase();
+        const alt = def.altInputKey ? String(input[def.altInputKey] ?? '').toLowerCase() : '';
+        if (!primary.includes(pattern) && (!alt || !alt.includes(pattern))) return false;
+        break;
+      }
+      case 'exact': {
+        if (input[def.inputKey] !== condValue) return false;
+        break;
+      }
+      case 'boolean': {
+        if (input[def.inputKey] !== condValue) return false;
+        break;
+      }
+      case 'range_min': {
+        if ((input[def.inputKey] as number) < (condValue as number)) return false;
+        break;
+      }
+      case 'range_max': {
+        if ((input[def.inputKey] as number) > (condValue as number)) return false;
+        break;
+      }
+      case 'float_eq': {
+        const inputVal = input[def.inputKey] as number | null | undefined;
+        if (inputVal == null) return false;
+        if (Math.abs(inputVal - (condValue as number)) > def.tolerance) return false;
+        break;
+      }
+    }
   }
 
-  if (conditions.transaction_pattern) {
-    hasAnyCondition = true;
-    const pattern = conditions.transaction_pattern.toLowerCase();
-    const desc = (input.description || '').toLowerCase();
-    const supplier = input.supplier.toLowerCase();
-    if (!desc.includes(pattern) && !supplier.includes(pattern)) return false;
-  }
-
-  if (conditions.amount_min != null) {
-    hasAnyCondition = true;
-    if (input.amount < conditions.amount_min) return false;
-  }
-  if (conditions.amount_max != null) {
-    hasAnyCondition = true;
-    if (input.amount > conditions.amount_max) return false;
-  }
-
-  if (conditions.item_pattern) {
-    hasAnyCondition = true;
-    const pattern = conditions.item_pattern.toLowerCase();
-    const itemName = (input.item_name || '').toLowerCase();
-    if (!itemName.includes(pattern)) return false;
-  }
-
-  if (conditions.payment_method) {
-    hasAnyCondition = true;
-    if (input.payment_method !== conditions.payment_method) return false;
-  }
-
-  if (conditions.document_type) {
-    hasAnyCondition = true;
-    if (input.document_type !== conditions.document_type) return false;
-  }
-
-  if (conditions.has_invoice_number != null) {
-    hasAnyCondition = true;
-    if (input.has_invoice_number !== conditions.has_invoice_number) return false;
-  }
-
-  if (conditions.tax_rate_hint != null) {
-    hasAnyCondition = true;
-    if (input.tax_rate_hint == null) return false;
-    // 浮動小数点の比較誤差を許容
-    if (Math.abs(input.tax_rate_hint - conditions.tax_rate_hint) > 0.001) return false;
-  }
-
-  if (conditions.is_internal_tax != null) {
-    hasAnyCondition = true;
-    if (input.is_internal_tax !== conditions.is_internal_tax) return false;
-  }
-
-  if (conditions.frequency_hint) {
-    hasAnyCondition = true;
-    if (input.frequency_hint !== conditions.frequency_hint) return false;
-  }
-
-  if (conditions.tategaki_pattern) {
-    hasAnyCondition = true;
-    const pattern = conditions.tategaki_pattern.toLowerCase();
-    const tategaki = (input.tategaki || '').toLowerCase();
-    if (!tategaki.includes(pattern)) return false;
-  }
-
-  if (conditions.invoice_qualification) {
-    hasAnyCondition = true;
-    if (input.invoice_qualification !== conditions.invoice_qualification) return false;
-  }
-
-  if (conditions.addressee_pattern) {
-    hasAnyCondition = true;
-    const pattern = conditions.addressee_pattern.toLowerCase();
-    const addressee = (input.addressee || '').toLowerCase();
-    if (!addressee.includes(pattern)) return false;
-  }
-
-  if (conditions.transaction_type) {
-    hasAnyCondition = true;
-    if (input.transaction_type !== conditions.transaction_type) return false;
-  }
-
-  if (conditions.transfer_fee_bearer) {
-    hasAnyCondition = true;
-    if (input.transfer_fee_bearer !== conditions.transfer_fee_bearer) return false;
-  }
-
-  if (!hasAnyCondition) return false;
-
-  return true;
+  return hasAnyCondition;
 }

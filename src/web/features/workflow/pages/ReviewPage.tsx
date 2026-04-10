@@ -1,3 +1,6 @@
+/**
+ * @module レビューページ
+ */
 import {
   Ban, AlertCircle, Loader, CheckCircle, Eye, Undo2, Clock, StickyNote
 } from 'lucide-react';

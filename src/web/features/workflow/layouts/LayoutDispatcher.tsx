@@ -1,3 +1,6 @@
+/**
+ * @module レイアウトディスパッチャー
+ */
 import { useReview } from '../context/ReviewContext';
 import { getDocTypeConfig } from '../doc-types/registry';
 import SingleEntryLayout from './SingleEntryLayout';

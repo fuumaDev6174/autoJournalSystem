@@ -1,3 +1,6 @@
+/**
+ * @module 控除計算パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function DeductionCalcPanel() {

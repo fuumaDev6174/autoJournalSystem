@@ -1,17 +1,7 @@
-// ============================================
-// OCR モジュール 型定義（一元管理）
-//
-// OCR 関連のすべての型をここに集約する。
-// 各サービスはここから import すること。
-//
-// 【更新時の注意】
-// - プロンプトの JSON スキーマを変えたら対応する型も合わせる
-// - DB カラムを追加したら models.ts の Document 型にも反映する
-// ============================================
-
-// ============================================
-// 1. 証憑分類（classifier.service.ts の戻り値）
-// ============================================
+/**
+ * @module OCR 型定義
+ * @description OCR 関連の全型を一元管理。分類結果・抽出データ・明細分割の型を定義。
+ */
 
 /** classifyDocument() の戻り値 */
 export interface ClassificationResult {
@@ -20,10 +10,6 @@ export interface ClassificationResult {
   estimated_lines: number;      // 1以上の整数
   description: string;          // 日本語の簡潔な説明
 }
-
-// ============================================
-// 2. OCR データ抽出（extractor.service.ts の戻り値）
-// ============================================
 
 /** 1つの取引行（レシート=1行、通帳=複数行） */
 export interface OCRTransaction {
@@ -85,10 +71,6 @@ export interface OCRResult {
   extracted_transfer_fee_bearer: string | null;
   confidence_score: number;
 }
-
-// ============================================
-// 3. 明細分割（multi-extractor.service.ts の戻り値）
-// ============================================
 
 /** extractMultipleEntries() が返す1取引行 */
 export interface ExtractedLine {

@@ -1,3 +1,6 @@
+/**
+ * @module 源泉徴収パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function WithholdingPanel() {

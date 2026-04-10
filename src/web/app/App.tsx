@@ -7,6 +7,7 @@ import MainLayout from '@/web/app/layouts/MainLayout';
 import { AppRoutes } from './routes';
 import LoginPage from '@/web/features/auth/pages/LoginPage';
 import UploadOnlyPage from '@/web/features/workflow/pages/UploadOnlyPage';
+import { ErrorBoundary } from '@/web/shared/components/ErrorBoundary';
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -31,28 +32,34 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/upload-only" element={
-            <PrivateRoute>
-              <UploadOnlyPage />
-            </PrivateRoute>
-          } />
-          <Route path="/*" element={
-            <PrivateRoute>
-              <MasterDataProvider>
-                <WorkflowProvider>
-                  <MainLayout>
-                    <AppRoutes />
-                  </MainLayout>
-                </WorkflowProvider>
-              </MasterDataProvider>
-            </PrivateRoute>
-          } />
-        </Routes>
-      </AuthProvider>
-    </BrowserRouter>
+    <ErrorBoundary>
+      <BrowserRouter>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/upload-only" element={
+              <PrivateRoute>
+                <ErrorBoundary>
+                  <UploadOnlyPage />
+                </ErrorBoundary>
+              </PrivateRoute>
+            } />
+            <Route path="/*" element={
+              <PrivateRoute>
+                <MasterDataProvider>
+                  <WorkflowProvider>
+                    <MainLayout>
+                      <ErrorBoundary>
+                        <AppRoutes />
+                      </ErrorBoundary>
+                    </MainLayout>
+                  </WorkflowProvider>
+                </MasterDataProvider>
+              </PrivateRoute>
+            } />
+          </Routes>
+        </AuthProvider>
+      </BrowserRouter>
+    </ErrorBoundary>
   );
 }

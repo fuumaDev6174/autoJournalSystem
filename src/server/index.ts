@@ -1,3 +1,8 @@
+/**
+ * @module サーバーエントリーポイント
+ * @description 本番用 Express サーバーの起動スクリプト。
+ */
+
 import dotenv from 'dotenv';
 dotenv.config();
 

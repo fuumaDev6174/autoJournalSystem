@@ -1,3 +1,6 @@
+/**
+ * @module 売上内訳パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function SalesBreakdownPanel() {

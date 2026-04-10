@@ -1,3 +1,8 @@
+/**
+ * @module 証憑アップロード API
+ * @description ファイルアップロードの受付と Multer 設定。
+ */
+
 import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import path from 'path';
@@ -5,15 +10,11 @@ import fs from 'fs';
 
 const router = Router();
 
-// ============================================
-// アップロードディレクトリの設定
-// ============================================
 const UPLOAD_DIR = path.join(process.cwd(), 'uploads');
 if (!fs.existsSync(UPLOAD_DIR)) {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 }
 
-// Multer設定
 const multerStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, UPLOAD_DIR);
@@ -38,10 +39,6 @@ export const upload = multer({
     }
   },
 });
-
-// ============================================
-// 証憑アップロードAPI
-// ============================================
 
 router.post('/documents/upload', upload.single('file'), async (req: Request, res: Response) => {
   try {

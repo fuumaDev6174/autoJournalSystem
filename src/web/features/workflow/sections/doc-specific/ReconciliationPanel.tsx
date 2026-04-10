@@ -1,3 +1,6 @@
+/**
+ * @module 照合パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function ReconciliationPanel() {

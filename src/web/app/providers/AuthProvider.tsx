@@ -1,3 +1,6 @@
+/**
+ * @module 認証プロバイダー
+ */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { User } from '@supabase/supabase-js';
 import { supabase } from '@/adapters/supabase/supabase.client';

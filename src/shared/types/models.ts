@@ -1,7 +1,11 @@
-// ============================================
-// データベースモデル型定義
-// ============================================
+/**
+ * @module データベースモデル型定義
+ * @description 全テーブルの TypeScript 型・API レスポンス型・フォーム型。
+ */
 
+import type { ClassificationResult as _ClassificationResult } from '../modules/ocr/ocr.types';
+
+/** 組織 */
 export interface Organization {
   id: string;
   name: string;
@@ -192,8 +196,7 @@ export interface Document {
   is_excluded?: boolean;
   exclusion_reason?: string | null;
 
-  // OCR 分類・処理段階（ocr.route.ts で書き込まれる）
-  doc_classification?: import('../modules/ocr/ocr.types').ClassificationResult | null;
+  doc_classification?: _ClassificationResult | null;
   ocr_step1_type?: string | null;
   ocr_step1_confidence?: number | null;
   ocr_step?: 'step1' | 'step2' | null;
@@ -202,8 +205,6 @@ export interface Document {
   updated_at: string;
 }
 
-// OCRResult は src/modules/ocr/ocr.types.ts に一元管理
-// ここでは re-export のみ行う
 export type { OCRResult, ClassificationResult, ExtractedLine } from '../modules/ocr/ocr.types';
 
 export interface JournalEntry {
@@ -366,10 +367,7 @@ export interface FreeeConnection {
   updated_at: string;
 }
 
-// ============================================
-// API レスポンス型
-// ============================================
-
+/** API レスポンス */
 export interface ApiResponse<T> {
   data: T | null;
   error: string | null;
@@ -382,10 +380,6 @@ export interface PaginatedResponse<T> {
   page: number;
   per_page: number;
 }
-
-// ============================================
-// UI用の拡張型
-// ============================================
 
 export interface ClientWithIndustry extends Client {
   industry?: Industry;
@@ -402,10 +396,6 @@ export interface RuleWithRelations extends Rule {
   account_item?: AccountItem;
   tax_category?: TaxCategory;
 }
-
-// ============================================
-// フォーム型
-// ============================================
 
 export interface ClientFormData {
   name: string;
@@ -447,10 +437,6 @@ export interface JournalEntryFormData {
   }[];
 }
 
-// ============================================
-// アップロード関連
-// ============================================
-
 export interface UploadedFile {
   id: string;
   file: File;
@@ -458,10 +444,6 @@ export interface UploadedFile {
   status: 'uploading' | 'success' | 'error';
   progress: number;
 }
-
-// ============================================
-// バリデーション結果型
-// ============================================
 
 export interface DuplicateCheckResult {
   isDuplicate: boolean;
@@ -486,5 +468,4 @@ export interface SupplierMatchResult {
   matchType: 'exact' | 'partial' | 'alias' | 'none';
 }
 
-// enums.ts からインポートして使用
 import type { NotificationType } from './enums';

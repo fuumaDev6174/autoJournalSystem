@@ -1,3 +1,6 @@
+/**
+ * @module 家事按分パネル
+ */
 import { useReview } from '../context/ReviewContext';
 
 export default function BusinessRatioPanel() {

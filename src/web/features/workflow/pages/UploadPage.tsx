@@ -1,3 +1,6 @@
+/**
+ * @module アップロードページ
+ */
 import { useState, useCallback, useEffect  } from 'react';
 import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useDropzone } from 'react-dropzone';
@@ -99,8 +102,8 @@ export default function UploadPage() {
     const hasError = uploadedFiles.some((f) => f.status === 'error');
     if (hasError) { if (!window.confirm('エラーのあるファイルがあります。このまま進みますか？')) return false; }
     const documentIds = uploadedFiles.filter((f) => f.status === 'success' && f.documentId).map((f) => f.documentId as string);
-    // TODO: updateWorkflowData 失敗時に孤立ドキュメントが残る可能性あり。
-    // 定期クリーンアップバッチで対応を検討。
+    // NOTE: updateWorkflowData 失敗時に孤立ドキュメントが残る可能性がある。
+    // 孤立ドキュメントは定期バッチ（バックエンド側）で検出・クリーンアップする設計。
     updateWorkflowData({ documents: documentIds });
     return true;
   };

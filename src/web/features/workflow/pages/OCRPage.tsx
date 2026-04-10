@@ -1,3 +1,6 @@
+/**
+ * @module OCR ページ
+ */
 import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertCircle, Loader, RotateCcw } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';

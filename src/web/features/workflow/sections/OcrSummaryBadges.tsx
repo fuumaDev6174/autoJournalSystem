@@ -1,3 +1,6 @@
+/**
+ * @module OCR サマリーバッジ
+ */
 import { useReview } from '../context/ReviewContext';
 
 export default function OcrSummaryBadges() {

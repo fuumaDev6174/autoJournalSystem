@@ -1,3 +1,6 @@
+/**
+ * @module OCR 参照ボックス
+ */
 import { Ban } from 'lucide-react';
 import { useReview } from '../context/ReviewContext';
 

@@ -1,3 +1,6 @@
+/**
+ * @module レシート品目リスト
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function ReceiptItemList() {

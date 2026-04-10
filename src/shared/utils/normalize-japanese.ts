@@ -1,7 +1,11 @@
 /**
+ * @module 日本語正規化
+ * @description 取引先名の正規化（半角カナ→全角、全角英数→半角、法人格除去）。
+ */
+
+/**
  * 日本語の取引先名を正規化する。
- * 半角カナ→全角、全角英数→半角、法人格除去、スペース統一。
- * サーバー/クライアント両方で使用。
+ * 半角/全角統一・法人格除去により名寄せの精度を上げるため。
  */
 export function normalizeJapanese(text: string): string {
   let result = text;

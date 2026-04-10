@@ -1,4 +1,11 @@
+/**
+ * @module 仕訳生成 API
+ * @description ルールマッチ → AI(Gemini) の2段階で仕訳を生成する。明細分割にも対応。
+ */
+
 import { Router, Request, Response } from 'express';
+import { validateBody } from '../middleware/validate.middleware.js';
+import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from '../../shared/constants/accounting.js';
 import { generateJournalEntry } from '../../modules/journal/ai-generator.service.js';
 import { mapLinesToDBFormat } from '../../modules/journal/line-mapper.service.js';
 import { buildEntryFromRule } from '../../modules/journal/rule-generator.service.js';
@@ -8,20 +15,6 @@ import { findSupplierAliasMatch } from '../../modules/document/supplier-matcher.
 import { validateDebitCreditBalance } from '../../server/services/validation.service.js';
 import type { GeneratedJournalEntry } from '../../modules/journal/journal.types.js';
 
-// 明細分割対象の書類種別ごとのデフォルト決済手段
-const STATEMENT_PAYMENT_METHOD: Record<string, string | null> = {
-  bank_statement:    'bank_transfer',
-  credit_card:       'credit_card',
-  e_money_statement: 'e_money',
-  etc_statement:     'e_money',       // ETCカード = 電子マネー扱い
-  platform_csv:      'bank_transfer', // プラットフォーム売上は銀行振込入金
-  realestate_inc:    'bank_transfer', // 家賃入金は銀行振込
-  crypto_history:    'other',         // 暗号資産は独自決済
-  loan_schedule:     'bank_transfer', // 返済は口座引落
-  expense_report:    null,            // 経費精算書は行ごとに異なる
-  payroll:           null,            // 給与明細は行ごとに異なる
-  sales_report:      null,            // 売上集計は決済手段別に行が分かれる
-};
 import {
   supabaseAdmin,
   isValidUUID,
@@ -36,11 +29,11 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// ============================================
-// AI仕訳生成API
-// ============================================
-
-router.post('/journal-entries/generate', async (req: Request, res: Response) => {
+router.post('/journal-entries/generate', validateBody({
+  document_id: 'uuid',
+  client_id: 'uuid',
+  ocr_result: 'object',
+}), async (req: Request, res: Response) => {
   try {
     const { document_id, client_id, ocr_result, industry } = req.body;
 
@@ -58,13 +51,11 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       return res.status(400).json({ error: 'document_id / client_id が不正な形式です' });
     }
 
-    // クライアント所有権の確認
     const authUser = (req as AuthenticatedRequest).user;
     if (!(await verifyClientOwnership(client_id, authUser.organization_id))) {
       return res.status(403).json({ error: '指定されたクライアントへのアクセス権限がありません' });
     }
 
-    // 1. organization_id を解決
     const organizationId = await getOrganizationId(client_id);
     if (!organizationId) {
       console.error(`[仕訳生成] ❌ organization_id 解決失敗。client_id="${client_id}"`);
@@ -73,14 +64,13 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       });
     }
 
-    // 2. マスタデータを取得
     console.log(`[仕訳生成] マスタデータ取得中... organization_id="${organizationId}"`);
     const [accountItems, taxCategories, fallbackAccountId, suppliersData, aliasesData, itemsData] = await Promise.all([
       fetchAccountItems(organizationId),
       fetchTaxCategories(),
       findFallbackAccountId(organizationId),
       supabaseAdmin.from('suppliers').select('id, name').eq('organization_id', organizationId).eq('is_active', true),
-      supabaseAdmin.from('supplier_aliases').select('supplier_id, alias_name'),
+      supabaseAdmin.from('supplier_aliases').select('supplier_id, alias_name, suppliers!inner(organization_id)').eq('suppliers.organization_id', organizationId),
       supabaseAdmin.from('items').select('id, name').eq('is_active', true).or(`organization_id.eq.${organizationId},organization_id.is.null`),
     ]);
     const suppliers = suppliersData.data || [];
@@ -88,21 +78,9 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
     const itemsList = itemsData.data || [];
     console.log(`[仕訳生成] マスタ: 勘定科目=${accountItems.length}件, 税区分=${taxCategories.length}件, 取引先=${suppliers.length}件, 品目=${itemsList.length}件`);
 
-    // 2.5a statement_extract判定: 明細分割が必要な証憑種別か確認
-    // registry.ts の supportsMultiLine: true と同期すること
-    const statementExtractTypes = [
-      // 収入系
-      'platform_csv', 'bank_statement', 'crypto_history', 'realestate_inc',
-      // 経費系
-      'credit_card', 'e_money_statement', 'etc_statement', 'expense_report',
-      // 資産系
-      'loan_schedule',
-      // 複合仕訳
-      'payroll', 'sales_report',
-    ];
+    const statementExtractTypes: readonly string[] = STATEMENT_EXTRACT_TYPES;
     const docTypeCode = ocr_result.document_type || null;
 
-    // document_type_id から processing_pattern を取得
     let processingPattern: string | null = null;
     if (document_id) {
       const { data: docRow } = await supabaseAdmin
@@ -119,11 +97,9 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
         processingPattern = dtRow?.processing_pattern || null;
       }
 
-      // processing_pattern が statement_extract、またはdocument_typeが明細系 → 明細分割エンジン
       if (processingPattern === 'statement_extract' || statementExtractTypes.includes(docTypeCode)) {
         console.log(`[仕訳生成] 明細分割モード: pattern=${processingPattern}, type=${docTypeCode}`);
 
-        // 画像をBase64取得
         const storagePath = docRow?.storage_path || docRow?.file_path || '';
         let imageBase64 = '';
         let mimeType = 'image/jpeg';
@@ -142,7 +118,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
           const extractedLines = await extractMultipleEntries(imageBase64, mimeType, docTypeCode || 'bank_statement', industry);
           console.log(`[仕訳生成] 明細分割完了: ${extractedLines.length}行`);
 
-          // 各行ごとに仕訳を生成してまとめて返却
           const multiEntries = [];
           for (const line of extractedLines) {
             const lineEntry = await generateJournalEntry({
@@ -188,24 +163,21 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       }
     }
 
-    // 2.5b ルールマッチング（B1: ルールが先、マッチしなければGemini）
+    // ルールマッチング（ルールが先、マッチしなければ Gemini にフォールバック）
     const supplierName = ocr_result.extracted_supplier || '不明';
     const amount = ocr_result.extracted_amount || 0;
 
-    // processing_rules を取得
     const { data: rulesData } = await supabaseAdmin
       .from('processing_rules')
       .select('*')
       .eq('is_active', true)
       .order('priority', { ascending: true });
 
-    // クライアントの業種IDを取得（client_industries 中間テーブル）
     const { data: clientIndustries } = await supabaseAdmin
       .from('client_industries')
       .select('industry_id')
       .eq('client_id', client_id);
 
-    // フォールバック: clients.industry_id も取得
     const { data: clientData } = await supabaseAdmin
       .from('clients')
       .select('industry_id')
@@ -215,7 +187,7 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
     const industryIds = [
       ...(clientIndustries?.map((ci: any) => ci.industry_id) || []),
       ...(clientData?.industry_id ? [clientData.industry_id] : []),
-    ].filter((id, idx, arr) => arr.indexOf(id) === idx); // 重複除去
+    ].filter((id, idx, arr) => arr.indexOf(id) === idx);
 
     let journalEntry!: GeneratedJournalEntry;
     let ruleMatched = false;
@@ -252,7 +224,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       }));
 
       if (matched) {
-        // ルールマッチ → ルールベースで仕訳生成
         journalEntry = buildEntryFromRule(matched, {
           supplier: supplierName,
           amount: amount,
@@ -262,7 +233,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
         }, accountItems, taxCategories);
         ruleMatched = true;
 
-        // match_count と last_matched_at を更新
         await supabaseAdmin
           .from('processing_rules')
           .update({
@@ -276,14 +246,12 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
     }
 
     if (!ruleMatched) {
-      // 3. AI仕訳生成（ルールマッチしなかった場合のみ）
       console.log('[仕訳生成] Gemini AI 呼び出し中...', {
         supplier: supplierName,
         amount: amount,
         industry,
       });
 
-      // 改善3-E: 修正履歴を取得してAIプロンプトに渡す
       let correctionHints: Array<{ supplier: string; original: string; corrected: string; count: number }> = [];
       const { data: corrections } = await supabaseAdmin
         .from('journal_entry_corrections')
@@ -291,7 +259,7 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
         .eq('client_id', client_id)
         .eq('field_name', 'account_item_id')
         .order('corrected_at', { ascending: false })
-        .limit(50);
+        .limit(20);
       if (corrections && corrections.length > 0) {
         const patternMap = new Map<string, { supplier: string; original: string; corrected: string; count: number }>();
         for (const c of corrections) {
@@ -336,7 +304,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       console.log(`[仕訳生成] ✅ AI完了: category="${journalEntry.category}", lines=${journalEntry.lines.length}件, confidence=${journalEntry.confidence}`);
     }
 
-    // 4. UUID マッピング（取引先・品目マッチング含む）
     const mappedLines = mapLinesToDBFormat(
       journalEntry.lines,
       accountItems,
@@ -348,7 +315,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
     );
     console.log(`[仕訳生成] ✅ UUIDマッピング完了: ${mappedLines.length}件`);
 
-    // 5-4(g): 貸借バランスチェック
     const balanceCheck = validateDebitCreditBalance(mappedLines.map(l => ({ debit_credit: l.debit_credit, amount: l.amount })));
     let balance_warning = null;
     if (!balanceCheck.isBalanced) {
@@ -356,7 +322,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       console.log(`[仕訳生成] ⚠️ 貸借不一致: 差額=${balanceCheck.difference}円`);
     }
 
-    // 5-4(e): 取引先名寄せ
     let supplier_match = null;
     if (supplierName && organizationId) {
       const matchResult = await findSupplierAliasMatch(supabaseAdmin, supplierName, organizationId);
@@ -366,7 +331,6 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       }
     }
 
-    // 5. レスポンス
     const entry = {
       document_id,
       client_id,
@@ -380,9 +344,7 @@ router.post('/journal-entries/generate', async (req: Request, res: Response) => 
       rule_matched: ruleMatched,
     };
 
-    // 通知: 仕訳生成完了
     if (organizationId) {
-      // uploaded_by をドキュメントから取得
       const { data: docUploader } = await supabaseAdmin.from('documents').select('uploaded_by').eq('id', document_id).single();
       if (docUploader?.uploaded_by) {
         await createNotification({

@@ -1,3 +1,6 @@
+/**
+ * @module 複合仕訳レイアウト
+ */
 import ImageViewer from '@/web/features/workflow/components/ImageViewer';
 import CompoundJournalTable from '@/web/shared/components/journal/CompoundJournalTable';
 import { useReview } from '../context/ReviewContext';

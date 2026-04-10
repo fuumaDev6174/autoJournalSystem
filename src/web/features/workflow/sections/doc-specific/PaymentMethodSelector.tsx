@@ -1,3 +1,6 @@
+/**
+ * @module 決済手段セレクター
+ */
 export default function PaymentMethodSelector() {
   return (
     <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">

@@ -1,3 +1,8 @@
+/**
+ * @module Gemini クライアント
+ * @description Gemini API の初期化・リトライ付き呼び出し・レート制限キュー。
+ */
+
 import { GoogleGenAI } from '@google/genai';
 import { GEMINI_CONFIG } from './gemini.config.js';
 
@@ -14,7 +19,7 @@ export async function sleep(ms: number): Promise<void> {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// 並列リクエストでも正しく順序制御するキュー
+// 並列リクエストでもレート制限を守るため、直列キューでスロットリングする
 let geminiQueue: Promise<void> = Promise.resolve();
 
 function acquireSlot(): Promise<void> {
@@ -22,16 +27,13 @@ function acquireSlot(): Promise<void> {
   let release: () => void;
   geminiQueue = new Promise<void>(r => { release = r; });
   return prev.then(() => {
-    // minInterval 待機後にスロットを返す
     return sleep(GEMINI_CONFIG.minIntervalMs).then(() => release!());
   });
 }
 
-/**
- * Gemini API呼び出しをリトライ+スロットリング付きでラップ
- */
+/** Gemini API 呼び出しをリトライ+スロットリング付きでラップする */
 export async function callGeminiWithRetry<T>(fn: () => Promise<T>, label: string = 'Gemini'): Promise<T> {
-  for (let attempt = 0; attempt <= GEMINI_CONFIG.maxRetries; attempt++) {
+  for (let attempt = 0; attempt < GEMINI_CONFIG.maxRetries; attempt++) {
     await acquireSlot();
 
     try {
@@ -55,7 +57,7 @@ export async function callGeminiWithRetry<T>(fn: () => Promise<T>, label: string
         message.includes('quota');
 
       if (isRetryable && attempt < GEMINI_CONFIG.maxRetries) {
-        const delay = Math.pow(2, attempt) * 1000;
+        const delay = Math.pow(2, attempt) * 1000 + Math.random() * 500;
         console.warn(`[${label}] ⚠️ リトライ ${attempt + 1}/${GEMINI_CONFIG.maxRetries} (${delay}ms後) - ${status || ''} ${message.slice(0, 100)}`);
         await sleep(delay);
         continue;

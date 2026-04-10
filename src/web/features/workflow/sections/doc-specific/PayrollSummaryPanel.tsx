@@ -1,3 +1,6 @@
+/**
+ * @module 給与明細パネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function PayrollSummaryPanel() {

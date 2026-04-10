@@ -1,4 +1,10 @@
+/**
+ * @module OCR 処理 API
+ * @description 証憑分類(Step1) → フル OCR(Step2) の2段階パイプライン。
+ */
+
 import { Router, Request, Response } from 'express';
+import { validateBody } from '../middleware/validate.middleware.js';
 import { processOCR } from '../../modules/ocr/extractor.service.js';
 import { classifyDocument } from '../../modules/ocr/classifier.service.js';
 import { checkDocumentDuplicate, checkReceiptDuplicate } from '../../modules/document/duplicate-checker.js';
@@ -11,11 +17,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
 
 const router = Router();
 
-// ============================================
-// OCR処理API
-// ============================================
-
-router.post('/ocr/process', async (req: Request, res: Response) => {
+router.post('/ocr/process', validateBody({ document_id: 'uuid' }), async (req: Request, res: Response) => {
   try {
     const { document_id, file_url, file_path } = req.body;
     const targetUrl = file_url || file_path;
@@ -28,7 +30,6 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
 
     console.log(`[OCR] 処理開始: document_id="${document_id}"`);
 
-    // Step 0: 画像をBase64に変換（classifyDocumentでも使用）
     const fetchRes = await fetch(targetUrl);
     if (!fetchRes.ok) throw new Error(`画像の取得に失敗: ${fetchRes.status}`);
     const arrayBuffer = await fetchRes.arrayBuffer();
@@ -40,11 +41,9 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
       ext === 'png' || contentType.includes('png') ? 'image/png' :
       ext === 'webp' || contentType.includes('webp') ? 'image/webp' : 'image/jpeg';
 
-    // Step 1: 証憑種別の自動判定
     const classification = await classifyDocument(imageBase64, mimeType);
     console.log(`[OCR] Step 1 判定: ${classification.document_type_code} (confidence=${classification.confidence})`);
 
-    // documents テーブルに判定結果を保存
     await supabaseAdmin.from('documents').update({
       doc_classification: classification,
       ocr_step1_type: classification.document_type_code,
@@ -52,7 +51,6 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
       ocr_step: 'step1',
     }).eq('id', document_id);
 
-    // document_type_id を設定（document_typesテーブルからcodeで検索）
     const { data: docType } = await supabaseAdmin
       .from('document_types')
       .select('id, requires_journal')
@@ -64,7 +62,7 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
         document_type_id: docType.id,
       }).eq('id', document_id);
 
-      // 非仕訳対象 かつ confidence >= 0.8 → Step 2スキップ
+      // 非仕訳対象 かつ confidence >= 0.8 → Step 2 スキップで処理時間を節約
       if (!docType.requires_journal && classification.confidence >= 0.8) {
         console.log(`[OCR] 非仕訳対象 (confidence=${classification.confidence}) → Step 2スキップ`);
         await supabaseAdmin.from('documents').update({
@@ -81,13 +79,11 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
       }
     }
 
-    // Step 2: フルOCR（既存のprocessOCR処理）に進む
     await supabaseAdmin.from('documents').update({ ocr_step: 'step2' }).eq('id', document_id);
 
     const ocrResult = await processOCR(targetUrl, { base64: imageBase64, mimeType });
     console.log(`[OCR] ✅ 完了: supplier="${ocrResult.extracted_supplier}", amount=${ocrResult.extracted_amount}, confidence=${ocrResult.confidence_score}`);
 
-    // 5-4(a): ハッシュベース重複チェック
     const { data: docRow } = await supabaseAdmin.from('documents').select('hash_value, client_id').eq('id', document_id).single();
     let duplicate_warning = null;
     if (docRow?.hash_value) {
@@ -98,7 +94,6 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
       }
     }
 
-    // 5-4(l): 内容ベース重複チェック
     let receipt_duplicate_warning = null;
     if (docRow?.client_id && ocrResult.extracted_amount) {
       const receiptDup = await checkReceiptDuplicate(
@@ -111,7 +106,6 @@ router.post('/ocr/process', async (req: Request, res: Response) => {
       }
     }
 
-    // 通知: OCR完了
     if (docRow?.client_id) {
       const { data: clientInfo } = await supabaseAdmin.from('clients').select('organization_id').eq('id', docRow.client_id).single();
       const { data: docInfo } = await supabaseAdmin.from('documents').select('uploaded_by').eq('id', document_id).single();

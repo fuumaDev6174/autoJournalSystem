@@ -1,3 +1,6 @@
+/**
+ * @module 保管レイアウト
+ */
 import ImageViewer from '@/web/features/workflow/components/ImageViewer';
 import { useReview } from '../context/ReviewContext';
 import NavigationBar from '../sections/NavigationBar';

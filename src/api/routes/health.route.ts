@@ -1,3 +1,7 @@
+/**
+ * @module ヘルスチェック API
+ */
+
 import { Router } from 'express';
 
 const router = Router();

@@ -1,3 +1,6 @@
+/**
+ * @module 複合仕訳テーブル
+ */
 import { useState, useCallback } from 'react';
 import { Plus, Trash2, AlertCircle, ArrowRight } from 'lucide-react';
 import type { JournalEntryLine, AccountItem, TaxCategory } from '@/types';

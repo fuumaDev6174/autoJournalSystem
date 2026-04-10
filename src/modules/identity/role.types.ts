@@ -1,5 +1,12 @@
+/**
+ * @module ロール型定義
+ * @description ユーザーロールと権限マッピング。
+ */
+
+/** ユーザーロール */
 export type UserRole = 'admin' | 'manager' | 'operator' | 'viewer';
 
+/** ロール別権限テーブル */
 export const ROLE_PERMISSIONS: Record<UserRole, {
   canManageUsers: boolean;
   canApproveEntries: boolean;

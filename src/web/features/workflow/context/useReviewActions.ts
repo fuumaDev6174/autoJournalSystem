@@ -1,4 +1,7 @@
-import { useCallback } from 'react';
+/**
+ * @module レビューアクション hooks
+ */
+import { useCallback, useRef } from 'react';
 import type { AccountItem, TaxCategory, Supplier } from '@/types';
 import {
   journalEntriesApi, clientsApi, rulesApi, suppliersApi, itemsApi,
@@ -72,6 +75,10 @@ export function useReviewActions(params: UseReviewActionsParams) {
     setViewMode, setRuleIndustryId, setExpandedDocs,
     loadAllData,
   } = params;
+
+  // useRef で最新の状態を保持（saveCurrentItem / goNext / goPrev の依存配列を最小化）
+  const stateRef = useRef(params);
+  stateRef.current = params;
 
   // ============================================
   // Handler: account item change
@@ -183,6 +190,11 @@ export function useReviewActions(params: UseReviewActionsParams) {
   // saveCurrentItem
   // ============================================
   const saveCurrentItem = useCallback(async (markApproved = false) => {
+    const { items, currentIndex, form, isManagerOrAdmin, currentWorkflow, user,
+      addRule, ruleScope, ruleIndustryId, businessRatio, suppliers, accountItems,
+      taxCategories, aiOriginalForm, compoundLines,
+      setSaving, setSavedAt, setItems, setEntries, setForm, setAddRule, setRuleSuggestion,
+    } = stateRef.current;
     const item = items[currentIndex];
     if (!item) return;
     setSaving(true);
@@ -338,13 +350,16 @@ export function useReviewActions(params: UseReviewActionsParams) {
       return e;
     }));
     setSaving(false); setSavedAt(new Date().toLocaleTimeString('ja-JP'));
-  }, [items, currentIndex, form, isManagerOrAdmin, currentWorkflow, user, addRule, ruleScope, ruleIndustryId, businessRatio, suppliers, accountItems, taxCategories, aiOriginalForm, compoundLines]);
+  }, []); // stateRef 経由で最新値を参照するため依存配列は空
 
   // ============================================
   // Navigation
   // ============================================
   const goNext = useCallback(async () => {
     await saveCurrentItem(true);
+    const { items, currentIndex, setCurrentIndex, setForm, setSavedAt, setAddRule, setRuleIndustryId,
+      setRotation, setBusinessRatio, setAiOriginalForm, setSupplierText, setItemText, setRuleSuggestion,
+    } = stateRef.current;
     if (currentIndex < items.length - 1) {
       const next = currentIndex + 1;
       setCurrentIndex(next); setForm({ ...items[next] }); setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
@@ -352,10 +367,13 @@ export function useReviewActions(params: UseReviewActionsParams) {
       setSupplierText(items[next].unmatchedSupplierName || ''); setItemText(items[next].unmatchedItemName || '');
       setRuleSuggestion('');
     }
-  }, [currentIndex, items, saveCurrentItem]);
+  }, [saveCurrentItem]);
 
   const goPrev = useCallback(async () => {
     await saveCurrentItem(false);
+    const { items, currentIndex, setCurrentIndex, setForm, setSavedAt, setAddRule, setRuleIndustryId,
+      setRotation, setBusinessRatio, setAiOriginalForm, setSupplierText, setItemText, setRuleSuggestion,
+    } = stateRef.current;
     if (currentIndex > 0) {
       const prev = currentIndex - 1;
       setCurrentIndex(prev); setForm({ ...items[prev] }); setSavedAt(null); setAddRule(false); setRuleIndustryId(''); setRotation(0);
@@ -363,7 +381,7 @@ export function useReviewActions(params: UseReviewActionsParams) {
       setSupplierText(items[prev].unmatchedSupplierName || ''); setItemText(items[prev].unmatchedItemName || '');
       setRuleSuggestion('');
     }
-  }, [currentIndex, items, saveCurrentItem]);
+  }, [saveCurrentItem]);
 
   // ============================================
   // Business / Exclude
@@ -456,6 +474,7 @@ export function useReviewActions(params: UseReviewActionsParams) {
   // handleBeforeNext (workflow navigation)
   // ============================================
   const handleBeforeNext = useCallback(async (): Promise<boolean> => {
+    const { entries, isManagerOrAdmin, updateWorkflowData, form } = stateRef.current;
     if (form.entryId) await saveCurrentItem(true);
     const drafts = entries.filter(e => e.status === 'draft');
     if (drafts.length > 0) {
@@ -468,7 +487,7 @@ export function useReviewActions(params: UseReviewActionsParams) {
     if (allIds.length > 0) await journalEntriesApi.bulkUpdateStatus(allIds, 'posted');
     updateWorkflowData({ reviewCompleted: true });
     return true;
-  }, [entries, isManagerOrAdmin, updateWorkflowData, form.entryId, saveCurrentItem]);
+  }, [saveCurrentItem]);
 
   return {
     handleAccountItemChange, handleSupplierChange, handleItemChange,

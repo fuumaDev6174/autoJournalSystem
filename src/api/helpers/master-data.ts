@@ -1,19 +1,19 @@
+/**
+ * @module マスタデータヘルパー
+ * @description 勘定科目・税区分取得、UUID バリデーション、通知作成など共通ヘルパー。
+ */
+
 import { supabaseAdmin } from '../../adapters/supabase/supabase-admin.client.js';
 import type { AccountItemRef, TaxCategoryRef } from '../../modules/journal/journal.types.js';
 
 export { supabaseAdmin };
 
-// ============================================
-// UUID形式バリデーション
-// ============================================
+/** UUID 形式バリデーション */
 export const isValidUUID = (str: string): boolean =>
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(str);
-
-// ============================================
-// Mass Assignment 防止: req.body から保護フィールドを除去
-// ============================================
 const ALWAYS_BLOCKED_FIELDS = ['id', 'created_at', 'updated_at'];
 
+/** Mass Assignment 防止: req.body から保護フィールドを除去する */
 export function sanitizeBody(
   body: Record<string, any>,
   extraBlocked: string[] = [],
@@ -28,9 +28,7 @@ export function sanitizeBody(
   return result;
 }
 
-// ============================================
-// ストレージパス検証: パストラバーサル防止
-// ============================================
+/** ストレージパス検証（パストラバーサル防止） */
 export function isValidStoragePath(filePath: string): boolean {
   if (!filePath || typeof filePath !== 'string') return false;
   if (filePath.includes('..')) return false;
@@ -38,9 +36,7 @@ export function isValidStoragePath(filePath: string): boolean {
   return /^[a-zA-Z0-9_\-./]+$/.test(filePath);
 }
 
-// ============================================
-// クライアント所有権チェック
-// ============================================
+/** クライアントが指定組織に属するか検証する */
 export async function verifyClientOwnership(
   clientId: string,
   organizationId: string,
@@ -55,9 +51,52 @@ export async function verifyClientOwnership(
   return !!data;
 }
 
-// ============================================
-// 本番向けエラーレスポンス（内部詳細を隠蔽）
-// ============================================
+/** ドキュメントが指定組織に属するか検証する（client_id 経由） */
+export async function verifyDocumentOwnership(
+  documentId: string,
+  organizationId: string,
+): Promise<boolean> {
+  if (!documentId || !organizationId) return false;
+  const { data: doc } = await supabaseAdmin
+    .from('documents')
+    .select('client_id')
+    .eq('id', documentId)
+    .single();
+  if (!doc?.client_id) return false;
+  return verifyClientOwnership(doc.client_id, organizationId);
+}
+
+/** 仕訳エントリが指定組織に属するか検証する（client_id 経由） */
+export async function verifyJournalEntryOwnership(
+  journalEntryId: string,
+  organizationId: string,
+): Promise<boolean> {
+  if (!journalEntryId || !organizationId) return false;
+  const { data: entry } = await supabaseAdmin
+    .from('journal_entries')
+    .select('client_id')
+    .eq('id', journalEntryId)
+    .single();
+  if (!entry?.client_id) return false;
+  return verifyClientOwnership(entry.client_id, organizationId);
+}
+
+/** ワークフローが指定組織に属するか検証する（organization_id 直接） */
+export async function verifyWorkflowOwnership(
+  workflowId: string,
+  organizationId: string,
+): Promise<boolean> {
+  if (!workflowId || !organizationId) return false;
+  const { data } = await supabaseAdmin
+    .from('workflows')
+    .select('id')
+    .eq('id', workflowId)
+    .eq('organization_id', organizationId)
+    .single();
+  return !!data;
+}
+
+/** 本番環境では内部詳細を隠蔽したエラーメッセージを返す */
 export function safeErrorMessage(error: any): string {
   if (process.env.NODE_ENV === 'production') {
     return 'サーバーエラーが発生しました';
@@ -65,9 +104,7 @@ export function safeErrorMessage(error: any): string {
   return error?.message || 'サーバーエラーが発生しました';
 }
 
-// ============================================
-// 通知作成ヘルパー (Task 5-1)
-// ============================================
+/** 通知レコードを作成する */
 export async function createNotification(params: {
   organizationId: string;
   userId: string;
@@ -94,11 +131,7 @@ export async function createNotification(params: {
   }
 }
 
-// ============================================
-// マスタデータ取得ヘルパー（全てエラーログ付き）
-// ============================================
-
-/** client_id → organization_id を解決 */
+/** client_id → organization_id を解決する */
 export async function getOrganizationId(clientId: string): Promise<string | null> {
   console.log(`[getOrganizationId] client_id="${clientId}" で clients テーブルを検索中...`);
 
@@ -225,9 +258,8 @@ export async function fetchTaxCategories(): Promise<TaxCategoryRef[]> {
   return categories;
 }
 
-/** 「雑費」のフォールバック用 UUID を取得 */
+/** 「雑費」のフォールバック用 UUID を取得する */
 export async function findFallbackAccountId(organizationId: string): Promise<string> {
-  // organization固有 → 共通(null) の順で検索
   const { data, error } = await supabaseAdmin
     .from('account_items')
     .select('id')

@@ -1,3 +1,6 @@
+/**
+ * @module 除外ボタン
+ */
 import { Ban } from 'lucide-react';
 import { useReview } from '../context/ReviewContext';
 

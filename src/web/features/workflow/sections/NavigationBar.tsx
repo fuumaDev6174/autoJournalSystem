@@ -1,3 +1,6 @@
+/**
+ * @module ナビゲーションバー
+ */
 import { ChevronLeft, ChevronRight, CheckCircle } from 'lucide-react';
 import { useReview } from '../context/ReviewContext';
 

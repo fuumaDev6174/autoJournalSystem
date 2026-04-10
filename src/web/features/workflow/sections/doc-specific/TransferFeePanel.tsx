@@ -1,3 +1,6 @@
+/**
+ * @module 振込手数料パネル
+ */
 export default function TransferFeePanel() {
   return (
     <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">

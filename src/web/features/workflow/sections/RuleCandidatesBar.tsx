@@ -1,3 +1,6 @@
+/**
+ * @module ルール候補バー
+ */
 import { useReview } from '../context/ReviewContext';
 
 export default function RuleCandidatesBar() {

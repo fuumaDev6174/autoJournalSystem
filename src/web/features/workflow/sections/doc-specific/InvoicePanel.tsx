@@ -1,3 +1,6 @@
+/**
+ * @module インボイスパネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function InvoicePanel() {

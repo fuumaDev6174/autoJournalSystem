@@ -1,3 +1,6 @@
+/**
+ * @module 明細レイアウト
+ */
 import ImageViewer from '@/web/features/workflow/components/ImageViewer';
 import { useReview } from '../context/ReviewContext';
 import OcrSummaryBadges from '../sections/OcrSummaryBadges';

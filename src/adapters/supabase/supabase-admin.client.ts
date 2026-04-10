@@ -1,3 +1,8 @@
+/**
+ * @module Supabase Admin クライアント（サーバー用）
+ * @description service_role_key を使い RLS をバイパスする。サーバーサイドのみ使用。
+ */
+
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;

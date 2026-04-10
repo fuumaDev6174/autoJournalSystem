@@ -1,3 +1,6 @@
+/**
+ * @module メタデータフィールドパネル
+ */
 import { useReview } from '../../context/ReviewContext';
 
 export default function MetadataFieldsPanel() {

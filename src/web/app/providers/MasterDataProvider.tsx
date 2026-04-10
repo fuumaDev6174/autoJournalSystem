@@ -1,3 +1,6 @@
+/**
+ * @module マスタデータプロバイダー
+ */
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
 import type { AccountItem, TaxCategory } from '@/types';

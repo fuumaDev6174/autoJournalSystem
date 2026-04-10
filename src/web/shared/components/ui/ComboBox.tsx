@@ -1,4 +1,7 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+/**
+ * @module コンボボックス UI
+ */
+import { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { ChevronDown, Search } from 'lucide-react';
 
 export interface ComboBoxProps {
@@ -15,8 +18,10 @@ export interface ComboBoxProps {
 export default function ComboBox({ value, onChange, options, placeholder = '-- 選択 --', textValue, onNewText, allowCreate, onCreateNew }: ComboBoxProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listboxId = useId();
   const selectedOption = options.find(o => o.id === value);
 
   useEffect(() => {
@@ -26,6 +31,11 @@ export default function ComboBox({ value, onChange, options, placeholder = '-- �
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
+
+  // ドロップダウンが開いたときにハイライトをリセット
+  useEffect(() => {
+    if (isOpen) setHighlightIndex(-1);
+  }, [isOpen]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return options;
@@ -44,10 +54,36 @@ export default function ComboBox({ value, onChange, options, placeholder = '-- �
     ? `${selectedOption.code ? selectedOption.code + ' ' : ''}${selectedOption.name}`
     : (textValue || '');
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.min(prev + 1, filtered.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (highlightIndex >= 0 && highlightIndex < filtered.length) {
+        handleSelect(filtered[highlightIndex].id);
+      } else if (filtered.length === 1) {
+        handleSelect(filtered[0].id);
+      } else if (filtered.length === 0 && query.trim() && onNewText) {
+        onNewText(query.trim()); setIsOpen(false); setQuery('');
+      }
+    } else if (e.key === 'Escape') {
+      setIsOpen(false);
+    }
+  };
+
+  const activeDescendant = highlightIndex >= 0 && highlightIndex < filtered.length
+    ? `${listboxId}-option-${highlightIndex}`
+    : undefined;
+
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative" role="combobox" aria-expanded={isOpen} aria-haspopup="listbox" aria-owns={listboxId}>
       <button type="button"
         onClick={() => { setIsOpen(!isOpen); setTimeout(() => inputRef.current?.focus(), 50); }}
+        aria-label={displayText || placeholder}
         className="w-full border border-gray-300 rounded-lg p-2.5 pr-8 text-left text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
         {displayText ? (
           <span className={selectedOption ? '' : 'text-orange-600'}>{displayText}{!selectedOption && textValue ? ' (未登録)' : ''}</span>
@@ -63,18 +99,14 @@ export default function ComboBox({ value, onChange, options, placeholder = '-- �
               <Search size={14} className="absolute left-2.5 top-2.5 text-gray-400" />
               <input ref={inputRef} type="text" value={query} onChange={e => setQuery(e.target.value)}
                 placeholder="名前・ローマ字・番号で検索"
+                role="searchbox"
+                aria-controls={listboxId}
+                aria-activedescendant={activeDescendant}
                 className="w-full pl-8 pr-2 py-2 text-sm border border-gray-200 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    if (filtered.length === 1) handleSelect(filtered[0].id);
-                    else if (filtered.length === 0 && query.trim() && onNewText) {
-                      onNewText(query.trim()); setIsOpen(false); setQuery('');
-                    }
-                  } else if (e.key === 'Escape') setIsOpen(false);
-                }} />
+                onKeyDown={handleKeyDown} />
             </div>
           </div>
-          <div className="overflow-y-auto max-h-48">
+          <div id={listboxId} role="listbox" className="overflow-y-auto max-h-48">
             {filtered.length === 0 ? (
               <div className="px-3 py-2 text-sm text-gray-400">
                 該当なし
@@ -89,9 +121,14 @@ export default function ComboBox({ value, onChange, options, placeholder = '-- �
               </div>
             ) : (
               <>
-                {filtered.map(o => (
-                  <button key={o.id} type="button" onClick={() => handleSelect(o.id)}
-                    className={`w-full text-left px-3 py-2 text-sm hover:bg-blue-50 transition-colors ${o.id === value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'}`}>
+                {filtered.map((o, i) => (
+                  <button key={o.id} id={`${listboxId}-option-${i}`} type="button" role="option"
+                    aria-selected={o.id === value}
+                    onClick={() => handleSelect(o.id)}
+                    className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                      i === highlightIndex ? 'bg-blue-100 text-blue-800' :
+                      o.id === value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-blue-50'
+                    }`}>
                     {o.code && <span className="text-gray-400 mr-1.5">{o.code}</span>}
                     {o.name}
                     {o.short_name && <span className="text-gray-400 ml-1.5 text-xs">({o.short_name})</span>}

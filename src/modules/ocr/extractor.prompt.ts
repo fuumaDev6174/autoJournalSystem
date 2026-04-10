@@ -1,14 +1,7 @@
-// ============================================
-// OCR データ抽出プロンプト
-//
-// Gemini に画像を送り、取引データを構造化 JSON で返させる。
-// classifier.service.ts の分類結果とは別に、
-// ここでは「金額・日付・取引先・品目」などの定量データを抽出する。
-//
-// 【更新時の注意】
-// - JSON スキーマを変えたら ocr.types.ts の型も合わせること
-// - extractor.service.ts の normalize 処理にも反映すること
-// ============================================
+/**
+ * @module OCR データ抽出プロンプト
+ * @description Gemini に画像から取引データ（金額・日付・取引先等）を構造化 JSON で抽出させる。
+ */
 
 export const EXTRACT_OCR_PROMPT = `あなたは日本の税理士事務所で使われる経理書類読取AIです。
 この画像から取引データを正確に抽出し、JSON形式で返してください。
@@ -17,6 +10,8 @@ export const EXTRACT_OCR_PROMPT = `あなたは日本の税理士事務所で使
 レシート、領収書、請求書、納品書、銀行通帳、入出金明細、
 クレジットカード明細、ETC利用明細、電子マネー/QR決済明細、
 経費精算書、給与明細、売上集計表、支払通知書、
+振込明細・送金完了画面、水道光熱費・通信費の請求書・検針票、
+税金・社会保険料の納付済領収書、支払調書、
 医療費の領収書、ふるさと納税受領証、保険料控除証明書、
 固定資産台帳、借入金返済予定表、その他の経理関連書類。
 
@@ -32,7 +27,7 @@ export const EXTRACT_OCR_PROMPT = `あなたは日本の税理士事務所で使
 === JSON スキーマ ===
 
 {
-  "document_type": "receipt | invoice | bank_statement | credit_card | payroll | sales_report | medical | deduction | fixed_asset | loan | other",
+  "document_type": "receipt | invoice | bank_statement | credit_card | payroll | sales_report | medical | deduction | fixed_asset | loan | utility_bill | tax_receipt | bank_transfer_receipt | payment_statement | other",
   "confidence": 0.0〜1.0,
   "transactions": [
     {
@@ -55,8 +50,9 @@ export const EXTRACT_OCR_PROMPT = `あなたは日本の税理士事務所で使
       "withholding_tax_amount": 源泉徴収税額（なければ null）,
       "invoice_qualification": "qualified | kubun_kisai | null",
       "addressee": "宛名（なければ null）",
-      "transaction_type": "purchase | expense | asset | sales | fee | null",
+      "transaction_type": "purchase | expense | asset | sales | fee | tax_payment | null",
       "transfer_fee_bearer": "sender | receiver | null",
+      "tax_payment_type": "income_tax | consumption_tax | resident_tax | property_tax | auto_tax | national_health_insurance | national_pension | business_tax | other_tax | null",
       "items": [
         {
           "name": "商品名・摘要",
@@ -95,7 +91,36 @@ export const EXTRACT_OCR_PROMPT = `あなたは日本の税理士事務所で使
 - 10万円以上の備品・機器 → "asset"
 - 外注費・業務委託料 → "fee"
 - 売上 → "sales"
+- 税金・社会保険料の支払い → "tax_payment"
 - 上記以外の経費 → "expense"
+
+【税金の納付書 (tax_receipt) — 勘定科目が種別によって異なる】
+- tax_payment_type で税金の種類を特定してください:
+  - 所得税/予定納税 → "income_tax"（個人事業主: 事業主貸）
+  - 消費税/中間納付 → "consumption_tax"（租税公課）
+  - 住民税 → "resident_tax"（個人事業主: 事業主貸 / 法人: 租税公課）
+  - 固定資産税 → "property_tax"（租税公課 ※自宅兼事務所は家事按分あり）
+  - 自動車税 → "auto_tax"（租税公課 ※事業割合で按分）
+  - 国民健康保険料 → "national_health_insurance"（個人事業主: 事業主貸）
+  - 国民年金 → "national_pension"（個人事業主: 事業主貸）
+  - 事業税 → "business_tax"（租税公課）
+  - その他 → "other_tax"
+
+【水道光熱費・通信費 (utility_bill)】
+- 電力会社/ガス会社/水道局/通信会社のロゴ・社名がある
+- 「ご請求金額」「ご利用期間」「お客様番号」が記載
+- 勘定科目は supplier（電力会社 → 水道光熱費 / 通信会社 → 通信費）で判断可能
+
+【振込明細・送金完了画面 (bank_transfer_receipt)】
+- ATMの利用明細やネットバンクの出金完了画面
+- 「お振込み完了」「送金完了」「振込結果」等の文言
+- 振込先の口座情報・金額・手数料が記載
+- payment_method: "bank_transfer" を設定
+
+【支払調書 (payment_statement)】
+- 「報酬、料金、契約金及び賞金の支払調書」と表題
+- 「支払金額」「源泉徴収税額」が記載
+- withholding_tax_amount に源泉徴収税額を設定
 
 【但書き (tategaki)】
 - 「但し」「但」に続く文言を抽出`;

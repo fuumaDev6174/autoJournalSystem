@@ -1,11 +1,23 @@
+/**
+ * @module 重複検出
+ * @description ハッシュ完全一致と内容ベース（金額+日付+取引先）の2種類の重複チェック。
+ */
+
+import type { SupabaseClient } from '@supabase/supabase-js';
+
+/** ハッシュベース重複チェックの結果 */
 export interface DuplicateCheckResult {
   isDuplicate: boolean;
   duplicateDocId: string | null;
   duplicateFileName: string | null;
 }
 
+/**
+ * ファイルハッシュの完全一致で重複を検出する。
+ * 同一ファイルの再アップロードを防ぐ。
+ */
 export async function checkDocumentDuplicate(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient,
   hashValue: string | null,
   clientId: string,
   excludeDocId?: string,
@@ -24,12 +36,17 @@ export async function checkDocumentDuplicate(
   return { isDuplicate: false, duplicateDocId: null, duplicateFileName: null };
 }
 
+/** 内容ベース重複チェックの結果 */
 export interface ReceiptDuplicateResult {
   possibleDuplicates: Array<{ id: string; fileName: string; date: string; amount: number; supplierName: string | null }>;
 }
 
+/**
+ * 金額・日付・取引先名で類似証憑を検出する。
+ * 日付は前後1日の範囲でファジーマッチする（手入力の日付ズレを許容するため）。
+ */
 export async function checkReceiptDuplicate(
-  supabaseAdmin: any,
+  supabaseAdmin: SupabaseClient,
   clientId: string,
   amount: number | null,
   date: string | null,

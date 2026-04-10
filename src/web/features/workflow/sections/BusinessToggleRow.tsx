@@ -1,3 +1,6 @@
+/**
+ * @module 事業/私用トグル
+ */
 import ComboBox from '@/web/shared/components/ui/ComboBox';
 import { useReview } from '../context/ReviewContext';
 
