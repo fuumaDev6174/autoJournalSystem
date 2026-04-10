@@ -86,7 +86,7 @@ function getCreditLine(entry: EntryWithJoin) { return entry.lines?.find(l => l.d
 function getEntryAmount(entry: EntryWithJoin) { return entry.lines?.filter(l => l.debit_credit === 'debit').reduce((s, l) => s + (l.amount ?? 0), 0) ?? 0; }
 
 // ============================================
-// シンプルCSV生成（Tax Copilot独自形式）
+// シンプルCSV生成（仕訳くん独自形式）
 // ============================================
 function buildSimpleCsv(entries: EntryWithJoin[], acctMap: Map<string, string>, txCatMap: Map<string, string>): string {
   const headers = [

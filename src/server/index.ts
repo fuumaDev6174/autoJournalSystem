@@ -98,7 +98,7 @@ app.use('/api', exportRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.get('/', (_req, res) => {
     res.json({
-      message: '経理自動化システム API Server',
+      message: '仕訳くん API Server',
       version: '1.0.0',
       status: 'running',
     });
@@ -131,7 +131,7 @@ app.use((_req, res) => {
 // サーバー起動
 app.listen(PORT, () => {
   console.log('='.repeat(50));
-  console.log('経理自動化システム API Server');
+  console.log('仕訳くん API Server');
   console.log('='.repeat(50));
   console.log(`Server running on: http://localhost:${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);

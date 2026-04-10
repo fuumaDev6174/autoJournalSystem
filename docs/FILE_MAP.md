@@ -145,7 +145,7 @@ modules/
 │
 ├── export/
 │   ├── freee-csv.builder.ts    freee 取込用 CSV ビルダー（21列公式フォーマット）
-│   └── simple-csv.builder.ts   Tax Copilot 独自形式 CSV ビルダー
+│   └── simple-csv.builder.ts   仕訳くん 独自形式 CSV ビルダー
 │
 ├── identity/
 │   ├── role.types.ts           ロール・権限定義（ROLE_PERMISSIONS マップ）

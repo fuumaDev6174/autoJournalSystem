@@ -6,7 +6,7 @@
 import { supabase } from './supabase';
 
 export const debugAuth = async () => {
-  console.group('🔍 Tax Copilot 認証診断');
+  console.group('🔍 仕訳くん 認証診断');
 
   const { data: { session } } = await supabase.auth.getSession();
   if (!session) {

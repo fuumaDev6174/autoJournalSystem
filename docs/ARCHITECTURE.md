@@ -1,4 +1,4 @@
-# BESO (Tax Copilot) アーキテクチャガイド
+# 仕訳くん アーキテクチャガイド
 
 > 証憑アップロード → OCR → AI仕訳生成 → レビュー → freeeエクスポート
 > を自動化する税理士事務所向けWebアプリケーション
@@ -198,7 +198,7 @@ rule-name-generator.ts          条件から読みやすいルール名を生成
 ### export/
 
 ```
-simple-csv.builder.ts    buildSimpleCsv() → Tax Copilot 独自CSV
+simple-csv.builder.ts    buildSimpleCsv() → 仕訳くん 独自CSV
 freee-csv.builder.ts     buildFreeeCsv() → freee取込用21列CSV
 ```
 

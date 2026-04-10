@@ -212,7 +212,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
         <div className="flex items-center gap-2 overflow-hidden">
           <Building2 className="text-blue-600 flex-shrink-0" size={24} />
-          <h1 className="text-lg font-semibold text-gray-900 whitespace-nowrap">仕訳自動化システム</h1>
+          <h1 className="text-lg font-semibold text-gray-900 whitespace-nowrap">仕訳くん</h1>
         </div>
         <button type="button" onClick={onToggle} className="p-1 rounded hover:bg-gray-200 text-gray-400 hover:text-gray-600 transition-colors flex-shrink-0" title="メニューを縮小">
           <PanelLeftClose size={18} />
