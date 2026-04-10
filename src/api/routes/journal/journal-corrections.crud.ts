@@ -5,7 +5,8 @@
 import { Router, Request, Response } from 'express';
 import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
 import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
-import { sanitizeBody, verifyClientOwnership } from '../../helpers/master-data.js';
+import { sanitizeBody } from '../../../shared/utils/request-helpers.js';
+import { verifyClientOwnership } from '../../../domain/auth/authorization.service.js';
 import { asyncHandler } from '../../helpers/async-handler.js';
 
 const router = Router();

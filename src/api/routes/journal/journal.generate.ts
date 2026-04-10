@@ -15,16 +15,11 @@ import { findSupplierAliasMatch } from '../../../domain/document/supplier-matche
 import { validateDebitCreditBalance } from '../../../domain/accounting/balance-validator.js';
 import type { GeneratedJournalEntry } from '../../../domain/journal/journal.types.js';
 
-import {
-  supabaseAdmin,
-  isValidUUID,
-  createNotification,
-  getOrganizationId,
-  fetchAccountItems,
-  fetchTaxCategories,
-  findFallbackAccountId,
-  verifyClientOwnership,
-} from '../../helpers/master-data.js';
+import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
+import { isValidUUID } from '../../../shared/utils/request-helpers.js';
+import { verifyClientOwnership } from '../../../domain/auth/authorization.service.js';
+import { createNotification } from '../../../domain/notification/notification.service.js';
+import { getOrganizationId, fetchAccountItems, fetchTaxCategories, findFallbackAccountId } from '../../../domain/master/master-data.service.js';
 import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 
 const router = Router();

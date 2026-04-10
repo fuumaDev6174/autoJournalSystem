@@ -6,7 +6,7 @@ import { Router, Request, Response } from 'express';
 import multer from 'multer';
 import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
 import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
-import { isValidStoragePath } from '../../helpers/master-data.js';
+import { isValidStoragePath } from '../../../shared/utils/request-helpers.js';
 import { asyncHandler } from '../../helpers/async-handler.js';
 
 const router = Router();

@@ -6,11 +6,9 @@
 import { Router, Request, Response } from 'express';
 import { checkDocumentDuplicate } from '../../../domain/document/duplicate-checker.js';
 import { validateJournalBalance } from '../../../domain/accounting/balance-validator.js';
-import {
-  supabaseAdmin,
-  isValidUUID,
-  verifyClientOwnership,
-} from '../../helpers/master-data.js';
+import { supabaseAdmin } from '../../../adapters/supabase/supabase-admin.client.js';
+import { isValidUUID } from '../../../shared/utils/request-helpers.js';
+import { verifyClientOwnership } from '../../../domain/auth/authorization.service.js';
 import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 
 const router = Router();
