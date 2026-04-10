@@ -4,14 +4,14 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { checkDocumentDuplicate } from '../../domain/document/duplicate-checker.js';
-import { validateJournalBalance } from '../../domain/accounting/balance-validator.js';
+import { checkDocumentDuplicate } from '../../../domain/document/duplicate-checker.js';
+import { validateJournalBalance } from '../../../domain/accounting/balance-validator.js';
 import {
   supabaseAdmin,
   isValidUUID,
   verifyClientOwnership,
-} from '../helpers/master-data.js';
-import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+} from '../../helpers/master-data.js';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 

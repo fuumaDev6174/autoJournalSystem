@@ -1,19 +1,6 @@
 /**
  * @module OCR データ抽出サービス
  * @description 画像を Gemini に送り取引データ（金額・日付・取引先等）を構造化して返す。
- *
- * ═══════════════════════════════════════════════════════
- * 変更履歴（2026-04-10 議論反映）
- * ═══════════════════════════════════════════════════════
- * - OCRTransaction に tax_payment_type フィールドを追加
- *   → tax_receipt（税金・社会保険料の納付書）の種類を特定するため
- *   → 値: income_tax | consumption_tax | resident_tax | property_tax |
- *          auto_tax | national_health_insurance | national_pension |
- *          business_tax | other_tax | null
- * - transaction_type の enum に "tax_payment" を追加
- * - OCRResult に extracted_tax_payment_type を追加（先頭取引の代表値）
- * - normalizeTx() で tax_payment_type を正規化
- * ═══════════════════════════════════════════════════════
  */
 
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';

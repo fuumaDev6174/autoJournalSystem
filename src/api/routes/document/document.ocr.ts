@@ -4,16 +4,16 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { validateBody } from '../middleware/validate.middleware.js';
-import { processOCR } from '../../domain/ocr/extractor.service.js';
-import { classifyDocument } from '../../domain/ocr/classifier.service.js';
-import { checkDocumentDuplicate, checkReceiptDuplicate } from '../../domain/document/duplicate-checker.js';
+import { validateBody } from '../../middleware/validate.middleware.js';
+import { processOCR } from '../../../domain/ocr/extractor.service.js';
+import { classifyDocument } from '../../../domain/ocr/classifier.service.js';
+import { checkDocumentDuplicate, checkReceiptDuplicate } from '../../../domain/document/duplicate-checker.js';
 import {
   supabaseAdmin,
   isValidUUID,
   createNotification,
-} from '../helpers/master-data.js';
-import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+} from '../../helpers/master-data.js';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 

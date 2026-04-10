@@ -18,9 +18,9 @@ interface MulterFile {
   buffer: Buffer;
 }
 import fs from 'fs';
-import { processOCR } from '../../domain/ocr/extractor.service.js';
-import { generateJournalEntry } from '../../domain/journal/ai-generator.service.js';
-import { mapLinesToDBFormat } from '../../domain/journal/line-mapper.service.js';
+import { processOCR } from '../../../domain/ocr/extractor.service.js';
+import { generateJournalEntry } from '../../../domain/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../../domain/journal/line-mapper.service.js';
 import {
   supabaseAdmin,
   getOrganizationId,
@@ -28,9 +28,9 @@ import {
   fetchTaxCategories,
   findFallbackAccountId,
   verifyClientOwnership,
-} from '../helpers/master-data.js';
-import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
-import { upload } from './documents.route.js';
+} from '../../helpers/master-data.js';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
+import { upload } from './document.upload.js';
 
 const router = Router();
 

@@ -1,15 +1,6 @@
 /**
  * @module 証憑分類サービス
  * @description Gemini AI で画像を書類種別に分類する。失敗時はフォールバック値を返す。
- *
- * ═══════════════════════════════════════════════════════
- * 変更履歴（2026-04-10 議論反映）
- * ═══════════════════════════════════════════════════════
- * - VALID_DOC_CODES に 4コード追加:
- *     payment_statement, bank_transfer_receipt, utility_bill, tax_receipt
- * - prev_return をメタデータ系セクションに移動（コード値自体は変更なし）
- * - Phase B 予約コードはコメントで明示（VALID_DOC_CODES には未追加）
- * ═══════════════════════════════════════════════════════
  */
 
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';

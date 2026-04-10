@@ -4,16 +4,16 @@
  */
 
 import { Router, Request, Response } from 'express';
-import { validateBody } from '../middleware/validate.middleware.js';
-import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from '../../shared/constants/accounting.js';
-import { generateJournalEntry } from '../../domain/journal/ai-generator.service.js';
-import { mapLinesToDBFormat } from '../../domain/journal/line-mapper.service.js';
-import { buildEntryFromRule } from '../../domain/journal/rule-generator.service.js';
-import { matchProcessingRulesWithCandidates } from '../../domain/rule-engine/matcher-with-candidates.js';
-import { extractMultipleEntries } from '../../domain/ocr/multi-extractor.service.js';
-import { findSupplierAliasMatch } from '../../domain/document/supplier-matcher.js';
-import { validateDebitCreditBalance } from '../../domain/accounting/balance-validator.js';
-import type { GeneratedJournalEntry } from '../../domain/journal/journal.types.js';
+import { validateBody } from '../../middleware/validate.middleware.js';
+import { STATEMENT_EXTRACT_TYPES, STATEMENT_PAYMENT_METHOD } from '../../../shared/constants/accounting.js';
+import { generateJournalEntry } from '../../../domain/journal/ai-generator.service.js';
+import { mapLinesToDBFormat } from '../../../domain/journal/line-mapper.service.js';
+import { buildEntryFromRule } from '../../../domain/journal/rule-generator.service.js';
+import { matchProcessingRulesWithCandidates } from '../../../domain/rule-engine/matcher-with-candidates.js';
+import { extractMultipleEntries } from '../../../domain/ocr/multi-extractor.service.js';
+import { findSupplierAliasMatch } from '../../../domain/document/supplier-matcher.js';
+import { validateDebitCreditBalance } from '../../../domain/accounting/balance-validator.js';
+import type { GeneratedJournalEntry } from '../../../domain/journal/journal.types.js';
 
 import {
   supabaseAdmin,
@@ -24,8 +24,8 @@ import {
   fetchTaxCategories,
   findFallbackAccountId,
   verifyClientOwnership,
-} from '../helpers/master-data.js';
-import { AuthenticatedRequest } from '../middleware/auth.middleware.js';
+} from '../../helpers/master-data.js';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware.js';
 
 const router = Router();
 
