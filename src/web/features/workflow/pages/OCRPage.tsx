@@ -28,6 +28,36 @@ interface OCRResultItem {
 
 const MAX_RETRY = 3;
 
+/** OCR API が返す結果の型（ocrApi.process のレスポンス内 ocr_result） */
+interface OCRApiResult {
+  confidence_score?: number;
+  extracted_supplier?: string;
+  extracted_amount?: number;
+  extracted_tax_amount?: number;
+  extracted_date?: string;
+  [key: string]: unknown;
+}
+
+/** 仕訳生成 API が返す結果の型 */
+interface JournalGenerateResult {
+  journal_entry: {
+    entry_date?: string;
+    notes?: string;
+    confidence?: number;
+    lines?: Array<{
+      line_number?: number;
+      debit_credit: string;
+      account_item_id: string;
+      amount: number;
+      tax_category_id?: string | null;
+      tax_rate?: number | null;
+      tax_amount?: number | null;
+      description?: string | null;
+    }>;
+  };
+  [key: string]: unknown;
+}
+
 // エラーステップの日本語ラベル
 const ERROR_STEP_LABELS: Record<ErrorStep, string> = {
   storage_url: 'ファイルURL取得',
@@ -72,7 +102,7 @@ export default function OCRPage() {
 
       const clientId = currentWorkflow.clientId;
       const { data: client } = await clientsApi.getById(clientId);
-      if (client?.industry) setIndustry((client.industry as any).name || '');
+      if (client?.industry) setIndustry(client.industry.name || '');
 
       setOcrResults(results);
     };
@@ -119,19 +149,19 @@ export default function OCRPage() {
         throw new Error(ocrError || 'OCR API エラー');
       }
 
-      const ocrResult = ocrData.ocr_result;
+      const ocrResult = ocrData.ocr_result as OCRApiResult;
 
       // --- STEP 3: OCR結果をDBに保存 ---
       currentStep = 'ocr_save';
       const { error: ocrSaveError } = await documentsApi.update(result.documentId, {
         ocr_status: 'completed',
-        ocr_confidence: ocrResult.confidence_score,
-        supplier_name: ocrResult.extracted_supplier,
-        amount: ocrResult.extracted_amount,
-        tax_amount: ocrResult.extracted_tax_amount,
+        ocr_confidence: ocrResult.confidence_score ?? null,
+        supplier_name: ocrResult.extracted_supplier ?? null,
+        amount: ocrResult.extracted_amount ?? null,
+        tax_amount: ocrResult.extracted_tax_amount ?? null,
         document_date: ocrResult.extracted_date || new Date().toISOString().split('T')[0],
         status: 'ocr_completed',
-      } as any);
+      });
 
       if (ocrSaveError) {
         throw new Error(`OCR結果の保存に失敗: ${ocrSaveError}`);
@@ -150,7 +180,8 @@ export default function OCRPage() {
         throw new Error(journalError || '仕訳生成 API エラー');
       }
 
-      const journalEntry = journalData.journal_entry;
+      const journalGenResult = journalData as unknown as JournalGenerateResult;
+      const journalEntry = journalGenResult.journal_entry;
 
       // --- STEP 5: 仕訳ヘッダーINSERT ---
       currentStep = 'journal_save';
@@ -161,7 +192,7 @@ export default function OCRPage() {
 
       // Backend POST /api/journal-entries accepts { ...entry, lines } and inserts both header and lines
       currentStep = 'lines_save';
-      const linesToInsert = (journalEntry.lines || []).map((line: any, idx: number) => ({
+      const linesToInsert = (journalEntry.lines || []).map((line, idx) => ({
         line_number: line.line_number ?? idx + 1,
         debit_credit: line.debit_credit,
         account_item_id: line.account_item_id,
@@ -191,7 +222,7 @@ export default function OCRPage() {
       }
 
       // --- STEP 6: documentsステータス更新 ---
-      await documentsApi.update(result.documentId, { status: 'ai_processing' } as any);
+      await documentsApi.update(result.documentId, { status: 'ai_processing' });
 
       // --- 完了 ---
       setOcrResults(prev => prev.map(r =>
@@ -200,21 +231,22 @@ export default function OCRPage() {
           : r
       ));
 
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errMsg = error instanceof Error ? error.message : String(error);
       console.error(`OCR エラー [${currentStep}] (${result.fileName}):`, error);
 
       // DB側のステータスも適切に更新
       if (currentStep === 'ocr_api' || currentStep === 'storage_url') {
         // OCR自体が失敗 → ocr_status='error'
-        await documentsApi.update(result.documentId, { ocr_status: 'error', status: 'uploaded' } as any);
+        await documentsApi.update(result.documentId, { ocr_status: 'error', status: 'uploaded' });
       } else if (currentStep === 'journal_api' || currentStep === 'journal_save' || currentStep === 'lines_save') {
         // OCRは成功、仕訳生成が失敗 → ocr_status='completed' のまま、status='ocr_completed'
-        await documentsApi.update(result.documentId, { status: 'ocr_completed' } as any);
+        await documentsApi.update(result.documentId, { status: 'ocr_completed' });
       }
 
       setOcrResults(prev => prev.map(r =>
         r.id === result.id
-          ? { ...r, status: 'error' as OCRStatus, errorMessage: error.message, errorStep: currentStep, retryCount: r.retryCount + 1 }
+          ? { ...r, status: 'error' as OCRStatus, errorMessage: errMsg, errorStep: currentStep, retryCount: r.retryCount + 1 }
           : r
       ));
     }

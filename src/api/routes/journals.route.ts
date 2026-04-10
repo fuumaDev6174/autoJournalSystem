@@ -115,7 +115,11 @@ router.post('/journal-entries/generate', validateBody({
         }
 
         if (imageBase64) {
-          const extractedLines = await extractMultipleEntries(imageBase64, mimeType, docTypeCode || 'bank_statement', industry);
+          const multiResult = await extractMultipleEntries(imageBase64, mimeType, docTypeCode || 'bank_statement', industry);
+          if (multiResult.error) {
+            console.error(`[仕訳生成] 明細分割エラー: ${multiResult.error}`);
+          }
+          const extractedLines = multiResult.lines;
           console.log(`[仕訳生成] 明細分割完了: ${extractedLines.length}行`);
 
           const multiEntries = [];

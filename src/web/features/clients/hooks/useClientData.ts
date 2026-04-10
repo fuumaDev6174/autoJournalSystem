@@ -2,7 +2,7 @@
  * @module 顧客データ hooks
  */
 import { useState, useEffect, useCallback } from 'react';
-import type { Industry, ClientWithIndustry, Rule } from '@/types';
+import type { Industry, ClientWithIndustry, Rule, WorkflowData } from '@/types';
 import {
   clientsApi, industriesApi, accountItemsApi,
   clientAccountRatiosApi, rulesApi,
@@ -14,7 +14,7 @@ export interface ActiveWorkflow {
   client_id: string;
   current_step: number;
   status: string;
-  data: Record<string, unknown>;
+  data: WorkflowData;
   updated_at: string;
   clientName?: string;
 }

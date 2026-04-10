@@ -4,6 +4,7 @@
 // ============================================
 
 import { workflowsApi as backendWorkflowsApi } from '@/web/shared/lib/api/backend.api';
+import type { Workflow } from '@/types';
 
 export interface WorkflowState {
   id: string;
@@ -33,7 +34,7 @@ export const workflowsApi = {
 
     if (error || !data || data.length === 0) return null;
     // Sort by created_at desc and take the first one
-    const sorted = [...data].sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const sorted = [...data].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return dbRowToState(sorted[0]);
   },
 
@@ -127,9 +128,9 @@ export const workflowsApi = {
     if (error || !data) return [];
     // Sort by created_at desc and limit to 5
     return [...data]
-      .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
       .slice(0, 5)
-      .map((row: any) => ({
+      .map((row) => ({
         id: row.id,
         status: row.status,
         currentStep: row.current_step,
@@ -142,17 +143,16 @@ export const workflowsApi = {
 // ============================================
 // DBレコード → WorkflowState 変換
 // ============================================
-function dbRowToState(row: Record<string, unknown>, clientName = ''): WorkflowState {
-  const rawData = (row.data as WorkflowState['data']) ?? {};
+function dbRowToState(row: Workflow, clientName = ''): WorkflowState {
   return {
-    id: row.id as string,
-    clientId: row.client_id as string,
+    id: row.id,
+    clientId: row.client_id,
     clientName,
-    currentStep: (row.current_step as number) ?? 1,
-    completedSteps: (row.completed_steps as number[]) ?? [],
-    data: rawData,
-    lastUpdated: (row.updated_at as string) ?? new Date().toISOString(),
-    createdAt: (row.created_at as string) ?? new Date().toISOString(),
+    currentStep: row.current_step ?? 1,
+    completedSteps: row.completed_steps ?? [],
+    data: row.data ?? {},
+    lastUpdated: row.updated_at ?? new Date().toISOString(),
+    createdAt: row.created_at ?? new Date().toISOString(),
   };
 }
 

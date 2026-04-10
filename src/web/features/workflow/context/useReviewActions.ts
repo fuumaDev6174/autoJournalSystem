@@ -64,12 +64,12 @@ interface UseReviewActionsParams {
 
 export function useReviewActions(params: UseReviewActionsParams) {
   const {
-    currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
-    items, setItems, currentIndex, setCurrentIndex, form, setForm, compoundLines,
-    entries, setEntries, multiEntryGroups,
+    currentWorkflow, user, isManagerOrAdmin,
+    items, currentIndex, setCurrentIndex, form, setForm,
+    entries, multiEntryGroups,
     accountItems, taxCategories, taxRates, suppliers, itemsMaster, clientRatios,
-    businessRatio, setBusinessRatio, setSaving, setSavedAt,
-    addRule, setAddRule, ruleScope, ruleIndustryId, setRuleSuggestion,
+    setBusinessRatio, setSavedAt,
+    setAddRule, setRuleSuggestion,
     setSupplierText, setItemText,
     aiOriginalForm, setAiOriginalForm, setRotation,
     setViewMode, setRuleIndustryId, setExpandedDocs,

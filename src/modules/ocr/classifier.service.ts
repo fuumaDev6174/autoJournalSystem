@@ -1,234 +1,220 @@
 /**
- * @module 証憑分類プロンプト
- * @description Gemini に送る書類分類プロンプト。全63書類種別を網羅。
+ * @module 証憑分類サービス
+ * @description Gemini AI で画像を書類種別に分類する。失敗時はフォールバック値を返す。
  *
  * ═══════════════════════════════════════════════════════
  * 変更履歴（2026-04-10 議論反映）
  * ═══════════════════════════════════════════════════════
- *
- * 【追加】収入系
- *   - payment_statement : 支払調書（事業所得の源泉徴収証明）
- *     → salary_cert（給与所得）とは所得税の計算ルートが異なるため分離
- *
- * 【追加】経費系
- *   - bank_transfer_receipt : 振込明細・送金完了画面
- *     → payment_record（収入系・入金側）と対になる「経費側の振込証拠」
- *   - utility_bill : 水道光熱費・通信費の請求書/検針票
- *     → 家事按分の判定ではなく「勘定科目推定の精度向上」が目的
- *   - tax_receipt : 税金・社会保険料の納付済領収書
- *     → receipt に混ざるとAIが「消耗品費」に誤分類するため独立化
- *
- * 【移動】資産・償却系 → メタデータ系
- *   - prev_return : 前年の確定申告書（控え）
- *     → 仕訳生成の対象ではなく、繰越損失/予定納税額の参照用メタデータ
- *
- * 【Phase B 予約（現時点では未投入・コメントのみ）】
- *   - current_account_statement : 当座勘定照合表（法人対応時に追加）
- *   - social_insurance_notice   : 社会保険料決定通知書（法人対応時に追加）
- *   - labor_insurance           : 労働保険料申告書/通知書（法人対応時に追加）
- *   - import_doc                : 輸入許可通知書・関税/輸入消費税（越境EC対応時に追加）
- *
- * 【設計判断メモ（Geminiとの議論で確定）】
- *   - startup_expense（開業費）は分類コード化しない。
- *     画像だけでは判別不可能（開業前後の receipt は見た目が同一）。
- *     Phase 3 の推論レイヤー（購入日 < 開業日 → 開業費）で処理する。
- *   - depreciation_calc（減価償却費計算書）は分類コード化しない。
- *     固定資産マスタ（取得日・金額・耐用年数）からシステムが自動計算すべき。
- *   - utility_bill の目的は「家事按分の分岐」ではなく「勘定科目推定の精度向上」。
- *     家事按分は client_account_ratios テーブルで制御する。
+ * - VALID_DOC_CODES に 4コード追加:
+ *     payment_statement, bank_transfer_receipt, utility_bill, tax_receipt
+ * - prev_return をメタデータ系セクションに移動（コード値自体は変更なし）
+ * - Phase B 予約コードはコメントで明示（VALID_DOC_CODES には未追加）
  * ═══════════════════════════════════════════════════════
  */
-export const CLASSIFY_DOCUMENT_PROMPT = `あなたは日本の税理士事務所で使われる証憑分類AIです。
-以下の画像を分析し、証憑の種別を1つだけ判定してください。
 
-━━━━━━━━━━━━━━━━━━━━━━━
-■ 分類コード一覧
-━━━━━━━━━━━━━━━━━━━━━━━
+import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
+import { CLASSIFY_DOCUMENT_PROMPT } from './classifier.prompt.js';
+import type { ClassificationResult } from './ocr.types.js';
 
-【収入系 — 仕訳対象】
-issued_invoice    : 発行済み請求書（自社・自分が発行した売上請求書。宛先は取引先）
-payment_record    : 入金記録・入金確認書（振込明細・入金通知書等）
-payment_statement : 支払調書（取引先から発行される報酬・料金等の源泉徴収証明書）
-platform_csv      : プラットフォーム売上CSV（Amazon・楽天・メルカリ等の売上明細）
-bank_statement    : 銀行通帳・入出金明細（通帳の写し、ネットバンクのPDF明細）
-salary_cert       : 給与証明書・源泉徴収票（雇用者から発行される給与所得の年収証明書類）
-stock_report      : 株式取引報告書・特定口座年間取引報告書
-crypto_history    : 暗号資産（仮想通貨）取引履歴・損益計算書
-pension_cert      : 年金証書・年金振込通知書
-realestate_inc    : 不動産収入明細・家賃管理表・賃料集計表
-insurance_mat     : 保険満期金通知・解約返戻金通知書
+/**
+ * 有効な書類種別コードの一覧。
+ * Gemini が返したコードがこの Set に含まれなければ other_journal にフォールバックする。
+ */
+const VALID_DOC_CODES = new Set([
+  // ── 収入系 ──
+  'issued_invoice', 'payment_record', 'payment_statement', 'platform_csv',
+  'bank_statement', 'salary_cert', 'stock_report', 'crypto_history',
+  'pension_cert', 'realestate_inc', 'insurance_mat',
 
-【経費系 — 仕訳対象】
-receipt               : レシート・領収書（店頭で受け取る紙の証憑）
-pdf_invoice           : PDF請求書（メール・Webで受領した電子請求書。印影なし・QRコードあり等）
-recv_invoice          : 受領請求書（仕入先・外注先・家主等から受け取った紙の請求書。印鑑あり）
-invoice               : 請求書（上記2種で判別できない請求書）
-credit_card           : クレジットカード利用明細（カード会社から届く月次明細）
-e_money_statement     : 電子マネー/QR決済明細（PayPay・Suica・楽天Pay等の利用明細）
-etc_statement         : ETC利用明細（高速道路の利用履歴）
-expense_report        : 経費精算書（社員・従業員が提出する経費の一覧表）
-inventory             : 棚卸表（期末の商品・材料の在庫一覧）
-tax_interim           : 予定納税通知書・中間納付書（税務署からの納付案内）
-payment_notice        : 支払通知書（外注費・業務委託費の支払案内）
-bank_transfer_receipt : 振込明細・送金完了画面（ATMの利用明細やネットバンクの出金完了画面）
-utility_bill          : 水道光熱費・通信費の請求書・検針票（電気/ガス/水道/インターネット/電話）
-tax_receipt           : 税金・社会保険料の納付済領収書（コンビニ等で支払った国保/固定資産税/消費税等の半券）
+  // ── 経費系 ──
+  'receipt', 'pdf_invoice', 'recv_invoice', 'invoice', 'credit_card',
+  'e_money_statement', 'etc_statement', 'expense_report', 'inventory',
+  'tax_interim', 'payment_notice', 'bank_transfer_receipt', 'utility_bill',
+  'tax_receipt',
 
-【複合仕訳 — 仕訳対象】
-payroll      : 給与明細・賃金台帳（社会保険・源泉徴収を含む給与の内訳書）
-sales_report : 売上集計表・レジ日報・POSレポート
+  // ── 複合仕訳 ──
+  'payroll', 'sales_report',
 
-【資産・償却系 — 仕訳対象】
-fixed_asset   : 固定資産台帳・償却資産明細（取得価額・減価償却費が記載）
-loan_schedule : 借入金返済予定表（元金・利息・残高が記載）
+  // ── 資産・償却系 ──
+  'fixed_asset', 'loan_schedule',
 
-【所得控除・税額控除系 — 非仕訳対象（確定申告に使用）】
-kokuho           : 国民健康保険料納付証明書
-nenkin           : 国民年金保険料控除証明書
-shokibo          : 小規模企業共済掛金証明書
-ideco            : iDeCo（小規模企業共済等掛金）払込証明書
-life_insurance   : 生命保険料控除証明書
-earthquake_ins   : 地震保険料控除証明書
-medical          : 医療費の領収書・医療費通知書・医療費のお知らせ
-furusato         : ふるさと納税受領証明書・寄附金受領証
-housing_loan     : 住宅借入金等特別控除証明書・住宅ローン残高証明書
-deduction_cert   : その他の控除証明書（上記控除以外）
-other_deduction  : その他の所得控除書類
+  // ── 所得控除・税額控除系 ──
+  'kokuho', 'nenkin', 'shokibo', 'ideco', 'life_insurance',
+  'earthquake_ins', 'medical', 'furusato', 'housing_loan',
+  'deduction_cert', 'other_deduction',
 
-【メタデータ系 — 非仕訳対象（届出・契約・身分証等）】
-mynumber          : マイナンバーカード・通知カード
-kaigyo            : 開業届（個人事業の開業届出書）
-aoiro             : 青色申告承認申請書
-senjusha          : 青色事業専従者給与に関する届出書
-invoice_reg       : インボイス登録通知書（適格請求書発行事業者の登録番号通知）
-kanizei           : 簡易課税制度選択届出書
-tanaoroshi_method : 棚卸資産の評価方法届出書
-shoukyaku_method  : 減価償却資産の償却方法届出書
-chintai           : 賃貸借契約書（事務所・店舗・住居の賃貸契約）
-gaichuu           : 外注契約書・業務委託契約書
-fudosan_contract  : 不動産売買契約書
-lease             : リース契約書（車両・機器等のリース）
-shaken            : 車検証（自動車検査証）
-id_card           : 免許証・健康保険証・パスポート等の本人確認書類
-contract          : 契約書（上記以外の一般的な契約書・覚書）
-estimate          : 見積書
-purchase_order    : 発注書
-delivery_note     : 納品書
-insurance_policy  : 保険証券（生命保険・損害保険の証書）
-registry          : 登記簿謄本（不動産・法人）
-minutes           : 議事録・総会議事録
-prev_return       : 前年の確定申告書（控え）— 繰越損失・予定納税額の参照用
+  // ── メタデータ系（届出・契約・身分証・参照書類）──
+  'mynumber', 'kaigyo', 'aoiro', 'senjusha', 'invoice_reg', 'kanizei',
+  'tanaoroshi_method', 'shoukyaku_method', 'chintai', 'gaichuu',
+  'fudosan_contract', 'lease', 'shaken', 'id_card', 'contract',
+  'estimate', 'purchase_order', 'delivery_note', 'insurance_policy',
+  'registry', 'minutes', 'prev_return',
 
-【保管のみ — 非仕訳対象】
-other_ref : その他の参考書類（上記いずれにも明確に該当しない書類）
+  // ── 保管・フォールバック ──
+  'other_ref', 'other_journal',
 
-【フォールバック — 仕訳対象】
-other_journal : その他仕訳対象（仕訳が必要だが上記に該当しない書類）
+  // ── Phase B 予約（投入時にコメントを外す）──
+  // 'current_account_statement',  // 当座勘定照合表
+  // 'social_insurance_notice',    // 社会保険料決定通知書
+  // 'labor_insurance',            // 労働保険料申告書/通知書
+  // 'import_doc',                 // 輸入許可通知書・関税/輸入消費税
+]);
 
-━━━━━━━━━━━━━━━━━━━━━━━
-■ 出力形式（JSONのみ。説明文・コードブロック不要）
-━━━━━━━━━━━━━━━━━━━━━━━
+export type { ClassificationResult } from './ocr.types.js';
 
-{
-  "document_type_code": "receipt",
-  "confidence": 0.95,
-  "estimated_lines": 1,
-  "description": "コンビニのレシート（イオン）"
+/** 判定失敗時に返すデフォルト値 */
+const FALLBACK: ClassificationResult = {
+  document_type_code: 'other_journal',
+  confidence: 0,
+  estimated_lines: 1,
+  description: 'AI判定失敗',
+};
+
+/**
+ * 画像（Base64）を Gemini に送り、書類種別を判定する。
+ * どんなエラーが起きても例外は投げず、フォールバック値を返す。
+ */
+export async function classifyDocument(
+  imageBase64: string,
+  mimeType: string,
+): Promise<ClassificationResult> {
+
+  if (!imageBase64) {
+    console.error('[分類] 画像データが空です');
+    return { ...FALLBACK, description: '画像データが空です' };
+  }
+
+  let response;
+  try {
+    response = await callGeminiWithRetry(
+      () => ai.models.generateContent({
+        model: GEMINI_MODEL_OCR,
+        contents: [{
+          role: 'user',
+          parts: [
+            { inlineData: { mimeType, data: imageBase64 } },
+            { text: CLASSIFY_DOCUMENT_PROMPT },
+          ],
+        }],
+      }),
+      '証憑分類',
+    );
+  } catch (error: any) {
+    logApiError(error);
+    return { ...FALLBACK, description: `Gemini APIエラー: ${errorSummary(error)}` };
+  }
+
+  const rawText = response?.text ?? '';
+  if (rawText.trim().length === 0) {
+    console.error('[分類] Gemini の応答が空です');
+    return { ...FALLBACK, description: 'Geminiの応答が空です' };
+  }
+
+  const jsonText = extractJSON(rawText);
+  if (!jsonText) {
+    console.error('[分類] JSON抽出失敗。応答:', rawText.slice(0, 300));
+    return { ...FALLBACK, description: 'Gemini応答からJSONを取り出せません' };
+  }
+
+  const parsed = safeParseJSON(jsonText);
+  if (!parsed) {
+    return { ...FALLBACK, description: 'JSONパース失敗' };
+  }
+
+  return normalize(parsed);
 }
 
-━━━━━━━━━━━━━━━━━━━━━━━
-■ 各フィールドの定義
-━━━━━━━━━━━━━━━━━━━━━━━
+/** Gemini の生テキストから JSON 部分だけを取り出す */
+function extractJSON(raw: string): string {
+  const codeBlock = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
+  if (codeBlock) return codeBlock[1].trim();
 
-【document_type_code】
-上記リストのコードを1つだけ記入。
+  const bare = raw.match(/\{[\s\S]*\}/);
+  if (bare) return bare[0].trim();
 
-【confidence】
-0.0〜1.0の確信度。このシステムでは 0.8 が重要な閾値です。
-- 0.9以上 : 書類種別が明確に特定できる（典型的な書式・ロゴ・レイアウト）
-- 0.8〜0.89: 高い確率でこの種別だが、細部が不鮮明な場合
-- 0.6〜0.79: 可能性が高いが確信が持てない（別の種別の可能性あり）
-- 0.4〜0.59: 判断が難しい（類似書類と区別がつかない）
-- 0.4未満  : ほとんど判断できない（画像品質不良・書類の大部分が隠れている等）
-確信度を過大申告しないでください。迷いがある場合は0.79以下で回答してください。
+  return '';
+}
 
-【estimated_lines】
-取引明細の推定行数（件数）。
-- 1行の定義: 日付・金額・取引先がセットになった「1件の取引」を1行とカウント
-- レシート・領収書・単一請求書 → 1
-- 通帳・クレカ明細・経費精算書等の一覧表 → 実際に見える行数（ページに収まっている件数）
-- PDFで複数ページある場合は全ページの合計を推定して回答
+/**
+ * JSON パースを試み、失敗したらよくある壊れ方を修復して再試行する。
+ * 末尾カンマ・シングルクォート・クォートなしキーに対応。
+ */
+function safeParseJSON(text: string): any | null {
+  try {
+    return JSON.parse(text);
+  } catch {
+    // 修復を試みる
+  }
 
-【description】
-書類の簡潔な説明（20文字以内の日本語）。
-例: "イオンのレシート" / "三井住友銀行の通帳" / "A社からの外注費請求書"
+  try {
+    const fixed = text
+      .replace(/,\s*([}\]])/g, '$1')
+      .replace(/'/g, '"')
+      .replace(/(\w+)\s*:/g, '"$1":');
+    const result = JSON.parse(fixed);
+    console.warn('[分類] JSON修復パースで成功');
+    return result;
+  } catch {
+    console.error('[分類] JSON修復パースも失敗。テキスト:', text.slice(0, 300));
+    return null;
+  }
+}
 
-━━━━━━━━━━━━━━━━━━━━━━━
-■ 判定ヒント（よく迷うケース）
-━━━━━━━━━━━━━━━━━━━━━━━
+/** Gemini の返した値を安全な ClassificationResult に変換する */
+function normalize(raw: any): ClassificationResult {
+  const code = (typeof raw.document_type_code === 'string')
+    ? raw.document_type_code.trim().toLowerCase()
+    : '';
 
-【請求書の3種類の区別】
-- issued_invoice : 自分（自社）が発行 → 宛先が「〇〇株式会社 御中」で、差出人が自分
-- recv_invoice   : 相手から受け取った紙の請求書 → 印鑑あり・手書き日付あり・FAX書式
-- pdf_invoice    : 相手から受け取った電子請求書 → 印鑑なし・電子署名・請求書番号バーコード・ロゴが綺麗
+  const confidence = clamp(toNumber(raw.confidence), 0, 1);
+  const estimatedLines = Math.max(1, Math.round(toNumber(raw.estimated_lines, 1)));
+  const description = (typeof raw.description === 'string')
+    ? raw.description.slice(0, 200)
+    : '';
 
-【salary_cert vs payment_statement（重要！計算ルートが異なる）】
-- salary_cert       : 「支払金額」「給与所得控除後の金額」「所得控除の額の合計額」が記載された源泉徴収票。勤務先が発行。
-- payment_statement : 「報酬、料金、契約金及び賞金の支払調書」と題されている。取引先（業務委託元）が発行。
-  → salary_cert = 給与所得の証明。payment_statement = 事業所得の源泉徴収証明。税計算ルートが全く異なるため絶対に混同しないこと。
+  if (!code || !VALID_DOC_CODES.has(code)) {
+    console.warn(`[分類] 不明なコード "${code}" → other_journal にフォールバック`);
+    return {
+      document_type_code: 'other_journal',
+      confidence: Math.min(confidence, 0.3),
+      estimated_lines: estimatedLines,
+      description: description || `不明なコード: ${code}`,
+    };
+  }
 
-【通帳 vs クレカ明細】
-- bank_statement : 「残高」欄がある / 銀行名・支店名・口座番号が記載
-- credit_card    : 「利用日」「利用先」「利用金額」が3列で並ぶ / カード会社名が上部にある
+  return { document_type_code: code, confidence, estimated_lines: estimatedLines, description };
+}
 
-【振込系の入金 vs 出金】
-- payment_record        : 入金側の振込明細・入金通知書（収入の証拠）
-- bank_transfer_receipt : 出金側の振込明細・送金完了画面（経費の支払い証拠）
-  → 「入金」「お振込みいただきました」→ payment_record
-  → 「送金」「お振込み完了」「出金」→ bank_transfer_receipt
+/** 値を数値に変換する。変換できなければ fallback を返す */
+function toNumber(value: unknown, fallback = 0): number {
+  if (typeof value === 'number' && !Number.isNaN(value)) return value;
+  if (typeof value === 'string') {
+    const n = parseFloat(value);
+    return Number.isNaN(n) ? fallback : n;
+  }
+  return fallback;
+}
 
-【水道光熱費・通信費（utility_bill）の区別】
-- utility_bill : 電力会社・ガス会社・水道局・通信事業者からの請求書/検針票/利用明細
-  → 東京電力・大阪ガス・NTT・KDDI・ソフトバンク等のロゴがある
-  → 「ご請求金額」「ご利用期間」「メーター番号/お客様番号」が記載
-- recv_invoice : 上記以外の一般的な請求書
+/** min〜max に収める */
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
 
-【税金の納付書（tax_receipt）vs 通常のレシート】
-- tax_receipt : 「領収済通知書」「納付書」と印字。管轄の税務署名・市区町村名がある。
-  → 国民健康保険料、国民年金、固定資産税、消費税、住民税、自動車税等
-  → コンビニの「収納代行」印がある半券
-- receipt     : 通常の物品購入・サービス利用のレシート
+/** エラーメッセージを短く切り出す */
+function errorSummary(error: any): string {
+  return (error?.message || String(error)).slice(0, 100);
+}
 
-【予定納税通知書 vs 税金の納付済領収書】
-- tax_interim : 税務署から届く「いくら払え」という通知書（未払い）
-- tax_receipt : 実際に支払った後の領収証・半券（支払済み）
+/** Gemini API エラーの原因を特定してログに出す */
+function logApiError(error: any): void {
+  const msg = errorSummary(error);
+  console.error(`[分類] Gemini API失敗: ${msg}`);
 
-【医療費書類】
-- medical : 医療費の「領収書」も medical に分類（receipt ではない）
-            「医療費のお知らせ」（保険組合からの通知）も medical
-
-【届出書の「控」】
-- 届出書の控え（コピーに「控」の印鑑があるもの）は原本と同じコードで分類
-
-【前年の確定申告書】
-- prev_return : メタデータ系（仕訳対象ではない）
-  → 「所得税及び復興特別所得税の確定申告書」と記載
-  → 第一表・第二表・青色申告決算書/収支内訳書を含む
-
-【複数書類が1枚に混在する場合】
-- 最も重要・ページ数が多いと思われる書類種別を選択
-- confidenceは0.7以下にして、descriptionに「複数書類混在の可能性あり」と記載
-
-【画像品質が不良の場合】
-- 文字が読めず書類種別が全く判断できない → other_ref、confidence 0.3以下
-- 書類の種類はわかるが細部が読めない → 該当コードを選び、confidence 0.4〜0.6
-- 白紙・真っ黒・完全に判読不能 → other_ref、confidence 0.1
-
-━━━━━━━━━━━━━━━━━━━━━━━
-■ 絶対に守るルール
-━━━━━━━━━━━━━━━━━━━━━━━
-1. JSONのみを出力すること（説明文・コードブロック・前置き一切不要）
-2. document_type_code は上記リストのコードをそのまま使うこと（造語禁止）
-3. 判断に迷う場合は confidence を正直に下げること（0.8未満なら後続処理で再確認される）
-4. other_journal は「仕訳が必要そうだが種別が特定できない」ときのみ使用
-5. other_ref は「仕訳不要かつ種別不明」のときのみ使用`;
+  if (/429|RESOURCE_EXHAUSTED|rate.?limit/i.test(msg)) {
+    console.error('[分類] → レート制限。時間をおいて再実行してください');
+  } else if (/403|PERMISSION_DENIED/i.test(msg)) {
+    console.error('[分類] → APIキーの権限不足、またはモデルへのアクセス不可');
+  } else if (/timeout|DEADLINE_EXCEEDED/i.test(msg)) {
+    console.error('[分類] → タイムアウト。画像サイズが大きすぎる可能性があります');
+  }
+}

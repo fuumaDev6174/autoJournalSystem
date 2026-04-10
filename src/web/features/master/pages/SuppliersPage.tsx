@@ -2,22 +2,9 @@ import { useState, useEffect } from 'react';
 import { Plus, Edit, Trash2, Search, BadgeCheck } from 'lucide-react';
 import Modal from '@/web/shared/components/ui/Modal';
 import { suppliersApi, rulesApi } from '@/web/shared/lib/api/backend.api';
+import type { SupplierAlias } from '@/types';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-
-interface Supplier {
-  id: string;
-  organization_id: string | null;
-  client_id: string | null;
-  name: string;
-  name_kana: string | null;
-  code: string | null;
-  invoice_number: string | null;
-  is_invoice_registered: boolean;
-  is_active: boolean;
-  notes: string | null;
-  category: string | null;
-  created_at: string;
-}
+import type { Supplier } from '@/types';
 
 // カテゴリ定義
 const CATEGORIES: Array<{ key: string; label: string }> = [
@@ -36,14 +23,6 @@ const CATEGORIES: Array<{ key: string; label: string }> = [
 
 // 50音インデックス
 const KANA_INDEX = ['あ','か','さ','た','な','は','ま','や','ら','わ','A-Z'];
-
-interface SupplierAlias {
-  id: string;
-  supplier_id: string;
-  alias_name: string;
-  source: 'manual' | 'ocr_learned' | 'ai_suggested';
-  created_at: string;
-}
 
 function Switch({ checked, onChange, disabled }: { checked: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
   return (
@@ -68,7 +47,7 @@ export default function SuppliersPage() {
   const [newAliasName, setNewAliasName] = useState('');
   const [supplierRules, setSupplierRules] = useState<Array<{
     id: string; rule_name: string; priority: number; scope: string;
-    conditions: any; actions: any;
+    conditions: Record<string, unknown>; actions: Record<string, unknown>;
   }>>([]);
 
   const orgId = userProfile?.organization_id || null;
@@ -141,16 +120,16 @@ export default function SuppliersPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data: any = {
+    const payload: Partial<Supplier> = {
       name: formData.name,
       name_kana: formData.name_kana || null,
       code: formData.code || null,
       invoice_number: formData.invoice_number || null,
       is_invoice_registered: formData.is_invoice_registered,
-      category: formData.category || 'other',
       is_active: editingSupplier ? editingSupplier.is_active : true,
     };
-    if (!editingSupplier) data.organization_id = orgId;
+    if (!editingSupplier && orgId) payload.organization_id = orgId;
+    const data = payload;
 
     if (editingSupplier) {
       const { error } = await suppliersApi.update(editingSupplier.id, data);

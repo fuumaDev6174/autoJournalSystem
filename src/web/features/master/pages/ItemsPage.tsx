@@ -3,46 +3,9 @@ import { Plus, Edit, Trash2, Search, ArrowLeft, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Modal from '@/web/shared/components/ui/Modal';
 import { itemsApi, accountItemsApi, taxCategoriesApi } from '@/web/shared/lib/api/backend.api';
+import type { Item, ItemAlias } from '@/web/shared/lib/api/backend.api';
+import type { AccountItem, TaxCategory } from '@/types';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-
-
-// ============================================
-// 型定義
-// ============================================
-interface Item {
-  id: string;
-  organization_id: string | null;
-  client_id: string | null;
-  code: string | null;
-  name: string;
-  unit: string | null;
-  unit_price: number | null;
-  category: string | null;
-  default_account_item_id: string | null;
-  default_tax_category_id: string | null;
-  is_active: boolean;
-  description: string | null;
-  created_at: string;
-}
-
-interface ItemAlias {
-  id: string;
-  item_id: string;
-  alias_name: string;
-  source: 'manual' | 'ocr_learned' | 'ai_suggested';
-  created_at: string;
-}
-
-interface AccountItemOption {
-  id: string;
-  code: string;
-  name: string;
-}
-
-interface TaxCategoryOption {
-  id: string;
-  name: string;
-}
 
 // ============================================
 // カテゴリ定義（品目の分類）
@@ -147,18 +110,15 @@ export default function ItemsPage() {
   // ============================================
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const data: any = {
+    const payload: Partial<Item> = {
       name: formData.name,
       code: formData.code || null,
-      unit: formData.unit || null,
-      unit_price: formData.unit_price ? Number(formData.unit_price) : null,
-      category: formData.category || null,
       default_account_item_id: formData.default_account_item_id || null,
       default_tax_category_id: formData.default_tax_category_id || null,
-      description: formData.description || null,
       is_active: editingItem ? editingItem.is_active : true,
     };
-    if (!editingItem) data.organization_id = orgId;
+    const data = payload;
+    if (!editingItem) (data as Record<string, unknown>).organization_id = orgId;
 
     if (editingItem) {
       const { error } = await itemsApi.update(editingItem.id, data);

@@ -1,6 +1,19 @@
 /**
  * @module OCR データ抽出サービス
  * @description 画像を Gemini に送り取引データ（金額・日付・取引先等）を構造化して返す。
+ *
+ * ═══════════════════════════════════════════════════════
+ * 変更履歴（2026-04-10 議論反映）
+ * ═══════════════════════════════════════════════════════
+ * - OCRTransaction に tax_payment_type フィールドを追加
+ *   → tax_receipt（税金・社会保険料の納付書）の種類を特定するため
+ *   → 値: income_tax | consumption_tax | resident_tax | property_tax |
+ *          auto_tax | national_health_insurance | national_pension |
+ *          business_tax | other_tax | null
+ * - transaction_type の enum に "tax_payment" を追加
+ * - OCRResult に extracted_tax_payment_type を追加（先頭取引の代表値）
+ * - normalizeTx() で tax_payment_type を正規化
+ * ═══════════════════════════════════════════════════════
  */
 
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
@@ -17,6 +30,13 @@ const EXT_TO_MIME: Record<string, string> = {
 };
 
 const DEFAULT_MIME = 'image/jpeg';
+
+/** tax_payment_type の許可リスト */
+const TAX_PAYMENT_TYPES = [
+  'income_tax', 'consumption_tax', 'resident_tax', 'property_tax',
+  'auto_tax', 'national_health_insurance', 'national_pension',
+  'business_tax', 'other_tax',
+] as const;
 
 /**
  * 画像から取引データを OCR 抽出する。
@@ -176,8 +196,9 @@ function normalizeTx(tx: any): OCRTransaction {
     withholding_tax_amount: track('withholding_tax', tx.withholding_tax_amount, asNumberOrNull(tx.withholding_tax_amount)),
     invoice_qualification:  asEnumOrNull(tx.invoice_qualification, ['qualified', 'kubun_kisai']),
     addressee:              asStringOrNull(tx.addressee),
-    transaction_type:       asEnumOrNull(tx.transaction_type, ['purchase', 'expense', 'asset', 'sales', 'fee']),
+    transaction_type:       asEnumOrNull(tx.transaction_type, ['purchase', 'expense', 'asset', 'sales', 'fee', 'tax_payment']),
     transfer_fee_bearer:    asEnumOrNull(tx.transfer_fee_bearer, ['sender', 'receiver']),
+    tax_payment_type:       asEnumOrNull(tx.tax_payment_type, [...TAX_PAYMENT_TYPES]),
   };
 
   if (fallbacks.length > 0) {
@@ -211,22 +232,35 @@ function normalizeItems(raw: any): OCRTransaction['items'] {
   }));
 }
 
-/** 日付文字列を YYYY-MM-DD に正規化する */
+/** 日付文字列を YYYY-MM-DD に正規化する。無効な形式は null を返す */
 function normalizeDate(value: any): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   const normalized = value.trim().replace(/\//g, '-');
-  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(normalized)) return normalized;
-  return normalized;
+  // YYYY-M-D ～ YYYY-MM-DD を許容
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    console.warn(`[抽出] 日付正規化失敗（非対応形式）: "${value}"`);
+    return null;
+  }
+  const [, y, m, d] = match;
+  const month = Number(m);
+  const day = Number(d);
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    console.warn(`[抽出] 日付正規化失敗（範囲外）: "${value}"`);
+    return null;
+  }
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
-/** インボイス登録番号を正規化する（T + 13桁） */
+/** インボイス登録番号を正規化する（T + 13桁）。形式不正は null を返す */
 function normalizeInvoiceNumber(value: any): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   const cleaned = value.trim()
     .replace(/^Ｔ/, 'T')
     .replace(/[\s\-]/g, '');
   if (/^T\d{13}$/.test(cleaned)) return cleaned;
-  return value.trim();
+  console.warn(`[抽出] インボイス番号不正（T+13桁でない）: "${value}"`);
+  return null;
 }
 
 /** transactions と先頭取引からフラット構造の OCRResult を組み立てる */
@@ -243,18 +277,19 @@ function buildResult(
     transactions,
     confidence_score: clamp(toNumber(extracted.confidence, 0.5), 0, 1),
 
-    extracted_date:                 first?.date ?? null,
-    extracted_supplier:             first?.supplier ?? null,
-    extracted_amount:               first?.total_amount ?? null,
-    extracted_tax_amount:           first?.tax_amount ?? null,
-    extracted_payment_method:       first?.payment_method ?? null,
-    extracted_invoice_number:       first?.invoice_number ?? null,
-    extracted_tategaki:             first?.tategaki ?? null,
-    extracted_withholding_tax:      first?.withholding_tax_amount ?? null,
+    extracted_date:                  first?.date ?? null,
+    extracted_supplier:              first?.supplier ?? null,
+    extracted_amount:                first?.total_amount ?? null,
+    extracted_tax_amount:            first?.tax_amount ?? null,
+    extracted_payment_method:        first?.payment_method ?? null,
+    extracted_invoice_number:        first?.invoice_number ?? null,
+    extracted_tategaki:              first?.tategaki ?? null,
+    extracted_withholding_tax:       first?.withholding_tax_amount ?? null,
     extracted_invoice_qualification: first?.invoice_qualification ?? null,
-    extracted_addressee:            first?.addressee ?? null,
-    extracted_transaction_type:     first?.transaction_type ?? null,
-    extracted_transfer_fee_bearer:  first?.transfer_fee_bearer ?? null,
+    extracted_addressee:             first?.addressee ?? null,
+    extracted_transaction_type:      first?.transaction_type ?? null,
+    extracted_transfer_fee_bearer:   first?.transfer_fee_bearer ?? null,
+    extracted_tax_payment_type:      first?.tax_payment_type ?? null,
     extracted_items: first?.items?.length
       ? first.items.map(i => ({
           name: i.name,

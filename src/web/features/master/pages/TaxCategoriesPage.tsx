@@ -3,21 +3,8 @@ import { ChevronDown, Search, Plus, Edit, Trash2, Percent } from 'lucide-react';
 import type { TaxCategory, Client } from '@/types';
 import Modal from '@/web/shared/components/ui/Modal';
 import { taxCategoriesApi, taxRatesApi, clientTaxSettingsApi, clientsApi } from '@/web/shared/lib/api/backend.api';
+import type { TaxRate } from '@/web/shared/lib/api/backend.api';
 import { useAuth } from '@/web/app/providers/AuthProvider';
-
-
-// ============================================
-// 型定義
-// ============================================
-interface TaxRate {
-  id: string;
-  rate: number;
-  name: string;
-  is_current: boolean;
-  valid_from: string | null;
-  valid_until: string | null;
-  created_at: string;
-}
 
 interface ClientTaxSetting {
   tax_category_id: string;

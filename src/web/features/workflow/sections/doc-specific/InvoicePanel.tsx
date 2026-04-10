@@ -6,7 +6,8 @@ import { useReview } from '../../context/ReviewContext';
 export default function InvoicePanel() {
   const { ci } = useReview();
   if (!ci) return null;
-  const qual = ci.docClassification?.invoice_qualification;
+  const classification = ci.docClassification as Record<string, unknown> | null;
+  const qual = classification?.invoice_qualification as string | undefined;
 
   return (
     <>

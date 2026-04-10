@@ -39,8 +39,9 @@ export interface OCRTransaction {
   withholding_tax_amount: number | null;
   invoice_qualification: 'qualified' | 'kubun_kisai' | null;
   addressee: string | null;
-  transaction_type: 'purchase' | 'expense' | 'asset' | 'sales' | 'fee' | null;
+  transaction_type: 'purchase' | 'expense' | 'asset' | 'sales' | 'fee' | 'tax_payment' | null;
   transfer_fee_bearer: 'sender' | 'receiver' | null;
+  tax_payment_type: 'income_tax' | 'consumption_tax' | 'resident_tax' | 'property_tax' | 'auto_tax' | 'national_health_insurance' | 'national_pension' | 'business_tax' | 'other_tax' | null;
 }
 
 /** processOCR() の戻り値。先頭取引の主要フィールドをフラットに展開している */
@@ -69,12 +70,13 @@ export interface OCRResult {
   extracted_addressee: string | null;
   extracted_transaction_type: string | null;
   extracted_transfer_fee_bearer: string | null;
+  extracted_tax_payment_type: string | null;
   confidence_score: number;
 }
 
 /** extractMultipleEntries() が返す1取引行 */
 export interface ExtractedLine {
-  date: string;
+  date: string | null;
   description: string;
   amount: number;
   counterparty: string | null;

@@ -159,14 +159,15 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 
 ## 3. 書類種別 → 分岐先 一覧表
 
-### 仕訳対象（38種）
+### 仕訳対象（39種）
 
-#### 単一仕訳 × single レイアウト（20種）
+#### 単一仕訳 × single レイアウト（25種）
 
 | コード | 書類名 | 追加セクション |
 |--------|--------|---------------|
 | `issued_invoice` | 発行済み請求書 | reconciliation |
 | `payment_record` | 入金記録 | reconciliation, withholding |
+| `payment_statement` | 支払調書 | withholding |
 | `salary_cert` | 給与証明書・源泉徴収票 | income_calc |
 | `stock_report` | 株式取引報告書 | income_calc |
 | `pension_cert` | 年金証書 | income_calc |
@@ -175,6 +176,9 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 | `pdf_invoice` | PDF請求書 | invoice_panel |
 | `recv_invoice` | 受領請求書 | invoice_panel, withholding, transfer_fee |
 | `invoice` | 請求書（分類不明） | invoice_panel, withholding, transfer_fee |
+| `bank_transfer_receipt` | 振込受取証 | - |
+| `utility_bill` | 公共料金請求書 | - |
+| `tax_receipt` | 税務領収書 | - |
 | `inventory` | 棚卸表 | inventory_calc |
 | `tax_interim` | 予定納税通知書 | - |
 | `payment_notice` | 支払通知書 | withholding |
@@ -444,7 +448,7 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 
 | フィールド | 型 | 説明 |
 |-----------|----|----- |
-| `date` | string | 取引日 (YYYY-MM-DD) |
+| `date` | string \| null | 取引日 (YYYY-MM-DD)。抽出失敗時は null |
 | `description` | string | 摘要/利用先/項目名 |
 | `amount` | number | 金額（正の数値・税込） |
 | `counterparty` | string \| null | 取引先名 |

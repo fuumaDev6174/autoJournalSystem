@@ -82,11 +82,11 @@ export default function SummaryPage() {
           // ワークフローに紐づくドキュメントIDを取得
           const { data: docs } = await documentsApi.getAll({ workflow_id: wf.id, client_id: cid });
 
-          const docIds = docs?.map((d: any) => d.id) || [];
+          const docIds = docs?.map(d => d.id) || [];
 
           // 取引日の日付範囲を計算
           const dates = docs
-            ?.map((d: any) => d.document_date)
+            ?.map(d => d.document_date)
             .filter(Boolean)
             .sort() || [];
 
@@ -101,18 +101,17 @@ export default function SummaryPage() {
 
           // 仕訳集計を取得
           const { data: allEntries } = await journalEntriesApi.getAll({ client_id: cid });
-          // Filter entries by document IDs belonging to this workflow
-          const entries = allEntries?.filter((e: any) => docIds.includes(e.document_id)) || [];
+          const entries = allEntries?.filter(e => e.document_id && docIds.includes(e.document_id)) || [];
 
           const total = entries.length;
-          const approved = entries.filter((e: any) => e.status === 'approved').length;
-          const excluded = entries.filter((e: any) => e.is_excluded).length;
-          const draft = entries.filter((e: any) => e.status === 'draft').length;
+          const approved = entries.filter(e => e.status === 'approved').length;
+          const excluded = entries.filter(e => e.is_excluded).length;
+          const draft = entries.filter(e => e.status === 'draft').length;
 
           // 借方合計金額を計算
-          const totalAmount = entries.reduce((sum: number, e: any) => {
-            const lines = e.lines || e.journal_entry_lines || [];
-            const debitLine = lines.find((l: any) => l.debit_credit === 'debit');
+          const totalAmount = entries.reduce((sum, e) => {
+            const lines = e.journal_entry_lines || [];
+            const debitLine = lines.find(l => l.debit_credit === 'debit');
             return sum + (debitLine?.amount || 0);
           }, 0);
 

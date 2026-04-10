@@ -70,8 +70,10 @@ src/
  |   |   '-- settings/       ユーザー設定
  |   |
  |   '-- shared/           2つ以上の feature で使う共有部品
- |       |-- components/     Modal, ComboBox, CompoundJournalTable
- |       |-- lib/api/        backend.api.ts（バックエンドAPI呼び出し関数）
+ |       |-- components/     Modal, ComboBox, ErrorBoundary, ConfirmDialog, Toast, PageSuspense
+ |       |-- hooks/          useAsync, useCrud, useModal, useSearchFilter, useConfirm
+ |       |-- constants/      statuses, keyboard, ui
+ |       |-- lib/api/        backend.api.ts（全エンドポイント型付きAPIクライアント）
  |       |-- types/          UI専用の拡張型
  |       '-- utils/          日付・金額フォーマッター
  |
@@ -79,8 +81,10 @@ src/
  |  [ 共有 ]
  |
  |-- shared/            サーバー/クライアント両方で使う
- |   |-- types/            全DBモデル型定義（30+ interface）
- |   '-- utils/            normalizeJapanese（日本語正規化）
+ |   |-- types/            全DBモデル型定義（50+ interface）
+ |   |-- constants/        会計定数（STATEMENT_EXTRACT_TYPES, FREEE_TAX_CODE_LOOKUP 等）
+ |   |-- errors/           構造化エラークラス（AppError, NotFoundError 等）
+ |   '-- utils/            normalizeJapanese, csv-escape, encryption
  |
  '-- db/                SQLスキーマ・マイグレーション
 ```
@@ -115,6 +119,10 @@ withholding-tax.ts
 household-ratio.ts
   splitByHouseholdRatio(総額, 税額, 事業割合)
   → { 事業用金額, 私用金額, 事業用税額, 私用税額 }
+
+rounding.ts
+  roundConsumptionTax(税額)     消費税を四捨五入
+  truncateWithholdingTax(税額)  源泉徴収税を切り捨て（通達181-1）
 ```
 
 ### matching/
@@ -152,7 +160,7 @@ date-validator.ts     isValidDateString(), isWithinFiscalYear()
 ocr.types.ts              OCR全型定義の一元管理
                           ClassificationResult / OCRResult / OCRTransaction / ExtractedLine
 
-classifier.prompt.ts      証憑分類プロンプト（56書類種別対応）
+classifier.prompt.ts      証憑分類プロンプト（60書類種別対応）
 classifier.service.ts     classifyDocument(画像)
                           → 種別コード + 確信度
                           → VALID_DOC_CODES でコード検証
@@ -165,8 +173,9 @@ extractor.service.ts      processOCR(画像URL, preloaded?)
 
 multi-extractor.prompt.ts 明細分割プロンプト（11書類種別のヒント付き）
 multi-extractor.service.ts extractMultipleEntries()
+                          → MultiExtractResult { lines: ExtractedLine[], error: string | null }
                           → 通帳・クレカ・給与明細等から行ごとの取引を抽出
-                          → JSON修復パース・金額0行除外・日付正規化
+                          → JSON修復パース・金額0行除外・日付正規化（null許容）
 ```
 
 ### journal/
@@ -274,20 +283,28 @@ freee.oauth.ts        OAuth 2.0 フロー
 
 ```
 master-data.ts
-  createNotification()       通知レコードの挿入
-  getOrganizationId()        ユーザーIDから組織IDを取得
-  fetchAccountItems()        勘定科目マスタ取得（キャッシュ対応）
-  fetchTaxCategories()       税区分マスタ取得
-  findFallbackAccountId()    フォールバック勘定科目の検索
+  createNotification()         通知レコードの挿入
+  getOrganizationId()          ユーザーIDから組織IDを取得
+  verifyDocumentOwnership()    書類の組織所有権チェック（IDOR防止）
+  verifyJournalEntryOwnership() 仕訳の組織所有権チェック
+  verifyWorkflowOwnership()    ワークフローの組織所有権チェック
+
+async-handler.ts
+  asyncHandler()               ルートハンドラの try-catch ラッパー
+
+pagination.ts
+  parsePagination()            ページネーション解析（デフォルト20件、最大100件）
 ```
 
 ### ミドルウェア（api/middleware/）
 
 ```
-rate-limit.middleware.ts   apiLimiter(100回/15分)  expensiveLimiter(20回/15分)
-logging.middleware.ts      リクエストログ出力
-error-handler.middleware.ts  エラー応答 + 404ハンドラ
-auth.middleware.ts           認証チェック
+rate-limit.middleware.ts    apiLimiter(100回/15分)  expensiveLimiter(20回/15分)
+logging.middleware.ts       リクエストログ出力
+error-handler.middleware.ts エラー応答 + 404ハンドラ（AppError対応）
+auth.middleware.ts          JWT認証チェック（Supabaseトークン検証）
+rbac.middleware.ts          ロールベース認可（requirePermission ファクトリ）
+validate.middleware.ts      validateBody() リクエストボディバリデーション
 ```
 
 
@@ -303,8 +320,8 @@ index.ts       Express初期化 → ミドルウェア → ルートマウント
                - CORSは /api パスのみに適用
                - 本番環境: dist/ を静的配信 + SPA catch-all
 
-services/      業務ロジックの実装（OCR・仕訳生成・ルールエンジン等）
-               → api/routes/ から import される
+services/      検証ロジックのみ（validation.service.ts）
+               → OCR・仕訳生成等の業務ロジックは modules/ に移動済み
 ```
 
 
@@ -350,11 +367,14 @@ components/
   ImageViewer.tsx        証憑画像プレビュー（ズーム・回転対応）
   MultiEntryPanel.tsx    通帳・クレカ明細の複数取引パネル
 
-context/
-  ReviewContext.tsx       レビュー画面の状態管理（DocumentWithEntry / マスタデータ）
-  useReviewData.ts       レビューデータ読み込み（documents + entries + master）
-  useReviewActions.ts    レビュー操作（保存・承認・除外・科目変更）
-  useReviewKeyboard.ts   キーボードショートカット（矢印で前後移動）
+context/                 ★ 3サブコンテキスト構成
+  ReviewContext.tsx       オーケストレーター + 後方互換 useReview()
+  ReviewViewContext.tsx   ビュー状態（viewMode, activeTab, zoom, rotation）
+  ReviewFormContext.tsx   フォーム状態（form, compoundLines, saving, addRule 等）
+  ReviewDataContext.tsx   データ状態（items, entries, masterData, computed counts）
+  useReviewData.ts       データ読み込み（documents + entries + master を Promise.allSettled で並列取得）
+  useReviewActions.ts    操作（保存・承認・除外・科目変更。stateRef パターンで安定化）
+  useReviewKeyboard.ts   キーボードショートカット（useRef パターン。依存配列空）
 
 doc-types/
   registry.ts            全56書類種別の設定レジストリ
@@ -470,7 +490,10 @@ providers/
   WorkflowProvider.tsx   currentWorkflow / ステップ移動メソッド群
 
 layouts/
-  MainLayout.tsx         サイドバー + ヘッダー + 通知ベル
+  MainLayout.tsx         レイアウトオーケストレーター（~45行）
+  Sidebar.tsx            サイドバー（展開/折りたたみ・ロールベース表示）
+  NotificationBell.tsx   通知ベル（ポーリング・既読管理・ドロップダウン）
+  AuthLayout.tsx         認証画面用レイアウト
 ```
 
 
@@ -522,11 +545,11 @@ Step 2: 抽出 (extractor.service)
   → 仕訳生成 API に渡す
 ```
 
-### 書類種別レジストリ（56種）
+### 書類種別レジストリ（60種）
 
 ```
-仕訳対象:     38種（single 24種 + statement 12種 + compound 2種）
-非仕訳対象:   22種（metadata 21種 + archive 1種）
+仕訳対象:     39種（single 25種 + statement 12種 + compound 2種）
+非仕訳対象:   21種（metadata 21種 + archive 1種）
 
 レイアウト:   5種（single / statement / compound / metadata / archive）
 明細分割対象: 11種（通帳・クレカ・ETC・電子マネー・経費精算書・

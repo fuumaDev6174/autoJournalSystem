@@ -6,7 +6,8 @@ import { useReview } from '../../context/ReviewContext';
 export default function WithholdingPanel() {
   const { ci } = useReview();
   if (!ci) return null;
-  const withholdingAmount = ci.docClassification?.withholding_tax_amount;
+  const classification = ci.docClassification as Record<string, unknown> | null;
+  const withholdingAmount = classification?.withholding_tax_amount as number | undefined;
 
   return (
     <div className="bg-red-50 border border-red-200 rounded-lg p-3">

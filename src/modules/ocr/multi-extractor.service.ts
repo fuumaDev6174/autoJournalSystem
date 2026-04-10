@@ -9,6 +9,12 @@ import type { ExtractedLine } from './ocr.types.js';
 
 export type { ExtractedLine } from './ocr.types.js';
 
+/** extractMultipleEntries の返り値。error が null でなければ API 失敗 */
+export interface MultiExtractResult {
+  lines: ExtractedLine[];
+  error: string | null;
+}
+
 /**
  * 明細書類の画像から各取引行を抽出する。
  *
@@ -16,18 +22,18 @@ export type { ExtractedLine } from './ocr.types.js';
  * @param mimeType      - MIME タイプ（image/jpeg, application/pdf 等）
  * @param documentType  - classifier が返した書類種別コード
  * @param industryPath  - 業種階層パス（省略可）
- * @returns 抽出された取引行の配列。エラー時は空配列
+ * @returns lines: 抽出された取引行、error: エラー時のメッセージ（null なら成功）
  */
 export async function extractMultipleEntries(
   imageBase64: string,
   mimeType: string,
   documentType: string,
   industryPath?: string,
-): Promise<ExtractedLine[]> {
+): Promise<MultiExtractResult> {
 
   if (!imageBase64) {
     console.error('[明細分割] 画像データが空です');
-    return [];
+    return { lines: [], error: '画像データが空です' };
   }
   if (!documentType) {
     console.warn('[明細分割] documentType が未指定 → デフォルトヒントで処理');
@@ -60,24 +66,24 @@ export async function extractMultipleEntries(
       console.error('[明細分割] → レート制限。時間をおいて再実行してください');
     }
 
-    return [];
+    return { lines: [], error: `Gemini APIエラー: ${msg.slice(0, 200)}` };
   }
 
   if (rawText.trim().length === 0) {
     console.error('[明細分割] Gemini の応答が空です');
-    return [];
+    return { lines: [], error: 'Gemini の応答が空です' };
   }
 
   const parsed = safeParseArray(rawText);
   if (parsed.length === 0) {
     console.warn('[明細分割] 取引行が0件。応答:', rawText.slice(0, 300));
-    return [];
+    return { lines: [], error: null }; // 0件は正常（エラーではない）
   }
 
   const lines = parsed.map(normalizeLine).filter(isValidLine);
 
   console.log(`[明細分割] ${documentType}: ${parsed.length}行抽出 → ${lines.length}行有効`);
-  return lines;
+  return { lines, error: null };
 }
 
 /** Gemini の応答テキストから JSON 配列を抽出してパースする */
@@ -143,12 +149,26 @@ function isValidLine(line: ExtractedLine): boolean {
   return true;
 }
 
-/** 日付を YYYY-MM-DD に正規化する */
-function normalizeDate(value: any): string {
+/** 日付を YYYY-MM-DD に正規化する。無効な形式は null を返す */
+function normalizeDate(value: any): string | null {
   if (typeof value !== 'string' || !value.trim()) {
-    return new Date().toISOString().split('T')[0];
+    console.warn('[明細分割] 日付が空のため null を返します');
+    return null;
   }
-  return value.trim().replace(/\//g, '-');
+  const normalized = value.trim().replace(/\//g, '-');
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+  if (!match) {
+    console.warn(`[明細分割] 日付正規化失敗（非対応形式）: "${value}"`);
+    return null;
+  }
+  const [, y, m, d] = match;
+  const month = Number(m);
+  const day = Number(d);
+  if (month < 1 || month > 12 || day < 1 || day > 31) {
+    console.warn(`[明細分割] 日付正規化失敗（範囲外）: "${value}"`);
+    return null;
+  }
+  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
 }
 
 function asString(value: unknown, fallback: string): string {
