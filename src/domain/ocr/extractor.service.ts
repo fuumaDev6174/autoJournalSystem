@@ -1,56 +1,37 @@
-/**
- * @module OCR データ抽出サービス
- * @description 画像を Gemini に送り取引データ（金額・日付・取引先等）を構造化して返す。
- */
+// OCR データ抽出サービス — 画像を Gemini に送り取引データを構造化して返す
 
 import { ai, GEMINI_MODEL_OCR, callGeminiWithRetry } from '../../adapters/gemini/gemini.client.js';
-import { EXTRACT_OCR_PROMPT } from './extractor.prompt.js';
+import { buildExtractorPrompt } from './extractor.prompt.js';
+import {
+  detectMimeType, extractJSON, safeParseJSON,
+  toNumber, clamp, asStringOrNull, asNumberOrNull, asEnumOrNull, normalizeDate,
+} from './ocr-parse-utils.js';
 import type { OCRTransaction, OCRResult } from './ocr.types.js';
 
-/** MIME タイプの判定マップ */
-const EXT_TO_MIME: Record<string, string> = {
-  pdf: 'application/pdf',
-  png: 'image/png',
-  webp: 'image/webp',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-};
-
-const DEFAULT_MIME = 'image/jpeg';
-
-/** tax_payment_type の許可リスト */
 const TAX_PAYMENT_TYPES = [
   'income_tax', 'consumption_tax', 'resident_tax', 'property_tax',
   'auto_tax', 'national_health_insurance', 'national_pension',
   'business_tax', 'other_tax',
 ] as const;
 
-/**
- * 画像から取引データを OCR 抽出する。
- *
- * @param imageUrl   - 署名付き URL（preloaded がなければここから画像を取得）
- * @param preloaded  - classifier で既に取得済みの場合に渡す（二重ダウンロード防止）
- * @throws エラー原因を含むメッセージ付きの Error
- */
 export async function processOCR(
   imageUrl: string,
   preloaded?: { base64: string; mimeType: string },
+  documentTypeCode?: string,
 ): Promise<OCRResult> {
-
   const image = preloaded ?? await fetchImage(imageUrl);
-  const rawText = await callGemini(image);
+  const rawText = await callGemini(image, documentTypeCode);
   const extracted = parseGeminiResponse(rawText);
   const transactions = normalizeTransactions(extracted.transactions);
   return buildResult(rawText, extracted, transactions);
 }
 
-/** URL から画像をダウンロードして Base64 に変換する */
 async function fetchImage(url: string): Promise<{ base64: string; mimeType: string }> {
-  let res: Response;
+  let res: globalThis.Response;
   try {
     res = await fetch(url);
-  } catch (error: any) {
-    throw new Error(`画像のダウンロードに失敗: ${error.message}`);
+  } catch (error: unknown) {
+    throw new Error(`画像のダウンロードに失敗: ${error instanceof Error ? error.message : String(error)}`);
   }
 
   if (!res.ok) {
@@ -68,22 +49,8 @@ async function fetchImage(url: string): Promise<{ base64: string; mimeType: stri
   return { base64, mimeType };
 }
 
-/** 拡張子と Content-Type から MIME タイプを判定する */
-function detectMimeType(url: string, contentType: string | null): string {
-  const ext = url.split('?')[0].split('.').pop()?.toLowerCase() ?? '';
-  if (EXT_TO_MIME[ext]) return EXT_TO_MIME[ext];
-
-  if (contentType) {
-    for (const [, mime] of Object.entries(EXT_TO_MIME)) {
-      if (contentType.includes(mime)) return mime;
-    }
-  }
-
-  return DEFAULT_MIME;
-}
-
-/** Gemini にプロンプト + 画像を送り、テキスト応答を返す */
-async function callGemini(image: { base64: string; mimeType: string }): Promise<string> {
+async function callGemini(image: { base64: string; mimeType: string }, documentTypeCode?: string): Promise<string> {
+  const prompt = buildExtractorPrompt(documentTypeCode);
   let response;
   try {
     response = await callGeminiWithRetry(
@@ -92,15 +59,15 @@ async function callGemini(image: { base64: string; mimeType: string }): Promise<
         contents: [{
           role: 'user',
           parts: [
-            { text: EXTRACT_OCR_PROMPT },
+            { text: prompt },
             { inlineData: { mimeType: image.mimeType, data: image.base64 } },
           ],
         }],
       }),
       'OCR抽出',
     );
-  } catch (error: any) {
-    throw new Error(`Gemini API エラー: ${error.message?.slice(0, 200)}`);
+  } catch (error: unknown) {
+    throw new Error(`Gemini API エラー: ${(error instanceof Error ? error.message : String(error)).slice(0, 200)}`);
   }
 
   const text = response?.text ?? '';
@@ -111,57 +78,29 @@ async function callGemini(image: { base64: string; mimeType: string }): Promise<
   return text;
 }
 
-/** Gemini の応答テキストから JSON を抽出してパースする */
-function parseGeminiResponse(rawText: string): any {
+function parseGeminiResponse(rawText: string): Record<string, any> {
   const jsonText = extractJSON(rawText);
   if (!jsonText) {
     console.error('[OCR抽出] JSON抽出失敗。応答:', rawText.slice(0, 500));
     throw new Error('Gemini 応答から JSON を抽出できません');
   }
 
-  try {
-    return JSON.parse(jsonText);
-  } catch {
-    // 修復を試みる
-  }
-
-  try {
-    const fixed = jsonText
-      .replace(/,\s*([}\]])/g, '$1')
-      .replace(/'/g, '"')
-      .replace(/(\w+)\s*:/g, '"$1":');
-    const result = JSON.parse(fixed);
-    console.warn('[OCR抽出] JSON修復パースで成功');
-    return result;
-  } catch {
-    console.error('[OCR抽出] JSONパース失敗。テキスト:', jsonText.slice(0, 500));
+  const parsed = safeParseJSON(jsonText, 'OCR抽出');
+  if (!parsed) {
     throw new Error('Gemini 応答の JSON パースに失敗しました');
   }
+  return parsed;
 }
 
-/** 生テキストから JSON 部分だけを切り出す */
-function extractJSON(raw: string): string {
-  const codeBlock = raw.match(/```(?:json)?\s*\n?([\s\S]*?)\n?\s*```/);
-  if (codeBlock) return codeBlock[1].trim();
-
-  const bare = raw.match(/\{[\s\S]*\}/);
-  if (bare) return bare[0].trim();
-
-  return '';
-}
-
-/** Gemini が返した transactions 配列を型安全な OCRTransaction[] に変換する */
-function normalizeTransactions(raw: any): OCRTransaction[] {
+function normalizeTransactions(raw: unknown): OCRTransaction[] {
   if (!Array.isArray(raw) || raw.length === 0) {
     console.warn('[OCR抽出] transactions が空または配列でない → 空配列を返します');
     return [];
   }
-
   return raw.map(normalizeTx);
 }
 
-/** 1件の取引を正規化する。不正な値は null / デフォルト値に丸め、フォールバックしたフィールドをログ出力 */
-function normalizeTx(tx: any): OCRTransaction {
+function normalizeTx(tx: Record<string, any>): OCRTransaction {
   const fallbacks: string[] = [];
   const track = <T>(field: string, raw: unknown, normalized: T): T => {
     if (raw != null && raw !== '' && normalized == null) fallbacks.push(field);
@@ -185,7 +124,7 @@ function normalizeTx(tx: any): OCRTransaction {
     addressee:              asStringOrNull(tx.addressee),
     transaction_type:       asEnumOrNull(tx.transaction_type, ['purchase', 'expense', 'asset', 'sales', 'fee', 'tax_payment']),
     transfer_fee_bearer:    asEnumOrNull(tx.transfer_fee_bearer, ['sender', 'receiver']),
-    tax_payment_type:       asEnumOrNull(tx.tax_payment_type, [...TAX_PAYMENT_TYPES]),
+    tax_payment_type:       asEnumOrNull(tx.tax_payment_type, TAX_PAYMENT_TYPES),
   };
 
   if (fallbacks.length > 0) {
@@ -195,22 +134,21 @@ function normalizeTx(tx: any): OCRTransaction {
   return result;
 }
 
-/** 税区分詳細を正規化する */
-function normalizeTaxDetails(raw: any): OCRTransaction['tax_details'] {
+function normalizeTaxDetails(raw: unknown): OCRTransaction['tax_details'] {
   if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
   return {
-    rate_10_amount: asNumberOrNull(raw.rate_10_amount),
-    rate_10_tax:    asNumberOrNull(raw.rate_10_tax),
-    rate_8_amount:  asNumberOrNull(raw.rate_8_amount),
-    rate_8_tax:     asNumberOrNull(raw.rate_8_tax),
-    exempt_amount:  asNumberOrNull(raw.exempt_amount),
+    rate_10_amount: asNumberOrNull(r.rate_10_amount),
+    rate_10_tax:    asNumberOrNull(r.rate_10_tax),
+    rate_8_amount:  asNumberOrNull(r.rate_8_amount),
+    rate_8_tax:     asNumberOrNull(r.rate_8_tax),
+    exempt_amount:  asNumberOrNull(r.exempt_amount),
   };
 }
 
-/** 品目配列を正規化 */
-function normalizeItems(raw: any): OCRTransaction['items'] {
+function normalizeItems(raw: unknown): OCRTransaction['items'] {
   if (!Array.isArray(raw)) return [];
-  return raw.map((item: any) => ({
+  return raw.map((item: Record<string, unknown>) => ({
     name:       (typeof item.name === 'string') ? item.name : '',
     quantity:   asNumberOrNull(item.quantity),
     unit_price: asNumberOrNull(item.unit_price),
@@ -219,29 +157,9 @@ function normalizeItems(raw: any): OCRTransaction['items'] {
   }));
 }
 
-/** 日付文字列を YYYY-MM-DD に正規化する。無効な形式は null を返す */
-function normalizeDate(value: any): string | null {
+function normalizeInvoiceNumber(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
-  const normalized = value.trim().replace(/\//g, '-');
-  // YYYY-M-D ～ YYYY-MM-DD を許容
-  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-  if (!match) {
-    console.warn(`[抽出] 日付正規化失敗（非対応形式）: "${value}"`);
-    return null;
-  }
-  const [, y, m, d] = match;
-  const month = Number(m);
-  const day = Number(d);
-  if (month < 1 || month > 12 || day < 1 || day > 31) {
-    console.warn(`[抽出] 日付正規化失敗（範囲外）: "${value}"`);
-    return null;
-  }
-  return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-}
-
-/** インボイス登録番号を正規化する（T + 13桁）。形式不正は null を返す */
-function normalizeInvoiceNumber(value: any): string | null {
-  if (typeof value !== 'string' || !value.trim()) return null;
+  // T + 13桁の形式に正規化
   const cleaned = value.trim()
     .replace(/^Ｔ/, 'T')
     .replace(/[\s\-]/g, '');
@@ -250,10 +168,9 @@ function normalizeInvoiceNumber(value: any): string | null {
   return null;
 }
 
-/** transactions と先頭取引からフラット構造の OCRResult を組み立てる */
 function buildResult(
   rawText: string,
-  extracted: any,
+  extracted: Record<string, any>,
   transactions: OCRTransaction[],
 ): OCRResult {
   const first = transactions[0];
@@ -287,38 +204,4 @@ function buildResult(
         }))
       : null,
   };
-}
-
-/** null-safe な文字列変換 */
-function asStringOrNull(value: unknown): string | null {
-  return (typeof value === 'string' && value.trim()) ? value.trim() : null;
-}
-
-/** null-safe な数値変換 */
-function asNumberOrNull(value: unknown): number | null {
-  if (value == null) return null;
-  const n = Number(value);
-  return Number.isNaN(n) ? null : n;
-}
-
-/** 許可リストにある値だけ通す */
-function asEnumOrNull<T extends string>(value: unknown, allowed: T[]): T | null {
-  return (typeof value === 'string' && allowed.includes(value as T))
-    ? value as T
-    : null;
-}
-
-/** 数値に変換。変換できなければ fallback */
-function toNumber(value: unknown, fallback = 0): number {
-  if (typeof value === 'number' && !Number.isNaN(value)) return value;
-  if (typeof value === 'string') {
-    const n = parseFloat(value);
-    return Number.isNaN(n) ? fallback : n;
-  }
-  return fallback;
-}
-
-/** min〜max に収める */
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }

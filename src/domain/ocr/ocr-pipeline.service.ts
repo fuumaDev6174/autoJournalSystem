@@ -3,6 +3,7 @@
 import { supabaseAdmin } from '../../adapters/supabase/supabase-admin.client.js';
 import { classifyDocument } from './classifier.service.js';
 import { processOCR } from './extractor.service.js';
+import { detectMimeType } from './ocr-parse-utils.js';
 import { checkDocumentDuplicate, checkReceiptDuplicate } from '../document/duplicate-checker.js';
 import { createNotification } from '../notification/notification.service.js';
 import type { ClassificationResult } from './ocr.types.js';
@@ -22,13 +23,8 @@ export interface OCRPipelineResult {
   ocr_result?: Record<string, unknown>;
 }
 
-function detectMimeType(url: string, contentType: string): string {
-  const ext = url.split('?')[0].split('.').pop()?.toLowerCase();
-  if (ext === 'pdf' || contentType.includes('pdf')) return 'application/pdf';
-  if (ext === 'png' || contentType.includes('png')) return 'image/png';
-  if (ext === 'webp' || contentType.includes('webp')) return 'image/webp';
-  return 'image/jpeg';
-}
+// 非仕訳対象書類のスキップ閾値（分類 confidence がこの値以上ならStep2を省略）
+const SKIP_CONFIDENCE_THRESHOLD = 0.8;
 
 export async function processDocumentOCR(input: OCRPipelineInput): Promise<OCRPipelineResult> {
   const { document_id, file_url } = input;
@@ -43,37 +39,39 @@ export async function processDocumentOCR(input: OCRPipelineInput): Promise<OCRPi
   // Step 1: 分類
   const classification = await classifyDocument(imageBase64, mimeType);
 
-  await supabaseAdmin.from('documents').update({
-    doc_classification: classification,
-    ocr_step1_type: classification.document_type_code,
-    ocr_step1_confidence: classification.confidence,
-    ocr_step: 'step1',
-  }).eq('id', document_id);
-
   // document_types テーブルから仕訳要否を判定
   const { data: docType } = await supabaseAdmin
     .from('document_types').select('id, requires_journal')
     .eq('code', classification.document_type_code).single();
 
-  if (docType) {
-    await supabaseAdmin.from('documents').update({ document_type_id: docType.id }).eq('id', document_id);
+  // Step1 結果 + document_type_id を1回のupdateにマージ
+  const step1Update: Record<string, unknown> = {
+    doc_classification: classification,
+    ocr_step1_type: classification.document_type_code,
+    ocr_step1_confidence: classification.confidence,
+    ocr_step: 'step1',
+  };
+  if (docType) step1Update.document_type_id = docType.id;
+  await supabaseAdmin.from('documents').update(step1Update).eq('id', document_id);
 
-    // 非仕訳対象 かつ confidence >= 0.8 → Step 2 スキップ
-    if (!docType.requires_journal && classification.confidence >= 0.8) {
-      await supabaseAdmin.from('documents').update({ ocr_status: 'completed', ocr_step: 'step1', status: 'excluded' }).eq('id', document_id);
-      return { success: true, skipped: true, classification, message: '非仕訳対象のためOCRスキップ' };
-    }
+  if (docType && !docType.requires_journal && classification.confidence >= SKIP_CONFIDENCE_THRESHOLD) {
+    await supabaseAdmin.from('documents').update({ ocr_status: 'completed', ocr_step: 'step1', status: 'excluded' }).eq('id', document_id);
+    return { success: true, skipped: true, classification, message: '非仕訳対象のためOCRスキップ' };
   }
 
-  // Step 2: データ抽出
+  // Step 2: データ抽出（classifier の書類種別コードを extractor に引き継ぐ）
   await supabaseAdmin.from('documents').update({ ocr_step: 'step2' }).eq('id', document_id);
-  const ocrResult = await processOCR(file_url, { base64: imageBase64, mimeType });
+  const ocrResult = await processOCR(file_url, { base64: imageBase64, mimeType }, classification.document_type_code);
 
-  // 重複チェック
-  const { data: docRow } = await supabaseAdmin.from('documents').select('hash_value, client_id').eq('id', document_id).single();
+  // 重複チェック + 通知用データを1回のSELECTで取得（旧: 2回の別々のSELECT + clients SELECT）
+  const { data: docRow } = await supabaseAdmin
+    .from('documents')
+    .select('hash_value, client_id, uploaded_by, clients(organization_id)')
+    .eq('id', document_id)
+    .single();
 
   let duplicate_warning: Record<string, unknown> | null = null;
-  if (docRow?.hash_value) {
+  if (docRow?.hash_value && docRow?.client_id) {
     const dupResult = await checkDocumentDuplicate(supabaseAdmin, docRow.hash_value, docRow.client_id, document_id);
     if (dupResult.isDuplicate) {
       duplicate_warning = { message: `同一ファイルが既に登録されています: ${dupResult.duplicateFileName}`, duplicateDocId: dupResult.duplicateDocId };
@@ -91,18 +89,16 @@ export async function processDocumentOCR(input: OCRPipelineInput): Promise<OCRPi
     }
   }
 
-  // 通知
-  if (docRow?.client_id) {
-    const { data: clientInfo } = await supabaseAdmin.from('clients').select('organization_id').eq('id', docRow.client_id).single();
-    const { data: docInfo } = await supabaseAdmin.from('documents').select('uploaded_by').eq('id', document_id).single();
-    if (clientInfo?.organization_id && docInfo?.uploaded_by) {
-      await createNotification({
-        organizationId: clientInfo.organization_id, userId: docInfo.uploaded_by,
-        type: 'ocr_completed', title: 'OCR処理が完了しました',
-        message: `証憑 ${ocrResult.extracted_supplier || document_id} のOCR読取が完了しました`,
-        entityType: 'document', entityId: document_id,
-      });
-    }
+  // 通知（docRow から直接取得した情報を使用）
+  const clientsRaw = docRow?.clients as unknown;
+  const clientOrg = Array.isArray(clientsRaw) ? clientsRaw[0]?.organization_id : (clientsRaw as any)?.organization_id;
+  if (clientOrg && docRow?.uploaded_by) {
+    await createNotification({
+      organizationId: clientOrg, userId: docRow.uploaded_by,
+      type: 'ocr_completed', title: 'OCR処理が完了しました',
+      message: `証憑 ${ocrResult.extracted_supplier || document_id} のOCR読取が完了しました`,
+      entityType: 'document', entityId: document_id,
+    });
   }
 
   return {

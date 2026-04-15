@@ -1,6 +1,4 @@
-/**
- * @module レビューデータ hooks
- */
+// レビューデータ hooks
 import { useCallback } from 'react';
 import type { AccountItem, TaxCategory, Supplier } from '@/types';
 import {
@@ -28,12 +26,14 @@ interface UseReviewDataParams {
   setItemsMaster: React.Dispatch<React.SetStateAction<ItemMaster[]>>;
   setIndustries: React.Dispatch<React.SetStateAction<Array<{ id: string; name: string }>>>;
   setClientRatios: React.Dispatch<React.SetStateAction<Array<{ account_item_id: string; business_ratio: number }>>>;
+  setClientName: React.Dispatch<React.SetStateAction<string>>;
 }
 
 export function useReviewDataLoader(params: UseReviewDataParams) {
   const {
     currentWorkflow, setLoading, setEntries, setMultiEntryGroups, setItems, setCurrentIndex, setForm,
     setAccountItems, setTaxCategories, setTaxRates, setSuppliers, setItemsMaster, setIndustries, setClientRatios,
+    setClientName,
   } = params;
 
   const loadAllData = useCallback(async () => {
@@ -140,6 +140,7 @@ export function useReviewDataLoader(params: UseReviewDataParams) {
 
     const { data: clientIndustryData } = await clientIndustriesApi.getAll({ client_id: clientId });
     const { data: clientRow } = await clientsApi.getById(clientId);
+    if (clientRow?.name) setClientName(clientRow.name);
     const clientIndustryIds = [
       ...(clientIndustryData?.map(ci => ci.industry_id) || []),
       ...(clientRow?.industry_id ? [clientRow.industry_id] : []),

@@ -1,17 +1,18 @@
-/**
- * @module レビュービューコンテキスト
- * ビュー表示に関する状態（viewMode, activeTab, zoom, rotation, selectedRowRef）を管理。
- * フォームやデータの変更とは独立して更新される。
- */
+// レビュービューコンテキスト
 import { createContext, useContext, useState, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type { ViewMode, TabFilter } from './ReviewContext';
+import type { DocCategoryGroup, DocCategory } from '../constants/docCategoryMap';
 
 export interface ReviewViewContextType {
   viewMode: ViewMode;
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
   activeTab: TabFilter;
   setActiveTab: React.Dispatch<React.SetStateAction<TabFilter>>;
+  activeCategoryTab: DocCategoryGroup;
+  setActiveCategoryTab: React.Dispatch<React.SetStateAction<DocCategoryGroup>>;
+  activeSubCategory: DocCategory | null;
+  setActiveSubCategory: React.Dispatch<React.SetStateAction<DocCategory | null>>;
   zoom: number;
   setZoom: React.Dispatch<React.SetStateAction<number>>;
   rotation: number;
@@ -33,6 +34,8 @@ export function ReviewViewProvider({ children }: { children: React.ReactNode }) 
 
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [activeTab, setActiveTab] = useState<TabFilter>(initialTab);
+  const [activeCategoryTab, setActiveCategoryTab] = useState<DocCategoryGroup>('all');
+  const [activeSubCategory, setActiveSubCategory] = useState<DocCategory | null>(null);
   const [zoom, setZoom] = useState(100);
   const [rotation, setRotation] = useState(0);
   const selectedRowRef = useRef<HTMLTableRowElement>(null);
@@ -40,6 +43,8 @@ export function ReviewViewProvider({ children }: { children: React.ReactNode }) 
   const value: ReviewViewContextType = {
     viewMode, setViewMode,
     activeTab, setActiveTab,
+    activeCategoryTab, setActiveCategoryTab,
+    activeSubCategory, setActiveSubCategory,
     zoom, setZoom,
     rotation, setRotation,
     selectedRowRef,

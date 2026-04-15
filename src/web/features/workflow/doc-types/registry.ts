@@ -1,6 +1,4 @@
-/**
- * @module 書類種別レジストリ
- */
+// 書類種別レジストリ
 import type { DocTypeConfig } from './types';
 
 export const DOC_TYPE_REGISTRY: Record<string, DocTypeConfig> = {
@@ -34,21 +32,21 @@ export const DOC_TYPE_REGISTRY: Record<string, DocTypeConfig> = {
   payment_notice:    { code: 'payment_notice',    layout: 'single', extraSections: ['withholding'] },
 
   // ========== 所得控除・税額控除系 ==========
-  kokuho:            { code: 'kokuho',            layout: 'single', extraSections: ['deduction_calc'] },
-  nenkin:            { code: 'nenkin',            layout: 'single', extraSections: ['deduction_calc'] },
-  shokibo:           { code: 'shokibo',           layout: 'single', extraSections: ['deduction_calc'] },
-  ideco:             { code: 'ideco',             layout: 'single', extraSections: ['deduction_calc'] },
-  life_insurance:    { code: 'life_insurance',    layout: 'single', extraSections: ['life_ins_calc'] },
-  earthquake_ins:    { code: 'earthquake_ins',    layout: 'single', extraSections: ['deduction_calc'] },
+  kokuho:            { code: 'kokuho',            layout: 'deduction', extraSections: ['deduction_calc'] },
+  nenkin:            { code: 'nenkin',            layout: 'deduction', extraSections: ['deduction_calc'] },
+  shokibo:           { code: 'shokibo',           layout: 'deduction', extraSections: ['deduction_calc'] },
+  ideco:             { code: 'ideco',             layout: 'deduction', extraSections: ['deduction_calc'] },
+  life_insurance:    { code: 'life_insurance',    layout: 'deduction', extraSections: ['life_ins_calc'] },
+  earthquake_ins:    { code: 'earthquake_ins',    layout: 'deduction', extraSections: ['deduction_calc'] },
   medical:           { code: 'medical',           layout: 'statement', extraSections: ['medical_calc'] },
   furusato:          { code: 'furusato',          layout: 'statement', extraSections: ['furusato_calc'] },
-  housing_loan:      { code: 'housing_loan',      layout: 'single', extraSections: ['housing_loan_calc'] },
-  deduction_cert:    { code: 'deduction_cert',    layout: 'single', extraSections: ['deduction_calc'] },
-  other_deduction:   { code: 'other_deduction',   layout: 'single', extraSections: ['deduction_calc'] },
+  housing_loan:      { code: 'housing_loan',      layout: 'deduction', extraSections: ['housing_loan_calc'] },
+  deduction_cert:    { code: 'deduction_cert',    layout: 'deduction', extraSections: ['deduction_calc'] },
+  other_deduction:   { code: 'other_deduction',   layout: 'deduction', extraSections: ['deduction_calc'] },
 
   // ========== 資産・償却系 ==========
   fixed_asset:       { code: 'fixed_asset',       layout: 'statement', extraSections: ['depreciation'] },
-  prev_return:       { code: 'prev_return',       layout: 'single', extraSections: ['carryover'] },
+  prev_return:       { code: 'prev_return',       layout: 'deduction', extraSections: ['carryover'] },
   loan_schedule:     { code: 'loan_schedule',     layout: 'statement', supportsMultiLine: true },
 
   // ========== 複合仕訳 ==========

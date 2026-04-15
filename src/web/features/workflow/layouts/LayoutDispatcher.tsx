@@ -1,6 +1,4 @@
-/**
- * @module レイアウトディスパッチャー
- */
+// レイアウトディスパッチャー
 import { useReview } from '../context/ReviewContext';
 import { getDocTypeConfig } from '../doc-types/registry';
 import SingleEntryLayout from './SingleEntryLayout';
@@ -8,6 +6,7 @@ import StatementLayout from './StatementLayout';
 import CompoundEntryLayout from './CompoundEntryLayout';
 import MetadataLayout from './MetadataLayout';
 import ArchiveLayout from './ArchiveLayout';
+import DeductionLayout from './DeductionLayout';
 
 const LAYOUT_MAP = {
   single: SingleEntryLayout,
@@ -15,6 +14,7 @@ const LAYOUT_MAP = {
   compound: CompoundEntryLayout,
   metadata: MetadataLayout,
   archive: ArchiveLayout,
+  deduction: DeductionLayout,
 } as const;
 
 export default function LayoutDispatcher() {

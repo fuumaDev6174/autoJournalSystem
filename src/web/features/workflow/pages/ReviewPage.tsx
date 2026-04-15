@@ -1,8 +1,7 @@
-/**
- * @module レビューページ
- */
+// レビューページ
+import { useState } from 'react';
 import {
-  Ban, AlertCircle, Loader, CheckCircle, Eye, Undo2, Clock, StickyNote
+  Ban, AlertCircle, Loader, CheckCircle, Eye, Undo2, Clock, StickyNote, ChevronDown,
 } from 'lucide-react';
 import { journalEntriesApi } from '@/web/shared/lib/api/backend.api';
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
@@ -14,6 +13,9 @@ import {
   ReviewProvider, useReview,
   type EntryRow, type LineRow, type DocumentWithEntry, type TaxRateOption, type MultiEntryGroup,
 } from '@/web/features/workflow/context/ReviewContext';
+import {
+  DOC_CATEGORY_TABS, getCategoryLabel, getCategoryColor,
+} from '@/web/features/workflow/constants/docCategoryMap';
 
 // Re-export types for backward compatibility
 export type { EntryRow, LineRow, DocumentWithEntry, TaxRateOption, MultiEntryGroup };
@@ -25,16 +27,18 @@ function ReviewPageContent() {
   const { confirm, ConfirmDialogElement } = useConfirm();
   const {
     currentWorkflow, viewMode, setViewMode, activeTab, setActiveTab, loading,
+    activeCategoryTab, setActiveCategoryTab, activeSubCategory, setActiveSubCategory,
     entries, multiEntryGroups, expandedDocs, items, currentIndex, ci,
-    isManagerOrAdmin, selectedRowRef,
+    isManagerOrAdmin, selectedRowRef, docTypeCodeMap,
     loadAllData, saveCurrentItem,
     openDetail, openDetailFromTop,
     handleRevert, handleApproveFromList,
     toggleMultiEntryGroup, handleBulkReviewGroup,
     handleBeforeNext, fmt,
-    filteredEntries, allCount, uncheckedCount, reviewedCount, approvedCount, excludedCount, reviewCount,
+    filteredEntries, categoryCounts, allCount, uncheckedCount, reviewedCount, approvedCount, excludedCount, reviewCount,
     user,
   } = useReview();
+  const [journalDropdownOpen, setJournalDropdownOpen] = useState(false);
 
   // ============================================
   // Guards
@@ -81,6 +85,65 @@ function ReviewPageContent() {
             <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${activeTab === tab.key ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'}`}>{tab.count}</span>
           </button>
         ))}
+      </div>
+
+      {/* 第2階層: 種別サブタブ */}
+      <div className="bg-white px-6 border-b border-gray-100 flex gap-1 flex-shrink-0 py-1.5 relative">
+        {DOC_CATEGORY_TABS.map(tab => {
+          const isActive = activeCategoryTab === tab.key;
+          const count = categoryCounts[tab.key] ?? 0;
+          const hasDropdown = tab.subCategories && tab.subCategories.length > 0;
+
+          return (
+            <div key={tab.key} className="relative"
+              onMouseEnter={() => hasDropdown && tab.key === 'journal' && setJournalDropdownOpen(true)}
+              onMouseLeave={() => hasDropdown && setJournalDropdownOpen(false)}>
+              <button type="button"
+                onClick={() => {
+                  setActiveCategoryTab(tab.key);
+                  setActiveSubCategory(null);
+                  if (hasDropdown) setJournalDropdownOpen(prev => !prev);
+                }}
+                className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                  isActive ? 'bg-blue-50 text-blue-700' : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                }`}>
+                {tab.label}
+                {count > 0 && <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${isActive ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-400'}`}>{count}</span>}
+                {hasDropdown && <ChevronDown size={12} className={`transition-transform ${journalDropdownOpen && isActive ? 'rotate-180' : ''}`} />}
+              </button>
+
+              {/* ドロップダウン（仕訳対象のサブカテゴリ） */}
+              {hasDropdown && journalDropdownOpen && tab.key === 'journal' && (
+                <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-40 min-w-[140px]">
+                  {tab.subCategories!.map(sub => {
+                    const subCount = categoryCounts[sub.key] ?? 0;
+                    const isSubActive = activeSubCategory === sub.key;
+                    return (
+                      <button type="button" key={sub.key}
+                        onClick={() => {
+                          setActiveCategoryTab('journal');
+                          setActiveSubCategory(isSubActive ? null : sub.key);
+                          setJournalDropdownOpen(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs flex items-center justify-between transition-colors ${
+                          isSubActive ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+                        }`}>
+                        <span>{sub.label}</span>
+                        {subCount > 0 && <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">{subCount}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {activeSubCategory && (
+          <button type="button" onClick={() => { setActiveSubCategory(null); setActiveCategoryTab('all'); }}
+            className="ml-2 text-[10px] text-gray-400 hover:text-gray-600 underline">
+            フィルタ解除
+          </button>
+        )}
       </div>
 
       {/* Main content */}
@@ -220,7 +283,13 @@ function ReviewPageContent() {
                             className={`cursor-pointer transition-colors hover:bg-gray-50 ${needsReview ? 'bg-yellow-50' : ''} ${isSelected ? 'bg-blue-50' : ''} ${entry.status === 'approved' ? 'bg-green-50/30' : ''}`}>
                             <td className="px-3 py-3 text-xs text-gray-400">{rowNum}</td>
                             <td className="px-4 py-3 text-sm">{new Date(entry.entry_date).toLocaleDateString('ja-JP')}</td>
-                            <td className="px-4 py-3 text-sm max-w-[200px] truncate">
+                            <td className="px-4 py-3 text-sm max-w-[250px] truncate">
+                              {(() => {
+                                const dtCode = entry.document_id ? docTypeCodeMap.get(entry.document_id) : undefined;
+                                const catLabel = getCategoryLabel(dtCode);
+                                const catColor = getCategoryColor(dtCode);
+                                return catLabel ? <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium mr-1.5 ${catColor}`}>{catLabel}</span> : null;
+                              })()}
                               {entry.description || '-'}
                               {entry.notes && <StickyNote size={12} className="text-amber-400 inline ml-1" />}
                             </td>

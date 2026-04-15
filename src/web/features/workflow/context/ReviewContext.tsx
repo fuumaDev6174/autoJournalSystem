@@ -1,10 +1,4 @@
-/**
- * @module レビューコンテキスト
- *
- * 3つのサブコンテキスト（View, Form, Data）を束ねるオーケストレーター。
- * 後方互換の `useReview()` を提供し、既存の28コンポーネントを修正なしで動作させる。
- * パフォーマンス最適化が必要なコンポーネントは個別のサブコンテキスト hooks を使うこと。
- */
+// レビューコンテキスト
 import { useEffect, useCallback, useMemo } from 'react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { useAuth } from '@/web/app/providers/AuthProvider';
@@ -21,9 +15,6 @@ import { useReviewKeyboard } from './useReviewKeyboard';
 // Re-export types
 export type { JournalEntryLineInput };
 
-// ============================================
-// 型定義
-// ============================================
 export interface EntryRow {
   id: string;
   client_id: string;
@@ -104,9 +95,6 @@ export type TabFilter = 'all' | 'unchecked' | 'reviewed' | 'excluded';
 
 export type ItemMaster = { id: string; name: string; code: string | null; default_account_item_id: string | null; default_tax_category_id: string | null };
 
-// ============================================
-// 統合型（後方互換）
-// ============================================
 export interface ReviewContextType {
   currentWorkflow: ReturnType<typeof useWorkflow>['currentWorkflow'];
   updateWorkflowData: ReturnType<typeof useWorkflow>['updateWorkflowData'];
@@ -117,6 +105,10 @@ export interface ReviewContextType {
   setViewMode: React.Dispatch<React.SetStateAction<ViewMode>>;
   activeTab: TabFilter;
   setActiveTab: React.Dispatch<React.SetStateAction<TabFilter>>;
+  activeCategoryTab: import('../constants/docCategoryMap').DocCategoryGroup;
+  setActiveCategoryTab: React.Dispatch<React.SetStateAction<import('../constants/docCategoryMap').DocCategoryGroup>>;
+  activeSubCategory: import('../constants/docCategoryMap').DocCategory | null;
+  setActiveSubCategory: React.Dispatch<React.SetStateAction<import('../constants/docCategoryMap').DocCategory | null>>;
   loading: boolean;
 
   entries: EntryRow[];
@@ -200,16 +192,11 @@ export interface ReviewContextType {
   approvedCount: number;
   excludedCount: number;
   reviewCount: number;
+  docTypeCodeMap: Map<string, string>;
+  categoryCounts: Record<string, number>;
+  clientName: string;
 }
 
-// ============================================
-// 後方互換 hook
-// ============================================
-
-/**
- * 後方互換の統合 hook。28 のコンシューマーが使用中。
- * パフォーマンス最適化が必要な場合は useReviewView / useReviewForm / useReviewData を直接使うこと。
- */
 export function useReview(): ReviewContextType {
   const view = useReviewView();
   const form = useReviewForm();
@@ -234,6 +221,7 @@ export function useReview(): ReviewContextType {
     setItemsMaster: data.setItemsMaster,
     setIndustries: data.setIndustries,
     setClientRatios: data.setClientRatios,
+    setClientName: data.setClientName,
   });
 
   const actions = useReviewActions({
@@ -263,12 +251,17 @@ export function useReview(): ReviewContextType {
     form.setItemText(sib.unmatchedItemName || '');
   }, [data.items]);
 
-  const filteredEntries = useMemo(() => data.filteredEntries(view.activeTab), [data.filteredEntries, view.activeTab]);
+  const filteredEntries = useMemo(
+    () => data.filteredEntries(view.activeTab, view.activeCategoryTab, view.activeSubCategory),
+    [data.filteredEntries, view.activeTab, view.activeCategoryTab, view.activeSubCategory],
+  );
 
   return {
     currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
     viewMode: view.viewMode, setViewMode: view.setViewMode,
     activeTab: view.activeTab, setActiveTab: view.setActiveTab,
+    activeCategoryTab: view.activeCategoryTab, setActiveCategoryTab: view.setActiveCategoryTab,
+    activeSubCategory: view.activeSubCategory, setActiveSubCategory: view.setActiveSubCategory,
     loading: data.loading,
     entries: data.entries, setEntries: data.setEntries,
     multiEntryGroups: data.multiEntryGroups, setMultiEntryGroups: data.setMultiEntryGroups,
@@ -292,8 +285,8 @@ export function useReview(): ReviewContextType {
     itemText: form.itemText, setItemText: form.setItemText,
     selectedRowRef: view.selectedRowRef,
     isMultiEntry: data.isMultiEntry, siblingItems: data.siblingItems,
-    loadAllData, fmt: data.fmt,
-    filteredEntries,
+    loadAllData, fmt: data.fmt, clientName: data.clientName,
+    filteredEntries, docTypeCodeMap: data.docTypeCodeMap, categoryCounts: data.categoryCounts,
     allCount: data.allCount, uncheckedCount: data.uncheckedCount,
     reviewedCount: data.reviewedCount, approvedCount: data.approvedCount,
     excludedCount: data.excludedCount, reviewCount: data.reviewCount,
@@ -302,11 +295,8 @@ export function useReview(): ReviewContextType {
   };
 }
 
-// ============================================
-// Provider (3つのサブコンテキストを束ねる)
-// ============================================
 function ReviewProviderInner({ children }: { children: React.ReactNode }) {
-  const { currentWorkflow } = useWorkflow();
+  const { currentWorkflow, updateWorkflowData } = useWorkflow();
   const view = useReviewView();
   const formCtx = useReviewForm();
   const dataCtx = useReviewDataCtx();
@@ -326,13 +316,15 @@ function ReviewProviderInner({ children }: { children: React.ReactNode }) {
     setItemsMaster: dataCtx.setItemsMaster,
     setIndustries: dataCtx.setIndustries,
     setClientRatios: dataCtx.setClientRatios,
+    setClientName: dataCtx.setClientName,
   });
 
   const { user, userProfile } = useAuth();
-  const isManagerOrAdmin = (userProfile?.role || 'viewer') === 'admin' || (userProfile?.role || 'viewer') === 'manager';
+  const userRole = userProfile?.role || 'viewer';
+  const isManagerOrAdmin = userRole === 'admin' || userRole === 'manager';
 
   const actions = useReviewActions({
-    currentWorkflow, updateWorkflowData: useWorkflow().updateWorkflowData, user, isManagerOrAdmin,
+    currentWorkflow, updateWorkflowData, user, isManagerOrAdmin,
     items: dataCtx.items, setItems: dataCtx.setItems, currentIndex: dataCtx.currentIndex, setCurrentIndex: dataCtx.setCurrentIndex,
     form: formCtx.form, setForm: formCtx.setForm, compoundLines: formCtx.compoundLines,
     entries: dataCtx.entries, setEntries: dataCtx.setEntries, multiEntryGroups: dataCtx.multiEntryGroups,
