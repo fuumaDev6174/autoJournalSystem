@@ -1,5 +1,5 @@
 // OCR ページ
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { CheckCircle, AlertCircle, Loader, RotateCcw } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { documentsApi, clientsApi, journalEntriesApi, storageApi, ocrApi, journalGenerateApi } from '@/web/shared/lib/api/backend.api';
@@ -192,14 +192,22 @@ export default function OCRPage() {
         throw new Error(`OCR結果の保存に失敗: ${ocrSaveError}`);
       }
 
-      // --- STEP 4: 仕訳生成API ---
+      // --- STEP 4: 仕訳生成API（セマフォで並列数制限 — Gemini Pro は低速のため） ---
       currentStep = 'journal_api';
-      const { data: journalData, error: journalError } = await journalGenerateApi.generate({
-        document_id: result.documentId,
-        client_id: currentWorkflow!.clientId,
-        ocr_result: ocrResult,
-        industry,
-      });
+      await acquireJournalSlot();
+      let journalData, journalError;
+      try {
+        const res = await journalGenerateApi.generate({
+          document_id: result.documentId,
+          client_id: currentWorkflow!.clientId,
+          ocr_result: ocrResult,
+          industry,
+        });
+        journalData = res.data;
+        journalError = res.error;
+      } finally {
+        releaseJournalSlot();
+      }
 
       if (journalError || !journalData) {
         throw new Error(journalError || '仕訳生成 API エラー');
@@ -277,25 +285,47 @@ export default function OCRPage() {
     }
   };
 
-  const CONCURRENCY = 200;
+  const OCR_CONCURRENCY = 200;
+  const JOURNAL_CONCURRENCY = 5;
 
-  const runBatch = async (targets: OCRResultItem[]) => {
-    if (targets.length === 0) return;
-    setProcessing(true);
-    let running = 0;
-    let index = 0;
+  // 仕訳生成APIの並列数を制限するセマフォ
+  const journalSemaphore = useRef({ running: 0, queue: [] as Array<() => void> }).current;
+  const acquireJournalSlot = (): Promise<void> => {
+    if (journalSemaphore.running < JOURNAL_CONCURRENCY) {
+      journalSemaphore.running++;
+      return Promise.resolve();
+    }
+    return new Promise<void>(resolve => { journalSemaphore.queue.push(resolve); });
+  };
+  const releaseJournalSlot = () => {
+    if (journalSemaphore.queue.length > 0) {
+      journalSemaphore.queue.shift()!();
+    } else {
+      journalSemaphore.running--;
+    }
+  };
 
-    await new Promise<void>((resolve) => {
+  const runConcurrent = (items: OCRResultItem[], concurrency: number, fn: (item: OCRResultItem) => Promise<void>) => {
+    return new Promise<void>((resolve) => {
+      let running = 0;
+      let index = 0;
       const tryNext = () => {
-        if (index >= targets.length && running === 0) { resolve(); return; }
-        while (running < CONCURRENCY && index < targets.length) {
-          const item = targets[index++];
+        if (index >= items.length && running === 0) { resolve(); return; }
+        while (running < concurrency && index < items.length) {
+          const item = items[index++];
           running++;
-          processOneDocument(item).finally(() => { running--; tryNext(); });
+          fn(item).finally(() => { running--; tryNext(); });
         }
       };
       tryNext();
     });
+  };
+
+  const runBatch = async (targets: OCRResultItem[]) => {
+    if (targets.length === 0) return;
+    setProcessing(true);
+
+    await runConcurrent(targets, OCR_CONCURRENCY, processOneDocument);
 
     setProcessing(false);
   };
