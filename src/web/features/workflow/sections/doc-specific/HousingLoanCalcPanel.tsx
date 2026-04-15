@@ -2,7 +2,7 @@
 import { useReview } from '../../context/ReviewContext';
 
 export default function HousingLoanCalcPanel() {
-  const { ci, form, setForm } = useReview();
+  const { ci } = useReview();
   if (!ci) return null;
   const classification = ci.docClassification as Record<string, unknown> | null;
   const loanBalance = classification?.loan_balance as number | undefined;
