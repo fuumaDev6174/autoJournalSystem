@@ -1,6 +1,4 @@
-/**
- * @module バックエンド API クライアント
- */
+// バックエンド API クライアント
 import { supabase } from '@/web/shared/lib/supabase';
 import type {
   Client, ClientWithIndustry, AccountItem, AccountCategory, TaxCategory,
@@ -11,11 +9,6 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
-// ============================================
-// 型定義
-// ============================================
-
-/** 品目 */
 export interface Item {
   id: string;
   organization_id: string | null;
@@ -33,7 +26,6 @@ export interface Item {
   updated_at: string;
 }
 
-/** 品目エイリアス */
 export interface ItemAlias {
   id: string;
   item_id: string;
@@ -42,7 +34,6 @@ export interface ItemAlias {
   created_at: string;
 }
 
-/** 税率 */
 export interface TaxRate {
   id: string;
   name: string;
@@ -52,7 +43,6 @@ export interface TaxRate {
   updated_at: string;
 }
 
-/** クライアント業種 */
 export interface ClientIndustry {
   id: string;
   client_id: string;
@@ -60,22 +50,18 @@ export interface ClientIndustry {
   created_at: string;
 }
 
-/** 仕訳修正カウント */
 export interface CorrectionCount {
   count: number;
 }
 
-/** 未読通知カウント */
 export interface UnreadCount {
   count: number;
 }
 
-/** ストレージ署名付き URL */
 export interface SignedUrlResponse {
   signedUrl: string;
 }
 
-/** 仕訳 + 明細行 (リレーション込み) */
 export interface JournalEntryWithLines extends JournalEntry {
   journal_entry_lines?: (JournalEntryLine & {
     account_item?: AccountItem | AccountItem[];
@@ -83,9 +69,6 @@ export interface JournalEntryWithLines extends JournalEntry {
   })[];
 }
 
-// ============================================
-// 認証ヘッダー取得
-// ============================================
 async function getAuthHeaders(): Promise<Record<string, string>> {
   const { data: { session } } = await supabase.auth.getSession();
   if (session?.access_token) {
@@ -94,9 +77,6 @@ async function getAuthHeaders(): Promise<Record<string, string>> {
   return {};
 }
 
-// ============================================
-// 共通 fetch ラッパー（認証トークン自動付与）
-// ============================================
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<{ data: T | null; error: string | null }> {
   try {
     const authHeaders = await getAuthHeaders();
@@ -140,7 +120,20 @@ export const clientsApi = {
   create: (data: Partial<Client>) => apiFetch<Client>('/api/clients', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<Client>) => apiFetch<Client>(`/api/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => apiFetch<null>(`/api/clients/${id}`, { method: 'DELETE' }),
+  getMissingDocs: (id: string) => apiFetch<MissingDocsResult>(`/api/clients/${id}/missing-docs`),
 };
+
+export interface MissingDoc {
+  code: string;
+  label: string;
+  reason: string;
+}
+
+export interface MissingDocsResult {
+  required: MissingDoc[];
+  recommended: MissingDoc[];
+  submittedCodes: string[];
+}
 
 // ─── 勘定科目 ──────────────────────────────────────
 export const accountItemsApi = {
@@ -263,7 +256,7 @@ export const workflowsApi = {
 export const usersApi = {
   getAll: () => apiFetch<User[]>('/api/users'),
   getById: (id: string) => apiFetch<User>(`/api/users/${id}`),
-  create: (data: Partial<User>) => apiFetch<User>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
+  create: (data: Partial<User> & { password?: string }) => apiFetch<User>('/api/users', { method: 'POST', body: JSON.stringify(data) }),
   update: (id: string, data: Partial<User>) => apiFetch<User>(`/api/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id: string) => apiFetch<null>(`/api/users/${id}`, { method: 'DELETE' }),
 };

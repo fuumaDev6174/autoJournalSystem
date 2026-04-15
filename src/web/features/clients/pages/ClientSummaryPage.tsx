@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, Upload, FileOutput, FileX, ArrowLeft, Building2, Receipt, Calendar, CheckCircle, Clock, AlertCircle, Loader } from 'lucide-react';
+import { Plus, Upload, FileOutput, FileX, ArrowLeft, Building2, Receipt, Calendar, CheckCircle, Clock, AlertCircle, Loader, ChevronDown, ChevronRight, AlertTriangle, Info } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import { clientsApi, workflowsApi, documentsApi, journalEntriesApi } from '@/web/shared/lib/api/backend.api';
+import type { MissingDocsResult, MissingDoc } from '@/web/shared/lib/api/backend.api';
 import type { Client, Industry } from '@/types';
 
 
@@ -49,8 +50,17 @@ export default function SummaryPage() {
   const { startWorkflow } = useWorkflow();
   const [client, setClient] = useState<ClientDetail | null>(null);
   const [workflows, setWorkflows] = useState<WorkflowLog[]>([]);
+  const [missingDocs, setMissingDocs] = useState<MissingDocsResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [starting, setStarting] = useState(false);
+  const [showRecommended, setShowRecommended] = useState(false);
+
+  const handleStartWorkflow = async () => {
+    if (!client || !clientId) return;
+    setStarting(true);
+    await startWorkflow(clientId, client.name);
+    setStarting(false);
+  };
 
   useEffect(() => {
     if (clientId) loadData(clientId);
@@ -58,24 +68,28 @@ export default function SummaryPage() {
 
   const loadData = async (cid: string) => {
     setLoading(true);
-    const [clientRes, wfRes] = await Promise.all([
+    const [clientRes, wfRes, missingRes] = await Promise.all([
       clientsApi.getById(cid),
       workflowsApi.getAll({ client_id: cid }),
+      clientsApi.getMissingDocs(cid),
     ]);
+
+    if (missingRes.data) setMissingDocs(missingRes.data);
 
     if (clientRes.data) setClient(clientRes.data as ClientDetail);
 
     if (wfRes.data) {
-      // 各ワークフローの仕訳集計を取得
       const wfList = wfRes.data as WorkflowLog[];
+
+      // 仕訳は全ワークフローで同じクライアントなので1回だけ取得
+      const { data: allEntries } = await journalEntriesApi.getAll({ client_id: cid });
+
       const enriched = await Promise.all(
         wfList.map(async (wf) => {
-          // ワークフローに紐づくドキュメントIDを取得
           const { data: docs } = await documentsApi.getAll({ workflow_id: wf.id, client_id: cid });
 
           const docIds = docs?.map(d => d.id) || [];
 
-          // 取引日の日付範囲を計算
           const dates = docs
             ?.map(d => d.document_date)
             .filter(Boolean)
@@ -90,8 +104,6 @@ export default function SummaryPage() {
             return { ...wf, entryStats: { total: 0, approved: 0, excluded: 0, draft: 0, totalAmount: 0 }, dateRange };
           }
 
-          // 仕訳集計を取得
-          const { data: allEntries } = await journalEntriesApi.getAll({ client_id: cid });
           const entries = allEntries?.filter(e => e.document_id && docIds.includes(e.document_id)) || [];
 
           const total = entries.length;
@@ -99,7 +111,6 @@ export default function SummaryPage() {
           const excluded = entries.filter(e => e.is_excluded).length;
           const draft = entries.filter(e => e.status === 'draft').length;
 
-          // 借方合計金額を計算
           const totalAmount = entries.reduce((sum, e) => {
             const lines = e.journal_entry_lines || [];
             const debitLine = lines.find(l => l.debit_credit === 'debit');
@@ -133,9 +144,6 @@ export default function SummaryPage() {
 
   const getDocumentCount = (wf: WorkflowLog) => (wf.data?.uploaded_document_ids as string[] | undefined)?.length ?? 0;
 
-  // -------------------------------------------------------
-  // 取引日範囲をフォーマット
-  // -------------------------------------------------------
   const formatDateRange = (dateRange?: WorkflowLog['dateRange']) => {
     if (!dateRange?.earliest) return '-';
     const fmt = (d: string) => new Date(d).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
@@ -174,16 +182,7 @@ export default function SummaryPage() {
           <h1 className="text-2xl font-bold text-gray-900">{client.name}</h1>
           <p className="text-sm text-gray-500 mt-0.5">顧客詳細・業務ログ</p>
         </div>
-        <button
-          onClick={async () => {
-            if (!client || !clientId) return;
-            setStarting(true);
-            await startWorkflow(clientId, client.name);
-            setStarting(false);
-          }}
-          disabled={starting}
-          className="flex items-center gap-2 btn-primary disabled:opacity-60"
-        >
+        <button onClick={handleStartWorkflow} disabled={starting} className="flex items-center gap-2 btn-primary disabled:opacity-60">
           {starting ? <Loader size={18} className="animate-spin" /> : <Plus size={18} />}
           新規ワークフロー開始
         </button>
@@ -228,19 +227,92 @@ export default function SummaryPage() {
         </div>
       </div>
 
+      {/* 不足書類チェック */}
+      {missingDocs && (missingDocs.required.length > 0 || missingDocs.recommended.length > 0) && (
+        <div className="card">
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">書類チェック</h2>
+
+          {/* 必須不足 */}
+          {missingDocs.required.length > 0 && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle size={16} className="text-red-500" />
+                <span className="text-sm font-semibold text-red-700">未提出（必須）— {missingDocs.required.length}件</span>
+              </div>
+              <div className="space-y-2">
+                {missingDocs.required.map((doc: MissingDoc) => (
+                  <div key={doc.code} className="flex items-start gap-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertCircle size={16} className="text-red-500 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-red-800">{doc.label}</p>
+                      <p className="text-xs text-red-600 mt-0.5">{doc.reason}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* 推奨不足（折りたたみ） */}
+          {missingDocs.recommended.length > 0 && (
+            <div>
+              <button
+                type="button"
+                onClick={() => setShowRecommended(!showRecommended)}
+                className="flex items-center gap-2 mb-2 text-sm font-semibold text-yellow-700 hover:text-yellow-800"
+              >
+                {showRecommended ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                <Info size={16} className="text-yellow-500" />
+                提出推奨 — {missingDocs.recommended.length}件
+              </button>
+              {showRecommended && (
+                <div className="space-y-2">
+                  {missingDocs.recommended.map((doc: MissingDoc) => (
+                    <div key={doc.code} className="flex items-start gap-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <Info size={16} className="text-yellow-500 mt-0.5 shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-yellow-800">{doc.label}</p>
+                        <p className="text-xs text-yellow-600 mt-0.5">{doc.reason}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 提出済みサマリー */}
+          {missingDocs.submittedCodes.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <div className="flex items-center gap-2">
+                <CheckCircle size={16} className="text-green-500" />
+                <span className="text-sm text-gray-600">
+                  提出済み: <span className="font-medium text-green-700">{missingDocs.submittedCodes.length}種類</span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 全書類提出済み */}
+      {missingDocs && missingDocs.required.length === 0 && missingDocs.recommended.length === 0 && missingDocs.submittedCodes.length > 0 && (
+        <div className="card">
+          <div className="flex items-center gap-3">
+            <CheckCircle size={24} className="text-green-500" />
+            <div>
+              <h2 className="text-lg font-semibold text-green-800">書類チェック完了</h2>
+              <p className="text-sm text-green-600">必要な書類はすべて提出済みです（{missingDocs.submittedCodes.length}種類）</p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* クイックアクション */}
       <div className="grid grid-cols-3 gap-4">
         {/* アップロード = 新規ワークフロー開始 */}
-        <button
-          onClick={async () => {
-            if (!client || !clientId) return;
-            setStarting(true);
-            await startWorkflow(clientId, client.name);
-            setStarting(false);
-          }}
-          disabled={starting}
-          className="flex items-center gap-3 p-4 rounded-lg border transition-colors text-left text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200 disabled:opacity-60"
-        >
+        <button onClick={handleStartWorkflow} disabled={starting}
+          className="flex items-center gap-3 p-4 rounded-lg border transition-colors text-left text-blue-600 bg-blue-50 hover:bg-blue-100 border-blue-200 disabled:opacity-60">
           {starting ? <Loader size={20} className="animate-spin" /> : <Upload size={20} />}
           <div>
             <p className="text-sm font-semibold">アップロード</p>
@@ -285,16 +357,7 @@ export default function SummaryPage() {
           <div className="text-center py-10 text-gray-500">
             <Calendar size={40} className="mx-auto mb-3 text-gray-300" />
             <p className="text-sm">まだ処理履歴がありません</p>
-            <button
-              onClick={async () => {
-                if (!client || !clientId) return;
-                setStarting(true);
-                await startWorkflow(clientId, client.name);
-                setStarting(false);
-              }}
-              disabled={starting}
-              className="mt-4 btn-primary text-sm disabled:opacity-60"
-            >
+            <button onClick={handleStartWorkflow} disabled={starting} className="mt-4 btn-primary text-sm disabled:opacity-60">
               最初のワークフローを開始する
             </button>
           </div>
