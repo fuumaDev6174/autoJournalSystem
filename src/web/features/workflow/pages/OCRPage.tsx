@@ -277,7 +277,7 @@ export default function OCRPage() {
     }
   };
 
-  const CONCURRENCY = 2;
+  const CONCURRENCY = 200;
 
   const runBatch = async (targets: OCRResultItem[]) => {
     if (targets.length === 0) return;
