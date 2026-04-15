@@ -1,6 +1,4 @@
-/**
- * @module OCR ページ
- */
+// OCR ページ
 import { useState, useEffect, useCallback } from 'react';
 import { CheckCircle, AlertCircle, Loader, RotateCcw } from 'lucide-react';
 import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
@@ -8,9 +6,6 @@ import { documentsApi, clientsApi, journalEntriesApi, storageApi, ocrApi, journa
 import WorkflowHeader from '@/web/features/workflow/components/WorkflowHeader';
 import { useConfirm } from '@/web/shared/hooks/useConfirm';
 
-// ============================================
-// 型定義
-// ============================================
 type OCRStatus = 'pending' | 'processing' | 'completed' | 'error';
 type ErrorStep = 'storage_url' | 'ocr_api' | 'ocr_save' | 'journal_api' | 'journal_save' | 'lines_save' | 'unknown';
 
@@ -29,7 +24,6 @@ interface OCRResultItem {
 
 const MAX_RETRY = 3;
 
-/** OCR API が返す結果の型（ocrApi.process のレスポンス内 ocr_result） */
 interface OCRApiResult {
   confidence_score?: number;
   extracted_supplier?: string;
@@ -39,7 +33,6 @@ interface OCRApiResult {
   [key: string]: unknown;
 }
 
-/** 仕訳生成 API が返す結果の型 */
 interface JournalGenerateResult {
   journal_entry: {
     entry_date?: string;
@@ -77,9 +70,6 @@ export default function OCRPage() {
   const [processing, setProcessing] = useState(false);
   const [industry, setIndustry] = useState<string>('');
 
-  // ============================================
-  // 初期化
-  // ============================================
   useEffect(() => {
     if (!currentWorkflow) return;
     const wfData = currentWorkflow.data as Record<string, unknown>;
@@ -112,18 +102,12 @@ export default function OCRPage() {
     init();
   }, [currentWorkflow]);
 
-  // ============================================
-  // organization_id 取得ヘルパー
-  // ============================================
   const resolveOrganizationId = async (clientId: string): Promise<string | null> => {
     const { data, error } = await clientsApi.getById(clientId);
     if (error || !data) return null;
     return data.organization_id;
   };
 
-  // ============================================
-  // 1件処理（エラーステップを正確に記録）
-  // ============================================
   const processOneDocument = async (result: OCRResultItem) => {
     setOcrResults(prev => prev.map(r => r.id === result.id ? { ...r, status: 'processing' as OCRStatus, errorMessage: undefined, errorStep: undefined } : r));
 
@@ -132,7 +116,7 @@ export default function OCRPage() {
     try {
       // --- STEP 1: Storage署名付きURL ---
       currentStep = 'storage_url';
-      let storagePath = result.storagePath;
+      const storagePath = result.storagePath;
 
       const { data: signedUrlData, error: urlError } = await storageApi.getSignedUrl(storagePath);
 
@@ -155,7 +139,44 @@ export default function OCRPage() {
       const ocrResult = ocrData.ocr_result as OCRApiResult;
 
       // --- STEP 3: OCR結果をDBに保存 ---
+      // doc_classification に classifier 結果 + extractor の全抽出データを統合保存
       currentStep = 'ocr_save';
+      const existingClassification = ocrData.classification ?? {};
+      const mergedClassification: Record<string, unknown> = {
+        ...existingClassification,
+        // extractor の全フィールドを統合（レビューページの各パネルで参照される）
+        extracted_supplier: ocrResult.extracted_supplier ?? null,
+        extracted_amount: ocrResult.extracted_amount ?? null,
+        extracted_tax_amount: ocrResult.extracted_tax_amount ?? null,
+        extracted_date: ocrResult.extracted_date ?? null,
+        extracted_items: ocrResult.extracted_items ?? null,
+        extracted_payment_method: ocrResult.extracted_payment_method ?? null,
+        extracted_invoice_number: ocrResult.extracted_invoice_number ?? null,
+        extracted_tategaki: ocrResult.extracted_tategaki ?? null,
+        withholding_tax_amount: ocrResult.extracted_withholding_tax ?? null,
+        invoice_qualification: ocrResult.extracted_invoice_qualification ?? null,
+        extracted_addressee: ocrResult.extracted_addressee ?? null,
+        extracted_transaction_type: ocrResult.extracted_transaction_type ?? null,
+        extracted_transfer_fee_bearer: ocrResult.extracted_transfer_fee_bearer ?? null,
+        confidence_score: ocrResult.confidence_score ?? null,
+        // 控除証明書系の追加フィールド
+        life_insurance_details: ocrResult.life_insurance_details ?? null,
+        annual_amount: ocrResult.annual_amount ?? null,
+        donation_amount: ocrResult.donation_amount ?? null,
+        earthquake_premium: ocrResult.earthquake_premium ?? null,
+        total_medical_expense: ocrResult.total_medical_expense ?? null,
+        loan_balance: ocrResult.loan_balance ?? null,
+        // 複合仕訳系
+        payroll_details: ocrResult.payroll_details ?? null,
+        sales_details: ocrResult.sales_details ?? null,
+        // 資産系
+        acquisition_cost: ocrResult.acquisition_cost ?? null,
+        useful_life: ocrResult.useful_life ?? null,
+        // 繰越
+        carryover_loss: ocrResult.carryover_loss ?? null,
+        fiscal_year: ocrResult.fiscal_year ?? null,
+      };
+
       const { error: ocrSaveError } = await documentsApi.update(result.documentId, {
         ocr_status: 'completed',
         ocr_confidence: ocrResult.confidence_score ?? null,
@@ -164,6 +185,7 @@ export default function OCRPage() {
         tax_amount: ocrResult.extracted_tax_amount ?? null,
         document_date: ocrResult.extracted_date || new Date().toISOString().split('T')[0],
         status: 'ocr_completed',
+        doc_classification: mergedClassification,
       });
 
       if (ocrSaveError) {
@@ -255,9 +277,6 @@ export default function OCRPage() {
     }
   };
 
-  // ============================================
-  // セマフォ付き並列実行
-  // ============================================
   const CONCURRENCY = 2;
 
   const runBatch = async (targets: OCRResultItem[]) => {
@@ -312,9 +331,6 @@ export default function OCRPage() {
     runBatch(errors);
   };
 
-  // ============================================
-  // 次へ
-  // ============================================
   const handleBeforeNext = async (): Promise<boolean> => {
     if (ocrResults.some(r => r.status === 'pending' || r.status === 'processing')) {
       alert('すべてのOCR処理が完了していません。処理を開始してください。');
@@ -333,9 +349,6 @@ export default function OCRPage() {
     return true;
   };
 
-  // ============================================
-  // 集計
-  // ============================================
   const completedCount = ocrResults.filter(r => r.status === 'completed').length;
   const processingCount = ocrResults.filter(r => r.status === 'processing').length;
   const pendingCount = ocrResults.filter(r => r.status === 'pending').length;
@@ -343,9 +356,6 @@ export default function OCRPage() {
   const totalCount = ocrResults.length;
   const allDone = totalCount > 0 && ocrResults.every(r => r.status === 'completed' || r.status === 'error');
 
-  // ============================================
-  // ガード
-  // ============================================
   if (!currentWorkflow) {
     return (
       <div className="flex flex-col items-center justify-center h-full">
