@@ -1,7 +1,7 @@
 # ファイルマップ — 全ソースファイルの役割一覧
 
 > プロジェクト内の全ファイルの役割を一目で把握するためのドキュメント。  
-> 最終更新: 2026-04-10
+> 最終更新: 2026-04-15
 
 ---
 
@@ -10,12 +10,11 @@
 1. [ルート設定ファイル](#ルート設定ファイル)
 2. [src/adapters/ — 外部サービス接続](#srcadapters--外部サービス接続)
 3. [src/api/ — REST API サーバー](#srcapi--rest-api-サーバー)
-4. [src/core/ — ビジネスロジック（ドメイン層）](#srccore--ビジネスロジックドメイン層)
-5. [src/modules/ — 機能モジュール](#srcmodules--機能モジュール)
-6. [src/server/ — サーバーエントリーポイント](#srcserver--サーバーエントリーポイント)
-7. [src/shared/ — バックエンド/フロントエンド共有](#srcshared--バックエンドフロントエンド共有)
-8. [src/web/ — フロントエンド（React SPA）](#srcweb--フロントエンドreact-spa)
-9. [src/db/ — データベース](#srcdb--データベース)
+4. [src/domain/ — ビジネスロジック（ドメイン層）](#srcdomain--ビジネスロジックドメイン層)
+5. [src/server/ — サーバーエントリーポイント](#srcserver--サーバーエントリーポイント)
+6. [src/shared/ — バックエンド/フロントエンド共有](#srcshared--バックエンドフロントエンド共有)
+7. [src/web/ — フロントエンド（React SPA）](#srcweb--フロントエンドreact-spa)
+8. [src/db/ — データベース](#srcdb--データベース)
 
 ---
 
@@ -32,8 +31,13 @@ beso/
 ├── vite.config.ts              Vite ビルド設定（プロキシ・エイリアス）
 ├── tailwind.config.ts          Tailwind CSS 設定（primary/danger/success/warning トークン）
 ├── postcss.config.js           PostCSS 設定（Tailwind プラグイン）
-├── TASKS.md                    リファクタリング計画・進捗管理
-└── FILE_MAP.md                 ← このファイル
+├── render.yaml                 Render デプロイ設定
+├── CLAUDE.md                   AI アシスタント向けプロジェクト指示
+├── TASKS.md                    タスク管理・進捗管理
+└── docs/
+    ├── ARCHITECTURE.md         アーキテクチャガイド
+    ├── FILE_MAP.md             ← このファイル
+    └── SHIWAKE.md              仕訳処理の詳細仕様
 ```
 
 ---
@@ -45,17 +49,14 @@ beso/
 ```
 adapters/
 ├── freee/
-│   ├── freee.api-client.ts     freee 会計 API クライアント（取引登録・5件並列バッチ）
-│   └── freee.oauth.ts          freee OAuth2 認証フロー（トークン取得・リフレッシュ）
+│   └── freee.api-client.ts     freee 会計 API クライアント（取引登録・5件並列バッチ）
 │
 ├── gemini/
 │   ├── gemini.client.ts        Google Gemini API クライアント（リトライ・ジッター・レート制限）
 │   └── gemini.config.ts        Gemini モデル名・温度パラメータ等の設定
 │
 └── supabase/
-    ├── supabase.client.ts      Supabase クライアント（フロントエンド用・認証）
-    ├── supabase-admin.client.ts Supabase 管理者クライアント（サーバー用・RLS バイパス）
-    └── supabase.debug.ts       Supabase 接続デバッグユーティリティ
+    └── supabase-admin.client.ts Supabase 管理者クライアント（サーバー用・RLS バイパス）
 ```
 
 ---
@@ -68,7 +69,6 @@ Express ベースの REST API。認証・認可・バリデーション・エラ
 api/
 ├── helpers/
 │   ├── async-handler.ts        asyncHandler() — ルートハンドラの try-catch ラッパー
-│   ├── master-data.ts          所有権検証ヘルパー（IDOR 防止）
 │   └── pagination.ts           parsePagination() — ページネーション解析（デフォルト20件、最大100件）
 │
 ├── middleware/
@@ -79,65 +79,69 @@ api/
 │   ├── rbac.middleware.ts       ロールベース認可（requirePermission ファクトリ）
 │   └── validate.middleware.ts   validateBody() — リクエストボディバリデーション
 │
-├── routes/
-│   ├── batch.route.ts          バッチ処理エンドポイント
-│   ├── documents.route.ts      書類管理エンドポイント
-│   ├── freee.route.ts          freee 連携エンドポイント（OAuth + API連携）
-│   ├── health.route.ts         ヘルスチェック
-│   ├── journals.route.ts       仕訳生成・AI 仕訳エンドポイント
-│   ├── ocr.route.ts            OCR 処理エンドポイント
-│   └── validation.route.ts     バリデーションエンドポイント
-│
-└── routes/crud/                 汎用 CRUD エンドポイント（全15テーブル）
-    ├── account-items.crud.ts    勘定科目 CRUD
-    ├── client-ratios.crud.ts    家事按分率 CRUD
-    ├── clients.crud.ts          顧客 CRUD
-    ├── documents.crud.ts        書類 CRUD
-    ├── industries.crud.ts       業種 CRUD
-    ├── items.crud.ts            品目 CRUD
-    ├── journal-corrections.crud.ts  仕訳修正履歴 CRUD
-    ├── journal-entries.crud.ts  仕訳 CRUD（承認・一括ステータス更新含む）
-    ├── notifications.crud.ts    通知 CRUD
-    ├── rules.crud.ts            仕訳ルール CRUD
-    ├── storage.crud.ts          ストレージ CRUD（署名付き URL 生成）
-    ├── suppliers.crud.ts        取引先 CRUD（エイリアス管理含む）
-    ├── tax-categories.crud.ts   税区分 CRUD
-    ├── users.crud.ts            ユーザー CRUD（RBAC 付き）
-    └── workflows.crud.ts        ワークフロー CRUD
+└── routes/                      ドメイン別ルートハンドラ
+    ├── client/
+    │   ├── index.ts             クライアントルーター統合
+    │   ├── client.crud.ts       顧客 CRUD（業種JOIN）
+    │   ├── client-ratios.crud.ts 家事按分率 CRUD
+    │   └── workflow.crud.ts     ワークフロー CRUD
+    │
+    ├── document/
+    │   ├── index.ts             ドキュメントルーター統合
+    │   ├── document.crud.ts     書類 CRUD
+    │   ├── document.upload.ts   証憑アップロード（multer）
+    │   ├── document.ocr.ts      OCR 処理エンドポイント
+    │   ├── document.batch.ts    一括 OCR + 仕訳生成
+    │   └── document.storage.ts  ストレージ操作（署名付き URL 生成）
+    │
+    ├── journal/
+    │   ├── index.ts             仕訳ルーター統合
+    │   ├── journal.crud.ts      仕訳 CRUD
+    │   ├── journal.generate.ts  仕訳生成（ルールマッチ → AI フォールバック）
+    │   ├── journal.operations.ts 承認・一括ステータス更新
+    │   ├── journal-corrections.crud.ts 修正履歴 CRUD
+    │   └── journal-lines.crud.ts 仕訳明細行 CRUD
+    │
+    ├── master/
+    │   ├── index.ts             マスタルーター統合
+    │   ├── account-items.crud.ts 勘定科目 CRUD
+    │   ├── tax-categories.crud.ts 税区分 CRUD
+    │   ├── industries.crud.ts   業種 CRUD
+    │   ├── suppliers.crud.ts    取引先 CRUD（エイリアス管理含む）
+    │   ├── items.crud.ts        品目 CRUD（エイリアス管理含む）
+    │   └── rules.crud.ts        仕訳ルール CRUD
+    │
+    ├── export/
+    │   ├── index.ts             エクスポートルーター統合
+    │   └── freee.ts             freee 連携エクスポート
+    │
+    ├── system/
+    │   ├── index.ts             システムルーター統合
+    │   ├── health.ts            ヘルスチェック + 環境情報
+    │   └── validation.ts        バリデーションエンドポイント
+    │
+    └── user/
+        ├── index.ts             ユーザールーター統合
+        ├── users.crud.ts        ユーザー CRUD（RBAC 付き）
+        └── notifications.crud.ts 通知 CRUD
 ```
 
 ---
 
-## src/core/ — ビジネスロジック（ドメイン層）
+## src/domain/ — ビジネスロジック（ドメイン層）
 
-フレームワーク・DB に依存しない純粋なビジネスロジック。
+フレームワーク・DB に依存しないビジネスロジック。
 
 ```
-core/
+domain/
 ├── accounting/
-│   ├── double-entry.ts         複式簿記の借方・貸方バランスチェック
-│   ├── household-ratio.ts      家事按分計算ロジック
-│   ├── rounding.ts             消費税四捨五入 + 源泉税切捨（通達181-1）
-│   ├── tax-calculation.ts      消費税計算（内税/外税/免税判定）
-│   └── withholding-tax.ts      源泉徴収税計算（士業/デザイン等の区分判定）
+│   ├── accounting-utils.ts     会計計算ユーティリティ（消費税・源泉税・家事按分・端数処理）
+│   └── balance-validator.ts    複式簿記の貸借バランス検証
 │
-├── matching/
-│   ├── condition-evaluator.ts  テーブル駆動の条件評価器（ルールマッチング）
-│   └── priority-resolver.ts    ルール優先度解決（client > industry > shared）
+├── auth/
+│   ├── authorization.service.ts 認可サービス（組織所有権検証・IDOR防止）
+│   └── role.types.ts           ロール・権限定義（ROLE_PERMISSIONS マップ）
 │
-└── validation/
-    ├── amount-validator.ts      金額バリデーション（桁数・範囲チェック）
-    └── date-validator.ts        日付バリデーション（会計期間チェック）
-```
-
----
-
-## src/modules/ — 機能モジュール
-
-特定のドメイン機能を実装するモジュール群。
-
-```
-modules/
 ├── document/
 │   ├── document.types.ts       書類関連の型定義
 │   ├── duplicate-checker.ts    書類重複チェック（金額・日付・取引先の類似度）
@@ -147,31 +151,38 @@ modules/
 │   ├── freee-csv.builder.ts    freee 取込用 CSV ビルダー（21列公式フォーマット）
 │   └── simple-csv.builder.ts   仕訳くん 独自形式 CSV ビルダー
 │
-├── identity/
-│   ├── role.types.ts           ロール・権限定義（ROLE_PERMISSIONS マップ）
-│   └── tenant.types.ts         テナント（組織）型定義
-│
 ├── journal/
+│   ├── accounting-constants.ts 会計定数（STATEMENT_EXTRACT_TYPES, FREEE_TAX_CODE_LOOKUP 等）
 │   ├── ai-generator.prompt.ts  AI 仕訳生成プロンプトテンプレート
-│   ├── ai-generator.service.ts AI 仕訳生成サービス（Gemini 呼び出し）
-│   ├── generator.strategy.ts   仕訳生成ストラテジー（ルールベース or AI）
+│   ├── ai-generator.service.ts AI 仕訳生成サービス（Gemini Pro 呼び出し）
+│   ├── journal-pipeline.service.ts 仕訳生成パイプライン（ルールマッチ → AI フォールバック）
 │   ├── journal.types.ts        仕訳関連の型定義
-│   ├── line-mapper.service.ts  仕訳明細行マッピングサービス
+│   ├── line-mapper.service.ts  仕訳明細行マッピング（科目名→UUID / 取引先名→UUID）
 │   └── rule-generator.service.ts 修正パターンからルール自動生成
 │
+├── master/
+│   └── master-data.service.ts  マスタデータ取得サービス（勘定科目・税区分等）
+│
+├── notification/
+│   └── notification.service.ts 通知サービス（通知レコードの作成）
+│
 ├── ocr/
-│   ├── classifier.prompt.ts    書類分類プロンプト（Step 1: 書類種別判定）
-│   ├── classifier.service.ts   書類分類サービス
-│   ├── extractor.prompt.ts     データ抽出プロンプト（Step 2: 金額・日付・取引先）
+│   ├── ocr.types.ts            OCR 全型定義（ClassificationResult / OCRResult / ExtractedLine）
+│   ├── ocr-pipeline.service.ts OCR パイプライン統合（分類→抽出→明細分割の一貫実行）
+│   ├── ocr-parse-utils.ts      OCR 結果の JSON パース・修復ユーティリティ
+│   ├── classifier.prompt.ts    証憑分類プロンプト（63書類種別対応）
+│   ├── classifier.service.ts   書類分類サービス（種別コード + 確信度）
+│   ├── extractor.prompt.ts     データ抽出プロンプト（全書類種別対応 JSON スキーマ）
 │   ├── extractor.service.ts    データ抽出サービス
-│   ├── multi-extractor.prompt.ts 複数明細抽出プロンプト（通帳・クレカ明細等）
-│   ├── multi-extractor.service.ts 複数明細抽出サービス
-│   └── ocr.types.ts            OCR 関連の型定義
+│   ├── multi-extractor.prompt.ts 明細分割プロンプト（通帳・クレカ等の複数行抽出）
+│   └── multi-extractor.service.ts 複数明細抽出サービス
 │
 └── rule-engine/
+    ├── condition-evaluator.ts   テーブル駆動の条件評価器（16種の条件を AND 評価）
     ├── conflict-detector.ts     ルール競合検出（条件セット JSON 一致判定）
     ├── matcher.service.ts       ルールマッチングサービス（優先度順序付け）
-    ├── matcher-with-candidates.ts  候補付きルールマッチング
+    ├── matcher-with-candidates.ts 候補付きルールマッチング
+    ├── priority-resolver.ts     ルール優先度解決（client > industry > shared）
     ├── rule-engine.types.ts     ルールエンジン型定義
     └── rule-name-generator.ts   ルール名自動生成
 ```
@@ -182,9 +193,7 @@ modules/
 
 ```
 server/
-├── index.ts                    Express サーバー起動（ミドルウェア登録・ルートマウント）
-└── services/
-    └── validation.service.ts   サーバーサイドバリデーションサービス
+└── index.ts                    Express サーバー起動（ミドルウェア登録・ルートマウント）
 ```
 
 ---
@@ -195,21 +204,19 @@ server/
 
 ```
 shared/
-├── constants/
-│   └── accounting.ts           会計定数（STATEMENT_EXTRACT_TYPES, FREEE_TAX_CODE_LOOKUP 等）
-│
 ├── errors/
 │   └── app-errors.ts           構造化エラークラス（AppError/NotFoundError/ForbiddenError/ValidationError）
 │
 ├── types/
-│   ├── index.ts                型エクスポートのバレルファイル
-│   ├── models.ts               全テーブルの TypeScript 型定義（50+ インターフェース）
-│   └── enums.ts                通知タイプ等の列挙型
+│   └── index.ts                型エクスポートのバレルファイル（全DBモデル型 50+ インターフェース）
 │
 └── utils/
     ├── csv-escape.ts           RFC 4180 準拠 CSV エスケープ
     ├── encryption.ts           AES-256-GCM トークン暗号化/復号
-    ├── normalize-japanese.ts   日本語正規化（全角→半角、カタカナ→ひらがな）
+    ├── normalize-japanese.ts   日本語正規化（全角→半角、カタカナ→ひらがな、法人格除去）
+    ├── concurrent.ts           並行処理ユーティリティ
+    ├── ttl-cache.ts            TTL 付きキャッシュ
+    ├── request-helpers.ts      リクエストヘルパー
     └── __tests__/
         └── normalizeJapanese.test.ts  正規化のユニットテスト
 ```
@@ -234,7 +241,7 @@ web/
 ```
 web/app/
 ├── App.tsx                     ルートコンポーネント（ErrorBoundary + ルーティング + プロバイダー）
-├── routes.tsx                  全20ページの React.lazy ルート定義（コード分割済み）
+├── routes.tsx                  全ページの React.lazy ルート定義（コード分割済み）
 │
 ├── layouts/
 │   ├── MainLayout.tsx          メインレイアウト（サイドバー + ヘッダー + コンテンツ領域）
@@ -253,7 +260,7 @@ web/app/
 ```
 web/shared/
 ├── components/
-│   ├── ErrorBoundary.tsx       エラーバウンダリ（フォールバック UI + 再試行 + DEV 時スタック表示）
+│   ├── ErrorBoundary.tsx       エラーバウンダリ（フォールバック UI + 再試行）
 │   ├── PageSuspense.tsx        ページ遅延読み込み用ローディング UI
 │   │
 │   ├── ui/
@@ -277,8 +284,11 @@ web/shared/
 │   ├── useSearchFilter.ts      検索フィルタ hook（クエリ + フィルタリング）
 │   └── useConfirm.ts           確認ダイアログ hook（Promise ベース）
 │
-├── lib/api/
-│   └── backend.api.ts          バックエンド API クライアント（全エンドポイント型付き・認証自動付与）
+├── lib/
+│   ├── supabase.ts             フロント用 Supabase クライアント（anon key・認証専用）
+│   ├── supabase.debug.ts       Supabase 接続デバッグユーティリティ
+│   └── api/
+│       └── backend.api.ts      バックエンド API クライアント（全エンドポイント型付き・認証自動付与）
 │
 ├── types/
 │   └── views.ts                フロントエンド固有のビュー型定義
@@ -336,6 +346,11 @@ features/excluded/
 
 ```
 features/master/
+├── hooks/
+│   ├── useAccountsData.ts      勘定科目データ hook
+│   ├── useItemsData.ts         品目データ hook
+│   └── useSuppliersData.ts     取引先データ hook
+│
 └── pages/
     ├── AccountsPage.tsx        勘定科目管理（一般/不動産タブ・カテゴリフィルタ・CRUD）
     ├── TaxCategoriesPage.tsx   税区分・税率管理（税区分 CRUD + 税率サブ管理）
@@ -396,7 +411,7 @@ features/workflow/
 │   ├── SingleEntryLayout.tsx   単一仕訳レイアウト（レシート・請求書等）
 │   ├── CompoundEntryLayout.tsx 複合仕訳レイアウト（給与明細・売上集計等）
 │   ├── StatementLayout.tsx     明細一括レイアウト（通帳・クレカ明細等）
-│   ├── MetadataLayout.tsx      メタデータレイアウト（開業届・登録通知書等）
+│   ├── MetadataLayout.tsx      メタデータレイアウト（届出書・契約書等）
 │   └── ArchiveLayout.tsx       保管レイアウト（処理不要書類）
 │
 ├── sections/                   レビュー画面の UI セクション
@@ -412,7 +427,7 @@ features/workflow/
 │   ├── RuleCandidatesBar.tsx   ルール候補バー（適用可能ルールの提案）
 │   ├── MultiEntrySiblingTabs.tsx  同一書類の仕訳タブ切り替え
 │   │
-│   └── doc-specific/           書類種別固有のパネル
+│   └── doc-specific/           書類種別固有のパネル（19種）
 │       ├── index.tsx            遅延読み込みエントリー（React.lazy）
 │       ├── ReceiptItemList.tsx  レシート明細リスト
 │       ├── InvoicePanel.tsx     請求書パネル（インボイス番号・支払期日）
@@ -424,7 +439,14 @@ features/workflow/
 │       ├── ReconciliationPanel.tsx  残高照合パネル
 │       ├── MetadataFieldsPanel.tsx  メタデータフィールドパネル
 │       ├── PaymentMethodSelector.tsx 決済方法セレクター
-│       └── TransferFeePanel.tsx     振込手数料パネル
+│       ├── TransferFeePanel.tsx     振込手数料パネル
+│       ├── DepreciationPanel.tsx    減価償却パネル
+│       ├── CarryoverPanel.tsx       繰越パネル
+│       ├── FurusatoCalcPanel.tsx    ふるさと納税計算パネル
+│       ├── HousingLoanCalcPanel.tsx 住宅ローン控除計算パネル
+│       ├── InventoryCalcPanel.tsx   棚卸計算パネル
+│       ├── LifeInsCalcPanel.tsx     生命保険料控除計算パネル
+│       └── MedicalCalcPanel.tsx     医療費控除計算パネル
 │
 ├── lib/
 │   └── workflowStorage.ts     ワークフロー状態の永続化（localStorage）
@@ -444,49 +466,22 @@ features/workflow/
 ```
 db/
 ├── schema.sql                  全テーブル定義（Supabase/PostgreSQL）
-├── seed_industry_rules.sql     業種別ルールの初期データ
-├── seed_processing_rules.sql   処理ルールの初期データ
-├── migration-supplier-category-check.sql   取引先カテゴリチェックマイグレーション
-└── migration-update-journal-entry-rpc.sql  仕訳更新 RPC マイグレーション
-```
-
----
-
-## アーキテクチャ概要図
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│                     フロントエンド (React SPA)               │
-│  ┌─────────┐  ┌──────────┐  ┌────────────┐  ┌───────────┐  │
-│  │ 顧客管理 │  │ ワーク    │  │ マスタ管理  │  │ 設定      │  │
-│  │         │  │ フロー    │  │            │  │           │  │
-│  └────┬────┘  └────┬─────┘  └─────┬──────┘  └─────┬─────┘  │
-│       └──────┬─────┴──────────────┴───────────────┘        │
-│              │                                              │
-│       ┌──────▼──────┐                                       │
-│       │ backend.api │ ← 型付き API クライアント              │
-│       └──────┬──────┘                                       │
-└──────────────┼──────────────────────────────────────────────┘
-               │ HTTP (JWT 認証)
-┌──────────────▼──────────────────────────────────────────────┐
-│                     バックエンド (Express)                    │
-│  ┌──────────┐  ┌──────────┐  ┌──────────────┐              │
-│  │ 認証/認可 │  │ CRUD API │  │ ビジネス API │              │
-│  │ ミドル    │  │ (15テーブル)│  │ (OCR/仕訳/  │              │
-│  │ ウェア    │  │          │  │  エクスポート)│              │
-│  └──────────┘  └──────────┘  └──────┬───────┘              │
-│                                      │                      │
-│  ┌──────────────────────────────────▼─────────────────────┐ │
-│  │              core/ + modules/                          │ │
-│  │  会計ロジック │ OCR │ 仕訳生成 │ ルールエンジン │ 書類管理 │ │
-│  └──────────────────────────────────┬─────────────────────┘ │
-└─────────────────────────────────────┼───────────────────────┘
-                                      │
-┌─────────────────────────────────────▼───────────────────────┐
-│                     外部サービス (adapters/)                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐                  │
-│  │ Supabase │  │ Gemini   │  │ freee    │                  │
-│  │ (DB/Auth)│  │ (AI/OCR) │  │ (会計API)│                  │
-│  └──────────┘  └──────────┘  └──────────┘                  │
-└─────────────────────────────────────────────────────────────┘
+├── migrations/
+│   ├── migration-supplier-category-check.sql   取引先カテゴリチェックマイグレーション
+│   └── migration-update-journal-entry-rpc.sql  仕訳更新 RPC マイグレーション
+├── queries/
+│   ├── export-full-schema-json.sql   スキーマ全体を JSON でエクスポート
+│   ├── list-check-constraints.sql    CHECK制約一覧
+│   ├── list-columns.sql              カラム一覧
+│   ├── list-enums.sql                ENUM一覧
+│   ├── list-foreign-keys.sql         外部キー一覧
+│   ├── list-functions.sql            関数一覧
+│   ├── list-indexes.sql              インデックス一覧
+│   ├── list-rls-policies.sql         RLSポリシー一覧
+│   └── list-tables.sql               テーブル一覧
+├── seeds/
+│   ├── seed_industry_rules.sql       業種別ルールの初期データ
+│   └── seed_processing_rules.sql     処理ルールの初期データ
+└── snapshots/
+    └── README.md                     スナップショットの説明
 ```

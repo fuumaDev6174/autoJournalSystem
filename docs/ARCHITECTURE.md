@@ -14,40 +14,36 @@ src/
  |
  |  [ バックエンド ]
  |
- |-- core/              純粋関数。外部依存ゼロ。テスト最優先領域
- |   |-- accounting/       会計計算（貸借一致、消費税、源泉、家事按分）
- |   |-- matching/         ルール条件評価・優先順位解決
- |   '-- validation/       金額・日付・残高の検証
- |
- |-- modules/           業務ロジック。モジュール間は直接依存しない
- |   |-- ocr/              証憑画像 → テキスト抽出（Gemini Vision）
- |   |-- journal/          仕訳データ生成（ルール or AI）
- |   |-- rule-engine/      ルールマッチング
- |   |-- export/           CSV生成
- |   |-- document/         重複チェック・取引先名寄せ
- |   '-- identity/         ロール・テナント型定義
+ |-- domain/            ビジネスロジック（ドメイン層）
+ |   |-- accounting/       会計計算ユーティリティ・貸借バランス検証
+ |   |-- auth/             認可サービス・ロール型定義
+ |   |-- document/         書類型定義・重複チェック・取引先名寄せ
+ |   |-- export/           CSV生成（freee形式 / 独自形式）
+ |   |-- journal/          仕訳生成パイプライン・AIプロンプト・ルール生成
+ |   |-- master/           マスタデータサービス
+ |   |-- notification/     通知サービス
+ |   |-- ocr/              OCRパイプライン（分類→抽出→明細分割）
+ |   '-- rule-engine/      ルールマッチング・競合検出・優先度解決
  |
  |-- adapters/          外部サービスとの接続を隔離
  |   |-- gemini/           Google Gemini API クライアント
- |   |-- supabase/         Supabase クライアント（フロント用 / サーバー用）
+ |   |-- supabase/         Supabase 管理者クライアント（サーバー用）
  |   '-- freee/            freee REST API クライアント
  |
  |-- api/               Express ルート定義・ミドルウェア
- |   |-- helpers/          共通ヘルパー（マスタデータ取得、通知作成）
- |   |-- middleware/       レート制限・ログ・エラーハンドリング・認証
- |   '-- routes/
- |       |-- crud/         CRUDエンドポイント（15ファイル、リソース別）
- |       |-- documents.route.ts    証憑アップロード
- |       |-- ocr.route.ts          OCR処理
- |       |-- journals.route.ts     仕訳生成
- |       |-- freee.route.ts        freee連携（export / OAuth）
- |       |-- batch.route.ts        一括処理
- |       |-- validation.route.ts   バリデーション
- |       '-- health.route.ts       ヘルスチェック
+ |   |-- helpers/          共通ヘルパー（async-handler, pagination）
+ |   |-- middleware/       認証・認可・レート制限・ログ・エラーハンドリング
+ |   '-- routes/           ドメイン別ルートハンドラ
+ |       |-- client/         顧客・按分率・ワークフロー
+ |       |-- document/       書類アップロード・OCR・ストレージ・バッチ
+ |       |-- journal/        仕訳CRUD・生成・操作・修正履歴
+ |       |-- master/         勘定科目・税区分・業種・取引先・品目・ルール
+ |       |-- export/         freee連携エクスポート
+ |       |-- system/         ヘルスチェック・バリデーション
+ |       '-- user/           ユーザー・通知
  |
  |-- server/            Expressサーバー起動・ミドルウェア接続
- |   |-- index.ts          エントリポイント（npm run start が実行）
- |   '-- services/         OCR・仕訳生成・ルールエンジン等の実装
+ |   '-- index.ts          エントリポイント（npm run start が実行）
  |
  |
  |  [ フロントエンド ]
@@ -74,6 +70,7 @@ src/
  |       |-- hooks/          useAsync, useCrud, useModal, useSearchFilter, useConfirm
  |       |-- constants/      statuses, keyboard, ui
  |       |-- lib/api/        backend.api.ts（全エンドポイント型付きAPIクライアント）
+ |       |-- lib/            supabase.ts（フロント用クライアント）
  |       |-- types/          UI専用の拡張型
  |       '-- utils/          日付・金額フォーマッター
  |
@@ -82,11 +79,10 @@ src/
  |
  |-- shared/            サーバー/クライアント両方で使う
  |   |-- types/            全DBモデル型定義（50+ interface）
- |   |-- constants/        会計定数（STATEMENT_EXTRACT_TYPES, FREEE_TAX_CODE_LOOKUP 等）
  |   |-- errors/           構造化エラークラス（AppError, NotFoundError 等）
- |   '-- utils/            normalizeJapanese, csv-escape, encryption
+ |   '-- utils/            normalizeJapanese, csv-escape, encryption, concurrent, ttl-cache
  |
- '-- db/                SQLスキーマ・マイグレーション
+ '-- db/                SQLスキーマ・マイグレーション・クエリ・シード
 ```
 
 
@@ -96,117 +92,90 @@ src/
 # バックエンド詳細
 
 
-## core/ ── 純粋関数
+## domain/ ── ビジネスロジック
 
-> 外部依存ゼロ。入力 → 出力の純粋関数だけ。
-> 変更頻度: 年0〜2回（税法改正時のみ）
+> フレームワーク・DB に依存しないドメインロジック。
 
 ### accounting/
 
 ```
-double-entry.ts
-  checkDebitCreditBalance(lines)   借方合計と貸方合計を比較
-
-tax-calculation.ts
-  calcTaxFromInclusive(税込額, 税率)   税額を逆算
-  calcInclusiveAmount(税抜額, 税率)    税込額に変換
-  calcExclusiveAmount(税込額, 税率)    税抜額に変換
-
-withholding-tax.ts
-  calcWithholdingTax(報酬額)
-  → 100万以下: 10.21% / 100万超: 超過分20.42%
-
-household-ratio.ts
-  splitByHouseholdRatio(総額, 税額, 事業割合)
-  → { 事業用金額, 私用金額, 事業用税額, 私用税額 }
-
-rounding.ts
-  roundConsumptionTax(税額)     消費税を四捨五入
-  truncateWithholdingTax(税額)  源泉徴収税を切り捨て（通達181-1）
+accounting-utils.ts    会計計算ユーティリティ（消費税・源泉税・家事按分・端数処理）
+balance-validator.ts   複式簿記の貸借バランス検証
 ```
 
-### matching/
+### auth/
 
 ```
-condition-evaluator.ts
-  evaluateConditions(conditions, input)
-  → 16種の条件をAND評価（取引先/摘要/金額範囲/品目/支払方法/
-    証憑種別/インボイス有無/税率/内税外税/取引頻度/但書き/
-    適格区分/宛名/取引種類/手数料負担）
-
-priority-resolver.ts
-  sortByPriority(rules, clientId, industryIds)
-  → scope優先順: client(0) > industry(1) > shared(2)
-```
-
-### validation/
-
-```
-amount-validator.ts   isValidAmount(), roundCurrency()
-date-validator.ts     isValidDateString(), isWithinFiscalYear()
-```
-
-
----
-
-
-## modules/ ── 独立した業務機能
-
-> 各モジュールは他モジュールに依存しない。
-
-### ocr/
-
-```
-ocr.types.ts              OCR全型定義の一元管理
-                          ClassificationResult / OCRResult / OCRTransaction / ExtractedLine
-
-classifier.prompt.ts      証憑分類プロンプト（60書類種別対応）
-classifier.service.ts     classifyDocument(画像)
-                          → 種別コード + 確信度
-                          → VALID_DOC_CODES でコード検証
-                          → JSON修復パース・エラー種別ログ付き
-
-extractor.prompt.ts       OCRデータ抽出プロンプト（全書類種別対応のJSONスキーマ）
-extractor.service.ts      processOCR(画像URL, preloaded?)
-                          → 5ステップ: 画像取得→Gemini→JSONパース→正規化→結果組立
-                          → preloaded で二重ダウンロード防止
-
-multi-extractor.prompt.ts 明細分割プロンプト（11書類種別のヒント付き）
-multi-extractor.service.ts extractMultipleEntries()
-                          → MultiExtractResult { lines: ExtractedLine[], error: string | null }
-                          → 通帳・クレカ・給与明細等から行ごとの取引を抽出
-                          → JSON修復パース・金額0行除外・日付正規化（null許容）
-```
-
-### journal/
-
-```
-ai-generator.service.ts    generateJournalEntry(input) → 複合仕訳（Gemini Pro）
-rule-generator.service.ts  buildEntryFromRule(ルール, 取引) → 仕訳（家事按分対応）
-line-mapper.service.ts     mapLinesToDBFormat() → 科目名→UUID / 取引先名→UUID変換
-generator.strategy.ts      ルールマッチ → 失敗時AIフォールバック
-```
-
-### rule-engine/
-
-```
-matcher.service.ts              matchProcessingRules() → 最優先の1件
-matcher-with-candidates.ts      同上 + 他の候補一覧
-rule-name-generator.ts          条件から読みやすいルール名を生成
-```
-
-### export/
-
-```
-simple-csv.builder.ts    buildSimpleCsv() → 仕訳くん 独自CSV
-freee-csv.builder.ts     buildFreeeCsv() → freee取込用21列CSV
+authorization.service.ts  認可サービス（組織所有権検証・IDOR防止）
+role.types.ts             ロール・権限定義（ROLE_PERMISSIONS マップ）
 ```
 
 ### document/
 
 ```
-duplicate-checker.ts     ハッシュ完全一致 + 金額/日付/取引先の類似チェック
-supplier-matcher.ts      完全一致 → 部分一致 → エイリアスの3段階マッチング
+document.types.ts       書類関連の型定義
+duplicate-checker.ts    書類重複チェック（金額・日付・取引先の類似度）
+supplier-matcher.ts     取引先自動マッチング（完全一致→部分一致→エイリアス）
+```
+
+### export/
+
+```
+freee-csv.builder.ts    freee 取込用 CSV ビルダー（21列公式フォーマット）
+simple-csv.builder.ts   仕訳くん 独自形式 CSV ビルダー
+```
+
+### journal/
+
+```
+accounting-constants.ts    会計定数（STATEMENT_EXTRACT_TYPES, FREEE_TAX_CODE_LOOKUP 等）
+ai-generator.prompt.ts     AI 仕訳生成プロンプトテンプレート
+ai-generator.service.ts    AI 仕訳生成サービス（Gemini Pro 呼び出し）
+journal-pipeline.service.ts 仕訳生成パイプライン（ルールマッチ → AIフォールバック）
+journal.types.ts           仕訳関連の型定義
+line-mapper.service.ts     仕訳明細行マッピング（科目名→UUID / 取引先名→UUID）
+rule-generator.service.ts  修正パターンからルール自動生成
+```
+
+### master/
+
+```
+master-data.service.ts   マスタデータ取得サービス（勘定科目・税区分等）
+```
+
+### notification/
+
+```
+notification.service.ts  通知サービス（通知レコードの作成）
+```
+
+### ocr/
+
+```
+ocr.types.ts              OCR全型定義（ClassificationResult / OCRResult / OCRTransaction / ExtractedLine）
+ocr-pipeline.service.ts   OCRパイプライン統合サービス（分類→抽出→明細分割の一貫実行）
+ocr-parse-utils.ts        OCR結果のJSONパース・修復ユーティリティ
+
+classifier.prompt.ts      証憑分類プロンプト（63書類種別対応）
+classifier.service.ts     classifyDocument() → 種別コード + 確信度
+
+extractor.prompt.ts       OCRデータ抽出プロンプト（全書類種別対応のJSONスキーマ）
+extractor.service.ts      processOCR() → OCRResult
+
+multi-extractor.prompt.ts 明細分割プロンプト（通帳・クレカ等の複数行抽出）
+multi-extractor.service.ts extractMultipleEntries() → MultiExtractResult
+```
+
+### rule-engine/
+
+```
+condition-evaluator.ts     テーブル駆動の条件評価器（16種の条件をAND評価）
+conflict-detector.ts       ルール競合検出（条件セット JSON 一致判定）
+matcher.service.ts         ルールマッチングサービス（優先度順序付け）
+matcher-with-candidates.ts 候補付きルールマッチング
+priority-resolver.ts       ルール優先度解決（client > industry > shared）
+rule-engine.types.ts       ルールエンジン型定義
+rule-name-generator.ts     ルール名自動生成
 ```
 
 
@@ -227,16 +196,13 @@ gemini.client.ts     GoogleGenAI初期化 + callGeminiWithRetry()
 ### supabase/
 
 ```
-supabase.client.ts        フロント用（anon key）認証専用
-                          auth.signIn / signOut / signInWithGoogle / onAuthStateChange
 supabase-admin.client.ts  サーバー用（service_role key、RLSバイパス）
 ```
 
 ### freee/
 
 ```
-freee.api-client.ts   POST /api/1/deals で取引登録
-freee.oauth.ts        OAuth 2.0 フロー
+freee.api-client.ts   freee 会計 API クライアント（取引登録・5件並列バッチ）
 ```
 
 
@@ -245,65 +211,50 @@ freee.oauth.ts        OAuth 2.0 フロー
 
 ## api/ ── Express ルート定義
 
-### 業務ロジック系ルート（api/routes/*.route.ts）
+### ドメイン別ルート（api/routes/{domain}/）
 
-| ルートファイル | エンドポイント | 処理内容 |
-|---|---|---|
-| documents.route.ts | POST /documents/upload | 証憑ファイルアップロード（multer） |
-| ocr.route.ts | POST /ocr/process | Gemini VisionでOCR + 分類 + 重複チェック |
-| journals.route.ts | POST /journal-entries/generate | ルールマッチ → AI生成 → DB保存 |
-| freee.route.ts | POST /freee/export, GET/POST /freee/auth-url, callback, etc. | freee連携（エクスポート + OAuth） |
-| batch.route.ts | POST /process/batch | 複数ファイルの一括OCR + 仕訳生成 |
-| validation.route.ts | POST /validate/journal-balance, /validate/document-duplicate | バリデーション |
-| health.route.ts | GET /health | ヘルスチェック + 環境情報 |
-
-### CRUDルート（api/routes/crud/*.crud.ts）
-
-全てのデータベースリソースに対する標準CRUD。フロントエンドは `supabase.from()` を直接呼ばず、これらのAPIを経由する。
-
-| ファイル | 対象テーブル |
-|---|---|
-| clients.crud.ts | clients（業種JOIN） |
-| account-items.crud.ts | account_items, account_categories |
-| tax-categories.crud.ts | tax_categories, tax_rates, client_tax_category_settings |
-| industries.crud.ts | industries, client_industries |
-| rules.crud.ts | processing_rules |
-| suppliers.crud.ts | suppliers, supplier_aliases |
-| items.crud.ts | items, item_aliases |
-| journal-entries.crud.ts | journal_entries, journal_entry_lines, journal_entry_approvals |
-| workflows.crud.ts | workflows |
-| users.crud.ts | users |
-| notifications.crud.ts | notifications |
-| client-ratios.crud.ts | client_account_ratios |
-| documents.crud.ts | documents |
-| journal-corrections.crud.ts | journal_entry_corrections, excluded_entries |
-| storage.crud.ts | Supabase Storage（署名付きURL、削除） |
+| ドメイン | ファイル | エンドポイント | 処理内容 |
+|---|---|---|---|
+| client | client.crud.ts | /api/clients | 顧客CRUD（業種JOIN） |
+| client | client-ratios.crud.ts | /api/client-ratios | 家事按分率CRUD |
+| client | workflow.crud.ts | /api/workflows | ワークフローCRUD |
+| document | document.upload.ts | /api/documents/upload | 証憑アップロード（multer） |
+| document | document.crud.ts | /api/documents | 書類CRUD |
+| document | document.ocr.ts | /api/ocr/process | OCR処理（分類+抽出+重複チェック） |
+| document | document.batch.ts | /api/process/batch | 一括OCR+仕訳生成 |
+| document | document.storage.ts | /api/storage | ストレージ（署名付きURL） |
+| journal | journal.crud.ts | /api/journal-entries | 仕訳CRUD |
+| journal | journal.generate.ts | /api/journal-entries/generate | 仕訳生成（ルール→AI） |
+| journal | journal.operations.ts | /api/journal-entries/... | 承認・一括ステータス更新 |
+| journal | journal-corrections.crud.ts | /api/journal-corrections | 修正履歴CRUD |
+| journal | journal-lines.crud.ts | /api/journal-entry-lines | 仕訳明細行CRUD |
+| master | account-items.crud.ts | /api/account-items | 勘定科目CRUD |
+| master | tax-categories.crud.ts | /api/tax-categories | 税区分CRUD |
+| master | industries.crud.ts | /api/industries | 業種CRUD |
+| master | suppliers.crud.ts | /api/suppliers | 取引先CRUD（エイリアス管理） |
+| master | items.crud.ts | /api/items | 品目CRUD（エイリアス管理） |
+| master | rules.crud.ts | /api/processing-rules | 仕訳ルールCRUD |
+| export | freee.ts | /api/freee/export | freee連携エクスポート |
+| system | health.ts | /api/health | ヘルスチェック |
+| system | validation.ts | /api/validate/... | バリデーション |
+| user | users.crud.ts | /api/users | ユーザーCRUD（RBAC付き） |
+| user | notifications.crud.ts | /api/notifications | 通知CRUD |
 
 ### 共通ヘルパー（api/helpers/）
 
 ```
-master-data.ts
-  createNotification()         通知レコードの挿入
-  getOrganizationId()          ユーザーIDから組織IDを取得
-  verifyDocumentOwnership()    書類の組織所有権チェック（IDOR防止）
-  verifyJournalEntryOwnership() 仕訳の組織所有権チェック
-  verifyWorkflowOwnership()    ワークフローの組織所有権チェック
-
-async-handler.ts
-  asyncHandler()               ルートハンドラの try-catch ラッパー
-
-pagination.ts
-  parsePagination()            ページネーション解析（デフォルト20件、最大100件）
+async-handler.ts     asyncHandler() — ルートハンドラの try-catch ラッパー
+pagination.ts        parsePagination() — ページネーション解析（デフォルト20件、最大100件）
 ```
 
 ### ミドルウェア（api/middleware/）
 
 ```
+auth.middleware.ts          JWT認証チェック（Supabaseトークン検証）
+rbac.middleware.ts          ロールベース認可（requirePermission ファクトリ）
 rate-limit.middleware.ts    apiLimiter(100回/15分)  expensiveLimiter(20回/15分)
 logging.middleware.ts       リクエストログ出力
 error-handler.middleware.ts エラー応答 + 404ハンドラ（AppError対応）
-auth.middleware.ts          JWT認証チェック（Supabaseトークン検証）
-rbac.middleware.ts          ロールベース認可（requirePermission ファクトリ）
 validate.middleware.ts      validateBody() リクエストボディバリデーション
 ```
 
@@ -319,9 +270,6 @@ index.ts       Express初期化 → ミドルウェア → ルートマウント
                - express.static を CORS より前に配置（静的ファイルの500エラー回避）
                - CORSは /api パスのみに適用
                - 本番環境: dist/ を静的配信 + SPA catch-all
-
-services/      検証ロジックのみ（validation.service.ts）
-               → OCR・仕訳生成等の業務ロジックは modules/ に移動済み
 ```
 
 
@@ -370,40 +318,40 @@ components/
 context/                 ★ 3サブコンテキスト構成
   ReviewContext.tsx       オーケストレーター + 後方互換 useReview()
   ReviewViewContext.tsx   ビュー状態（viewMode, activeTab, zoom, rotation）
-  ReviewFormContext.tsx   フォーム状態（form, compoundLines, saving, addRule 等）
+  ReviewFormContext.tsx   フォーム状態（form, compoundLines, saving, ruleScope 等）
   ReviewDataContext.tsx   データ状態（items, entries, masterData, computed counts）
   useReviewData.ts       データ読み込み（documents + entries + master を Promise.allSettled で並列取得）
-  useReviewActions.ts    操作（保存・承認・除外・科目変更。stateRef パターンで安定化）
-  useReviewKeyboard.ts   キーボードショートカット（useRef パターン。依存配列空）
+  useReviewActions.ts    操作（保存・承認・除外・ルール作成・ナビゲーション）
+  useReviewKeyboard.ts   キーボードショートカット（useRef パターンで安定化）
 
 doc-types/
-  registry.ts            全56書類種別の設定レジストリ
+  registry.ts            全書類種別の設定レジストリ
                          layout / extraSections / supportsMultiLine を宣言的に定義
   types.ts               DocTypeConfig 型定義
 
 layouts/                 書類種別に応じた5種のレイアウト
   LayoutDispatcher.tsx   doc_classification.document_type_code → レイアウト振り分け
-  SingleEntryLayout.tsx  単一仕訳（レシート・請求書等 24種）
-  StatementLayout.tsx    明細テーブル（通帳・クレカ明細等 12種）
-  CompoundEntryLayout.tsx 複合仕訳テーブル（給与明細・売上集計 2種）
-  MetadataLayout.tsx     メタデータ表示（届出書・契約書等 21種）
-  ArchiveLayout.tsx      保管のみ表示（1種）
+  SingleEntryLayout.tsx  単一仕訳（レシート・請求書等）
+  StatementLayout.tsx    明細テーブル（通帳・クレカ明細等）
+  CompoundEntryLayout.tsx 複合仕訳テーブル（給与明細・売上集計等）
+  MetadataLayout.tsx     メタデータ表示（届出書・契約書等）
+  ArchiveLayout.tsx      保管のみ表示
 
-sections/                SingleEntry / Compound の共通セクション
-  OcrSummaryBadges.tsx   書類種別・AI信頼度のバッジ表示
-  OcrReferenceBox.tsx    OCR結果の参照表示（取引先・金額・日付）
-  RuleCandidatesBar.tsx  マッチしたルール候補表示
+sections/                レビュー画面の共通UIセクション
   CoreFieldsGrid.tsx     基本フィールド（日付・金額・科目・税区分・税率・品目・摘要）
   SupplierField.tsx      取引先入力（ComboBox + エイリアスマッチ）
   BusinessRatioPanel.tsx 事業按分パネル
   BusinessToggleRow.tsx  事業/私用切替
+  OcrSummaryBadges.tsx   書類種別・AI信頼度のバッジ表示
+  OcrReferenceBox.tsx    OCR結果の参照表示（取引先・金額・日付）
+  RuleCandidatesBar.tsx  マッチしたルール候補表示
   MultiEntrySiblingTabs.tsx 同一書類の複数仕訳タブ切替
   NavigationBar.tsx      前後ドキュメント移動
   ExcludeButton.tsx      仕訳対象外ボタン
   SaveStatusBar.tsx      保存状態インジケーター
 
-sections/doc-specific/   書類種別固有のセクション（17種）
-  index.tsx              セクションコード → コンポーネントのマッピング
+sections/doc-specific/   書類種別固有のセクション（19種）
+  index.tsx              セクションコード → コンポーネントのマッピング（React.lazy）
   ReceiptItemList.tsx    レシート品目一覧
   InvoicePanel.tsx       請求書インボイス情報
   WithholdingPanel.tsx   源泉徴収パネル
@@ -415,9 +363,16 @@ sections/doc-specific/   書類種別固有のセクション（17種）
   PayrollSummaryPanel.tsx 給与明細サマリー
   SalesBreakdownPanel.tsx 売上内訳パネル
   MetadataFieldsPanel.tsx メタデータ表示パネル
+  DepreciationPanel.tsx  減価償却パネル
+  CarryoverPanel.tsx     繰越パネル
+  FurusatoCalcPanel.tsx  ふるさと納税計算パネル
+  HousingLoanCalcPanel.tsx 住宅ローン控除計算パネル
+  InventoryCalcPanel.tsx 棚卸計算パネル
+  LifeInsCalcPanel.tsx   生命保険料控除計算パネル
+  MedicalCalcPanel.tsx   医療費控除計算パネル
 
 lib/
-  workflowStorage.ts     ワークフロー永続化（バックエンドAPI経由）
+  workflowStorage.ts     ワークフロー状態の永続化（localStorage）
 ```
 
 ### rules/
@@ -439,6 +394,13 @@ lib/
 | SuppliersPage.tsx | `/master/suppliers` | 取引先。エイリアス管理 |
 | ItemsPage.tsx | `/master/items` | 品目マスタ |
 
+master/hooks:
+```
+useAccountsData.ts    勘定科目データ hook
+useItemsData.ts       品目データ hook
+useSuppliersData.ts   取引先データ hook
+```
+
 ### その他
 
 | ファイル | URL | 画面の内容 |
@@ -458,19 +420,34 @@ lib/
 components/
   ui/Modal.tsx                汎用モーダルダイアログ
   ui/ComboBox.tsx             検索付きドロップダウン（科目・取引先選択）
+  ui/ConfirmDialog.tsx        確認ダイアログ（Promise ベース）
+  ui/Toast.tsx                トースト通知（4タイプ・自動消去）
+  ErrorBoundary.tsx           エラーバウンダリ（フォールバック UI + 再試行）
+  PageSuspense.tsx            ページ遅延読み込み用ローディング UI
   journal/CompoundJournalTable.tsx  複合仕訳テーブル
 
-lib/api/
-  backend.api.ts             全バックエンドAPI呼び出し関数
-                             apiFetch() + リソース別のAPI定義
-                             clientsApi / accountItemsApi / journalEntriesApi / etc.
-                             （フロントから supabase.from() は直接呼ばない）
+lib/
+  supabase.ts                フロント用 Supabase クライアント（anon key・認証専用）
+  supabase.debug.ts          Supabase 接続デバッグユーティリティ
+  api/backend.api.ts         全バックエンドAPI呼び出し関数（型付き）
 
-utils/
-  format.ts                  formatDate(), formatCurrency(), formatSalesLabel()
+hooks/
+  useAsync.ts                非同期処理 hook（loading/error/data）
+  useCrud.ts                 CRUD hook（一覧・作成・更新・削除 + 自動リロード）
+  useModal.ts                モーダル hook（open/close + 編集アイテム管理）
+  useSearchFilter.ts         検索フィルタ hook
+  useConfirm.ts              確認ダイアログ hook（Promise ベース）
+
+constants/
+  statuses.ts                仕訳ステータス定数・ラベル・バッジカラーマップ
+  keyboard.ts                キーボードショートカット定数
+  ui.ts                      UI 定数（ZOOM, NOTIFICATION_POLL_INTERVAL, WORKFLOW_STEPS）
 
 types/
   views.ts                   UI専用の拡張型（EntryWithJoin 等）
+
+utils/
+  format.ts                  フォーマットユーティリティ（通貨・日付）
 ```
 
 
@@ -490,7 +467,7 @@ providers/
   WorkflowProvider.tsx   currentWorkflow / ステップ移動メソッド群
 
 layouts/
-  MainLayout.tsx         レイアウトオーケストレーター（~45行）
+  MainLayout.tsx         レイアウトオーケストレーター
   Sidebar.tsx            サイドバー（展開/折りたたみ・ロールベース表示）
   NotificationBell.tsx   通知ベル（ポーリング・既読管理・ドロップダウン）
   AuthLayout.tsx         認証画面用レイアウト
@@ -515,7 +492,7 @@ layouts/
 ### 仕訳生成の戦略（3分岐）
 
 ```
-A. 明細分割対象（11種: 通帳・クレカ・給与明細等）
+A. 明細分割対象（通帳・クレカ・給与明細等）
    → extractMultipleEntries() で行ごとに分割
    → 各行ごとに下記 B or C で仕訳生成
 
@@ -532,7 +509,7 @@ C. AI 生成
    mapLinesToDBFormat()    科目名→UUID / 取引先名→UUID に変換
 ```
 
-### OCR 2段階パイプライン
+### OCRパイプライン（3段階）
 
 ```
 Step 1: 分類 (classifier.service)
@@ -542,33 +519,24 @@ Step 1: 分類 (classifier.service)
 
 Step 2: 抽出 (extractor.service)
   processOCR() → OCRResult（取引先・金額・日付・品目等）
-  → 仕訳生成 API に渡す
-```
 
-### 書類種別レジストリ（60種）
-
-```
-仕訳対象:     39種（single 25種 + statement 12種 + compound 2種）
-非仕訳対象:   21種（metadata 21種 + archive 1種）
-
-レイアウト:   5種（single / statement / compound / metadata / archive）
-明細分割対象: 11種（通帳・クレカ・ETC・電子マネー・経費精算書・
-              プラットフォームCSV・暗号資産・不動産・返済予定表・給与・売上集計）
+Step 3: 明細分割 (multi-extractor.service)  ※該当種別のみ
+  extractMultipleEntries() → 行ごとの取引に分割
 ```
 
 ### フロントエンド ↔ バックエンド通信
 
 ```
 フロント (React)                    バックエンド (Express)
-  backend.api.ts                     api/routes/crud/*.crud.ts
+  backend.api.ts                     api/routes/{domain}/*.ts
     clientsApi.getAll()  ──────→     GET /api/clients
     journalEntriesApi.create() ──→   POST /api/journal-entries
 
-  直接fetch                          api/routes/*.route.ts
+  直接fetch                          api/routes/document/
     POST /api/ocr/process  ────→     OCR処理 → Gemini Flash
     POST /api/journal-entries/generate → 仕訳生成 → Gemini Pro
 
-  supabase.client.ts（認証のみ）
+  supabase.ts（認証のみ）
     supabase.auth.signIn()           Supabase Auth（直接）
     supabase.storage.upload()        Supabase Storage（直接）
 ```
@@ -581,22 +549,18 @@ Step 2: 抽出 (extractor.service)
 
 ```
 types/
-  models.ts    全DBモデル型（30+ interface）
-               Organization, User, Client, AccountItem, TaxCategory,
-               Rule, Document, JournalEntry, JournalEntryLine,
-               Supplier, Workflow, Notification, FreeeConnection ...
-               OCR型（OCRResult, ClassificationResult, ExtractedLine）は
-               modules/ocr/ocr.types.ts から re-export
+  index.ts     型 re-export。@/types エイリアスで参照可能
 
-  enums.ts     NotificationType（8種の通知タイプ）
-
-  index.ts     上記の re-export。@/types エイリアスで参照可能
+errors/
+  app-errors.ts  構造化エラークラス（AppError / NotFoundError / ForbiddenError / ValidationError）
 
 utils/
-  normalize-japanese.ts
-    normalizeJapanese(text)
-    → 半角カナ→全角 / 全角英数→半角 / 法人格除去 / スペース統一
-    サーバー（取引先名寄せ）とクライアント（表示）の両方で使用
+  normalize-japanese.ts   日本語正規化（全角→半角、カタカナ→ひらがな、法人格除去）
+  csv-escape.ts           RFC 4180 準拠 CSV エスケープ
+  encryption.ts           AES-256-GCM トークン暗号化/復号
+  concurrent.ts           並行処理ユーティリティ
+  ttl-cache.ts            TTL付きキャッシュ
+  request-helpers.ts      リクエストヘルパー
 ```
 
 
@@ -654,10 +618,9 @@ startCommand: npm run start
 # 設計原則
 
 1. **フロントはバックエンドAPI経由** — `supabase.from()` を直接呼ばない（認証・ストレージを除く）
-2. **core/ は外部依存ゼロ** — 純粋関数のみ。テスト最優先
-3. **modules/ は相互依存しない** — OCRが壊れてもエクスポートは動く
-4. **adapters/ で外部を隔離** — SDK更新・API仕様変更はここだけで吸収
-5. **features/ は独立** — feature間の直接importは禁止、共通部品はshared/に
+2. **domain/ にビジネスロジック集約** — ルートハンドラは薄く、ロジックはドメイン層に
+3. **adapters/ で外部を隔離** — SDK更新・API仕様変更はここだけで吸収
+4. **features/ は独立** — feature間の直接importは禁止、共通部品はshared/に
 
 
 ---

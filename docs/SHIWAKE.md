@@ -83,7 +83,7 @@
 
 ### 分岐A/B/C: 仕訳対象 or 非仕訳対象
 
-**判定タイミング**: OCR Step 1 完了直後（`ocr.route.ts`）
+**判定タイミング**: OCR Step 1 完了直後（`domain/ocr/ocr-pipeline.service.ts`）
 
 **判定ロジック**:
 1. `classifyDocument()` で `document_type_code` を取得
@@ -114,7 +114,7 @@ requires_journal = true
 
 ### 分岐D/E: 明細分割 or 単一仕訳
 
-**判定タイミング**: 仕訳生成 API 呼び出し時（`journals.route.ts`）
+**判定タイミング**: 仕訳生成 API 呼び出し時（`domain/journal/journal-pipeline.service.ts`）
 
 **判定ロジック**:
 1. `document_types` テーブルの `processing_pattern` を取得
@@ -139,7 +139,7 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 
 ### 分岐: ルールマッチ or AI 生成
 
-**判定タイミング**: 単一仕訳モード内（`journals.route.ts`）
+**判定タイミング**: 単一仕訳モード内（`domain/journal/journal-pipeline.service.ts`）
 
 **判定ロジック**:
 1. `matchProcessingRulesWithCandidates()` でルール検索
@@ -379,7 +379,7 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 |-----------------|-----------------|---------|
 | `receipt_items` | ReceiptItemList | receipt |
 | `invoice_panel` | InvoicePanel | pdf_invoice, recv_invoice, invoice |
-| `withholding` | WithholdingPanel | payment_record, recv_invoice, invoice, payment_notice |
+| `withholding` | WithholdingPanel | payment_record, recv_invoice, invoice, payment_notice, payment_statement |
 | `transfer_fee` | TransferFeePanel | recv_invoice, invoice |
 | `payment_method` | PaymentMethodSelector | receipt |
 | `reconciliation` | ReconciliationPanel | issued_invoice, payment_record |
@@ -500,6 +500,7 @@ processing_pattern='statement_extract' OR docTypeCode in statementExtractTypes
 | `/clients/:id/upload` | UploadPage | ファイルアップロード |
 | `/clients/:id/ocr` | OCRPage | OCR分類 + データ抽出 + 仕訳生成 |
 | `/clients/:id/review` | ReviewPage | 仕訳確認・修正 |
+| `/clients/:id/export` | ExportPage | CSV / freee エクスポート |
 | `/clients/:id/excluded` | ExcludedPage | 除外された書類の閲覧・復元 |
 
 ---
@@ -523,3 +524,23 @@ uploaded ──→ ocr_processing ──→ ocr_completed ──→ ai_processin
 | `approved` | ユーザー承認後 | 承認済み |
 | `exported` | エクスポート後 | 出力済み |
 | `excluded` | 分岐Aまたは手動除外 | 仕訳対象外 |
+
+---
+
+## 10. バックエンド ファイル参照
+
+| 処理 | ファイル |
+|------|---------|
+| OCR パイプライン統合 | `domain/ocr/ocr-pipeline.service.ts` |
+| 書類分類 | `domain/ocr/classifier.service.ts` |
+| データ抽出 | `domain/ocr/extractor.service.ts` |
+| 明細分割 | `domain/ocr/multi-extractor.service.ts` |
+| 仕訳生成パイプライン | `domain/journal/journal-pipeline.service.ts` |
+| AI 仕訳生成 | `domain/journal/ai-generator.service.ts` |
+| ルールマッチング | `domain/rule-engine/matcher.service.ts` |
+| ルール → 仕訳構築 | `domain/journal/rule-generator.service.ts` |
+| 科目名→UUID変換 | `domain/journal/line-mapper.service.ts` |
+| OCR ルートハンドラ | `api/routes/document/document.ocr.ts` |
+| 仕訳生成ルートハンドラ | `api/routes/journal/journal.generate.ts` |
+| レイアウト振り分け | `web/features/workflow/layouts/LayoutDispatcher.tsx` |
+| 書類種別レジストリ | `web/features/workflow/doc-types/registry.ts` |
