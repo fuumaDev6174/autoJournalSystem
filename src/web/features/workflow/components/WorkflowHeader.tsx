@@ -44,7 +44,7 @@ export default function WorkflowHeader({ onBeforeNext, nextLabel = '次へ', sho
   const progressPercent = Math.round((completedCount / TOTAL_STEPS) * 100);
 
   return (
-    <div className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-30 -mx-6 -mt-6">
+    <div className="bg-white border-b border-gray-200 flex-shrink-0 sticky top-0 z-30 -mx-6">
       <div className="flex items-center px-3 py-1.5 gap-2">
         {/* 左: 前へ */}
         <button type="button" onClick={handlePrev} disabled={!canGoToPreviousStep()}

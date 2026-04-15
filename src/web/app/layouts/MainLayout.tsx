@@ -1,9 +1,8 @@
-/**
- * @module メインレイアウト
- */
+// メインレイアウト
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/web/app/providers/AuthProvider';
+import { useWorkflow } from '@/web/app/providers/WorkflowProvider';
 import NotificationBell from './NotificationBell';
 import Sidebar from './Sidebar';
 
@@ -14,6 +13,7 @@ interface LayoutProps {
 export default function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { userProfile } = useAuth();
+  const { currentWorkflow } = useWorkflow();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try { return localStorage.getItem('sidebar-collapsed') === 'true'; } catch { return false; }
   });
@@ -40,7 +40,7 @@ export default function Layout({ children }: LayoutProps) {
           <header className="h-12 bg-white border-b border-gray-200 flex items-center justify-end px-6 flex-shrink-0">
             <NotificationBell />
           </header>
-          <main className="flex-1 overflow-auto p-6">{children}</main>
+          <main className={`flex-1 overflow-auto px-6 pb-6 ${currentWorkflow ? 'pt-0' : 'pt-6'}`}>{children}</main>
         </div>
       </div>
     </div>
